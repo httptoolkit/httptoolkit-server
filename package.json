@@ -1,10 +1,22 @@
 {
   "name": "http-toolkit-server",
   "version": "0.0.1",
-  "author": "Tim Perry @pimterry",
+  "author": "Tim Perry <pimterry@gmail.com>",
+  "types": "lib/index.d.ts",
+  "main": "lib/index.js",
   "bin": {
     "htk-server": "./bin/run"
   },
+  "files": [
+    "/bin",
+    "/lib"
+  ],
+  "scripts": {
+    "prepack": "rm -rf lib && tsc -b",
+    "test": "echo NO TESTS"
+  },
+  "repository": "pimterry/http-toolkit-server",
+  "homepage": "https://github.com/pimterry/http-toolkit-server",
   "bugs": "https://github.com/pimterry/http-toolkit-server/issues",
   "dependencies": {
     "@oclif/command": "^1.5.4",
@@ -20,23 +32,11 @@
   "engines": {
     "node": ">=8.0.0"
   },
-  "files": [
-    "/bin",
-    "/lib"
-  ],
-  "homepage": "https://github.com/pimterry/http-toolkit-server",
   "keywords": [
     "http-toolkit"
   ],
   "license": "N/A",
-  "main": "lib/index.js",
   "oclif": {
     "bin": "htk-server"
-  },
-  "repository": "pimterry/http-toolkit-server",
-  "scripts": {
-    "prepack": "rm -rf lib && tsc -b",
-    "test": "echo NO TESTS"
-  },
-  "types": "lib/index.d.ts"
+  }
 }
