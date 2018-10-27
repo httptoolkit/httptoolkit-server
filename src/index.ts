@@ -1,21 +1,66 @@
-import { Command, flags } from '@oclif/command'
-import { runHTK } from './run-htk';
+import * as util from 'util';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as envPaths from 'env-paths';
+import { getStandalone, generateCACertificate } from 'mockttp';
 
-class HttpToolkitServer extends Command {
-    static description = 'run the HTTP Toolkit server'
+import { HttpToolkitServer } from './htk-server';
 
-    static flags = {
-        version: flags.version({char: 'v'}),
-        help: flags.help({char: 'h'}),
+const canAccess = util.promisify(fs.access);
+const mkDir = util.promisify(fs.mkdir);
+const writeFile = util.promisify(fs.writeFile);
 
-        config: flags.string({char: 'c', description: 'path in which to store config files'}),
-    }
+const ensureDirectoryExists = (path: string) =>
+    canAccess(path).catch(() => mkDir(path, { recursive: true }));
 
-    async run() {
-        const { flags } = this.parse(HttpToolkitServer);
+async function generateHTTPSConfig(configPath: string) {
+    const keyPath = path.join(configPath, 'ca.key');
+    const certPath = path.join(configPath, 'ca.pem');
 
-        await runHTK({ configPath: flags.config });
-    }
+    await Promise.all([
+        canAccess(keyPath, fs.constants.R_OK),
+        canAccess(certPath, fs.constants.R_OK)
+    ]).catch(() => {
+        const newCertPair = generateCACertificate({
+            commonName: 'HTTP Toolkit CA - DO NOT TRUST'
+        });
+
+        return Promise.all([
+            writeFile(keyPath, newCertPair.key),
+            writeFile(certPath, newCertPair.cert)
+        ]);
+    });
+
+    return {
+        keyPath,
+        certPath,
+        keyLength: 2048 // Reasonably secure keys please
+    };
 }
 
-export = HttpToolkitServer;
+export async function runHTK(options: {
+    configPath?: string
+}) {
+    const configPath = options.configPath || envPaths('httptoolkit', { suffix: '' }).config;
+
+    await ensureDirectoryExists(configPath);
+
+    const httpsConfig = await generateHTTPSConfig(configPath);
+
+    // Start a standalone server
+    const standalone = getStandalone({
+        serverDefaults: {
+            cors: false,
+            https: httpsConfig
+        }
+    });
+    standalone.start();
+
+    // Start a HTK server
+    const htkServer = new HttpToolkitServer({
+        configPath
+    });
+    await htkServer.start();
+
+    console.log('Server started');
+}

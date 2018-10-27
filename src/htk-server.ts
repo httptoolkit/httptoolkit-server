@@ -2,7 +2,8 @@ import * as _ from 'lodash';
 import { GraphQLServer } from 'graphql-yoga'
 import { GraphQLScalarType } from 'graphql';
 
-import { buildInterceptors } from './interceptors';
+import { HtkConfig } from './config';
+import { buildInterceptors, Interceptor } from './interceptors';
 
 const typeDefs = `
     type Query {
@@ -13,23 +14,28 @@ const typeDefs = `
     type Mutation {
         activateInterceptor(
             id: ID!,
+            proxyPort: Int!,
             options: Json
+        ): Boolean!
+        deactivateInterceptor(
+            id: ID!,
+            proxyPort: Int!
         ): Boolean!
     }
 
     type Interceptor {
         id: ID!
-        isActive: Boolean!
         version: String!
+
+        isActivable: Boolean!
+        isActive(proxyPort: Int!): Boolean!
     }
 
     scalar Json
     scalar Error
 `
 
-const buildResolvers = (configPath: string) => {
-    let interceptors = buildInterceptors(configPath);
-
+const buildResolvers = (interceptors: _.Dictionary<Interceptor>) => {
     return {
         Query: {
             version: async () => (await import('../package.json')).version,
@@ -37,8 +43,24 @@ const buildResolvers = (configPath: string) => {
         },
 
         Mutation: {
-            activateInterceptor: (__: void, args: _.Dictionary<any>) => {
+            activateInterceptor: async (__: void, args: _.Dictionary<any>) => {
+                const { id, proxyPort, options } = args;
+                await interceptors[id].activate(proxyPort, options);
+                return interceptors[id].isActive(proxyPort);
+            },
+            deactivateInterceptor: async (__: void, args: _.Dictionary<any>) => {
+                const { id, proxyPort, options } = args;
+                await interceptors[id].deactivate(proxyPort, options);
+                return !interceptors[id].isActive(proxyPort);
+            }
+        },
 
+        Interceptor: {
+            isActivable: (interceptor: Interceptor) => {
+                return interceptor.isActivable();
+            },
+            isActive: (interceptor: Interceptor, args: _.Dictionary<any>) => {
+                return interceptor.isActive(args.proxyPort);
             }
         },
 
@@ -75,10 +97,12 @@ export class HttpToolkitServer {
 
     private graphql: GraphQLServer;
 
-    constructor(options: { configPath: string }) {
+    constructor(config: HtkConfig) {
+        let interceptors = buildInterceptors(config);
+
         this.graphql = new GraphQLServer({
             typeDefs,
-            resolvers: buildResolvers(options.configPath)
+            resolvers: buildResolvers(interceptors)
         });
     }
 
