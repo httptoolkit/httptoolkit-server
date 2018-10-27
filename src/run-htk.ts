@@ -57,7 +57,7 @@ export async function runHTK(options: {
     standalone.start();
 
     // Start a HTK server
-    const htkServer = new HttpToolkitServer();
+    const htkServer = new HttpToolkitServer({ configPath });
     await htkServer.start();
 
     console.log('Server started');
