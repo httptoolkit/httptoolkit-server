@@ -32,6 +32,7 @@ function ensureCertificateIsInstalled() {
                 // Start trying to prompt the user to install the cert
                 if (!installingCert) {
                     installingCert = true;
+                    document.body.className = 'show-content';
                     const iframe = document.createElement('iframe');
                     iframe.src = downloadUrl;
                     document.body.appendChild(iframe);
@@ -69,6 +70,10 @@ export class CertCheckServer {
                         margin: 20px;
                         background-color: #d8e2e6;
                         font-family: Lato, Arial;
+                    }
+
+                    body:not(.show-content) > * {
+                        display: none;
                     }
 
                     h1 {
