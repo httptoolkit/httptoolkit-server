@@ -13,7 +13,7 @@
   ],
   "scripts": {
     "start": "./bin/run",
-    "prepack": "rm -rf lib && tsc -b",
+    "prepublishOnly": "rm -rf lib && tsc -b",
     "test": "mocha -r ts-node/register 'test/**/*.spec.ts'"
   },
   "repository": "httptoolkit/httptoolkit-server",
