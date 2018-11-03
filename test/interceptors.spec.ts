@@ -3,9 +3,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as tmp from 'tmp';
 import { expect } from 'chai';
-import { getLocal, CompletedRequest, generateCACertificate, Mockttp } from 'mockttp';
+import { getLocal, CompletedRequest, generateCACertificate } from 'mockttp';
 
-import { buildInterceptors, Interceptor } from '../src/interceptors';
+import { buildInterceptors } from '../src/interceptors';
 
 const configPath = tmp.dirSync({ unsafeCleanup: true }).name;
 
@@ -15,8 +15,8 @@ const newCertPair = generateCACertificate({ commonName: 'HTTP Toolkit CA - DO NO
 fs.writeFileSync(keyPath, newCertPair.key);
 fs.writeFileSync(certPath, newCertPair.cert);
 
-const server = getLocal({ https: { certPath, keyPath } });
-const interceptors = buildInterceptors({ configPath });
+const server = getLocal({ https: { certPath, keyPath }, debug: true });
+const interceptors = buildInterceptors({ configPath, https: { certPath, keyPath } });
 
 _.forEach(interceptors, (interceptor, name) =>
     describe(`${name} interceptor`, function () {
@@ -42,12 +42,18 @@ _.forEach(interceptors, (interceptor, name) =>
             expect(interceptor.isActive(server.port)).to.equal(false);
         });
 
-        it('successfully makes requests', async () => {
+        it('successfully makes requests', async function () {
+            // Firefox needs a manual acceptance of the cert to successfully make requests
+            if (name === 'fresh-firefox') {
+                await server.stop();
+                this.skip();
+            }
+
             await server.anyRequest().thenPassThrough();
 
             const exampleRequestReceived = new Promise<CompletedRequest>((resolve) =>
                 server.on('request', (req) => {
-                    if (req.url.startsWith('https://example.com')) {
+                    if (req.url.startsWith('https://amiusing.httptoolkit.tech')) {
                         resolve(req);
                     }
                 })
@@ -55,7 +61,7 @@ _.forEach(interceptors, (interceptor, name) =>
 
             await interceptor.activate(server.port);
 
-            // Only resolves if example.com request is sent successfully
+            // Only resolves if amiusing request is sent successfully
             await exampleRequestReceived;
         });
     })

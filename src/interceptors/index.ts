@@ -3,6 +3,7 @@ import * as _ from 'lodash';
 import { HtkConfig } from '../config';
 
 import { FreshChrome } from './fresh-chrome';
+import { FreshFirefox } from './fresh-firefox';
 
 export interface Interceptor {
     id: string;
@@ -17,6 +18,7 @@ export interface Interceptor {
 
 export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> {
     return _.keyBy([
-        new FreshChrome(config)
+        new FreshChrome(config),
+        new FreshFirefox(config)
     ], (interceptor) => interceptor.id);
 }

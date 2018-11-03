@@ -15,6 +15,7 @@ declare module '@james-proxy/james-browser-launcher' {
             detached?: boolean;
             noProxy?: string | string[];
             headless?: boolean;
+            prefs?: { [key: string]: any };
         }
 
         function Launch(

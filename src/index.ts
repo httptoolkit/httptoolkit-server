@@ -22,7 +22,7 @@ async function generateHTTPSConfig(configPath: string) {
         canAccess(certPath, fs.constants.R_OK)
     ]).catch(() => {
         const newCertPair = generateCACertificate({
-            commonName: 'HTTP Toolkit CA - DO NOT TRUST'
+            commonName: 'HTTP Toolkit CA'
         });
 
         return Promise.all([
@@ -58,7 +58,8 @@ export async function runHTK(options: {
 
     // Start a HTK server
     const htkServer = new HttpToolkitServer({
-        configPath
+        configPath,
+        https: httpsConfig
     });
     await htkServer.start();
 

@@ -38,7 +38,7 @@ export class FreshChrome {
         const certificatePem = await readFile(path.join(this.config.configPath, 'ca.pem'), 'utf8');
         const spkiFingerprint = generateSPKIFingerprint(certificatePem);
 
-        const browser = await launchBrowser('https://example.com', {
+        const browser = await launchBrowser('https://amiusing.httptoolkit.tech', {
             browser: 'chrome',
             proxy: `https://localhost:${proxyPort}`,
             options: [
