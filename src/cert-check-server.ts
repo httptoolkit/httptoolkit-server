@@ -17,14 +17,19 @@ let installingCert: boolean;
 function ensureCertificateIsInstalled() {
     const testUrl = window.location.href.replace('http://', 'https://').replace('check-cert', 'test-https');
     const downloadUrl = window.location.href.replace('check-cert', 'download-cert');
+    const reportSuccessUrl = window.location.href.replace('check-cert', 'report-success');
 
     fetch(testUrl)
         .then(() => true)
         .catch(() => false)
         .then((certificateIsTrusted) => {
             if (certificateIsTrusted) {
-                window.location.replace(targetUrl);
+                // Report success (ignoring errors) then continue.
+                fetch(reportSuccessUrl).catch(() => {}).then(() => {
+                    window.location.replace(targetUrl);
+                });
             } else {
+                // Start trying to prompt the user to install the cert
                 if (!installingCert) {
                     installingCert = true;
                     const iframe = document.createElement('iframe');
@@ -134,6 +139,15 @@ export class CertCheckServer {
         return this.server!.url
             .replace('https://', 'http://')
             .replace(/\/?$/, '/check-cert');
+    }
+
+    async waitForSuccess(): Promise<void> {
+        return new Promise<void>((resolve) =>
+            this.server!.get('/report-success').thenCallback(() => {
+                resolve();
+                return { status: 200 };
+            })
+        );
     }
 
     async stop() {

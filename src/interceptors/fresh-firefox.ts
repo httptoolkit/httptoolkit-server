@@ -1,9 +1,14 @@
+import { promisify } from 'util';
 import * as _ from 'lodash';
+import * as rimraf from 'rimraf';
+import * as path from 'path';
 
 import { HtkConfig } from '../config';
 
 import { getAvailableBrowsers, launchBrowser, BrowserInstance } from '../browsers';
 import { CertCheckServer } from '../cert-check-server';
+
+const deleteFolder = promisify(rimraf);
 
 let browsers: _.Dictionary<BrowserInstance> = {};
 
@@ -32,11 +37,11 @@ export class FreshFirefox {
         const certCheckServer = new CertCheckServer(this.config);
         await certCheckServer.start('https://amiusing.httptoolkit.tech');
 
-        // TODO: Change james launcher so I can pass a profile here,
-        // so things persist across launches. Permanently? Yes, probably.
+        const firefoxProfile = path.join(this.config.configPath, 'firefox-profile');
 
         const browser = await launchBrowser(certCheckServer.checkCertUrl, {
             browser: 'firefox',
+            profile: firefoxProfile,
             proxy: `localhost:${proxyPort}`,
             // Don't intercept our cert testing requests
             noProxy: certCheckServer.host,
@@ -60,8 +65,6 @@ export class FreshFirefox {
                 "browser.tabs.warnOnClose": false,
                 "browser.tabs.warnOnCloseOtherTabs": false,
 
-                // Disable 'new FF available' messages
-
                 // Disable various first-run things:
                 "browser.uitour.enabled": false,
                 'browser.usedOnWindows10': true,
@@ -75,10 +78,18 @@ export class FreshFirefox {
             }
         }, this.config.configPath);
 
+        let success = false;
+        certCheckServer.waitForSuccess().then(() => {
+            success = true;
+        }).catch(console.warn);
+
         browsers[proxyPort] = browser;
         browser.process.once('exit', () => {
             certCheckServer.stop();
             delete browsers[proxyPort];
+            if (!success) {
+                deleteFolder(firefoxProfile).catch(console.warn);
+            }
         });
     }
 
