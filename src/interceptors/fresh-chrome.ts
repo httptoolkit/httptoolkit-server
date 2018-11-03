@@ -8,6 +8,7 @@ import { generateSPKIFingerprint } from 'mockttp';
 import { HtkConfig } from '../config';
 
 import { getAvailableBrowsers, launchBrowser, BrowserInstance } from '../browsers';
+import { delay } from '../util';
 
 const readFile = promisify(fs.readFile);
 
@@ -50,6 +51,9 @@ export class FreshChrome {
         browser.process.once('exit', () => {
             delete browsers[proxyPort];
         });
+
+        // Delay the approx amount of time it normally takes Chrome to really open
+        await delay(500);
     }
 
     async deactivate(proxyPort: number) {

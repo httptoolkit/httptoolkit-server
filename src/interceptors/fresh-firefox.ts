@@ -7,6 +7,7 @@ import { HtkConfig } from '../config';
 
 import { getAvailableBrowsers, launchBrowser, BrowserInstance } from '../browsers';
 import { CertCheckServer } from '../cert-check-server';
+import { delay } from '../util';
 
 const deleteFolder = promisify(rimraf);
 
@@ -91,6 +92,9 @@ export class FreshFirefox {
                 deleteFolder(firefoxProfile).catch(console.warn);
             }
         });
+
+        // Delay the approx amount of time it normally takes Firefox to really open
+        await delay(1000);
     }
 
     async deactivate(proxyPort: number) {
