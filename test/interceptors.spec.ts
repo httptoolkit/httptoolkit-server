@@ -7,62 +7,56 @@ import { getLocal, CompletedRequest, generateCACertificate, Mockttp } from 'mock
 
 import { buildInterceptors, Interceptor } from '../src/interceptors';
 
-describe('Fresh chrome interceptor', () => {
+const configPath = tmp.dirSync({ unsafeCleanup: true }).name;
 
-    let server: Mockttp;
-    let freshChrome: Interceptor;
+const keyPath = path.join(configPath, 'ca.key');
+const certPath = path.join(configPath, 'ca.pem');
+const newCertPair = generateCACertificate({ commonName: 'HTTP Toolkit CA - DO NOT TRUST' });
+fs.writeFileSync(keyPath, newCertPair.key);
+fs.writeFileSync(certPath, newCertPair.cert);
 
-    before(function () {
-        this.timeout(10000);
+const server = getLocal({ https: { certPath, keyPath } });
+const interceptors = buildInterceptors({ configPath });
 
-        const configPath = tmp.dirSync({ unsafeCleanup: true }).name;
+_.forEach(interceptors, (interceptor, name) =>
+    describe(`${name} interceptor`, function () {
 
-        const keyPath = path.join(configPath, 'ca.key');
-        const certPath = path.join(configPath, 'ca.pem');
-        const newCertPair = generateCACertificate({ commonName: 'HTTP Toolkit CA - DO NOT TRUST' });
-        fs.writeFileSync(keyPath, newCertPair.key);
-        fs.writeFileSync(certPath, newCertPair.cert);
+        beforeEach(() => server.start());
+        afterEach(async () => {
+            await interceptor.deactivate(server.port);
+            await server.stop();
+        });
 
-        server = getLocal({ https: { certPath, keyPath } });
-        const interceptors = buildInterceptors({ configPath });
-        freshChrome = interceptors['fresh-chrome']
-    });
+        it('is available', async () => {
+            expect(await interceptor.isActivable()).to.equal(true);
+        });
 
-    beforeEach(() => server.start());
-    afterEach(async () => {
-        await freshChrome.deactivate(server.port);
-        await server.stop();
-    });
+        it('can be activated', async () => {
+            expect(interceptor.isActive(server.port)).to.equal(false);
 
-    it('is available', async () => {
-        expect(await freshChrome.isActivable()).to.equal(true);
-    });
+            await interceptor.activate(server.port);
+            expect(interceptor.isActive(server.port)).to.equal(true);
+            expect(interceptor.isActive(server.port + 1)).to.equal(false);
 
-    it('can be activated', async () => {
-        expect(freshChrome.isActive(server.port)).to.equal(false);
+            await interceptor.deactivate(server.port);
+            expect(interceptor.isActive(server.port)).to.equal(false);
+        });
 
-        await freshChrome.activate(server.port);
-        expect(freshChrome.isActive(server.port)).to.equal(true);
-        expect(freshChrome.isActive(server.port + 1)).to.equal(false);
+        it('successfully makes requests', async () => {
+            await server.anyRequest().thenPassThrough();
 
-        await freshChrome.deactivate(server.port);
-        expect(freshChrome.isActive(server.port)).to.equal(false);
-    });
+            const exampleRequestReceived = new Promise<CompletedRequest>((resolve) =>
+                server.on('request', (req) => {
+                    if (req.url.startsWith('https://example.com')) {
+                        resolve(req);
+                    }
+                })
+            );
 
-    it('successfully makes requests', async () => {
-        await server.anyRequest().thenPassThrough();
+            await interceptor.activate(server.port);
 
-        const exampleRequestReceived = new Promise<CompletedRequest>((resolve) =>
-            server.on('request', (req) => {
-                if (req.url.startsWith('https://example.com')) {
-                    resolve(req);
-                }
-            })
-        );
-
-        await freshChrome.activate(server.port);
-
-        // Only resolves if example.com request is sent successfully
-        await exampleRequestReceived;
-    });
-});
+            // Only resolves if example.com request is sent successfully
+            await exampleRequestReceived;
+        });
+    })
+);
