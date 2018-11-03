@@ -29,7 +29,7 @@
     "env-paths": "^1.0.0",
     "graphql-yoga": "^1.16.7",
     "lodash": "^4.17.11",
-    "mockttp": "^0.10.1",
+    "mockttp": "^0.11.0",
     "tslib": "^1.9.3"
   },
   "devDependencies": {
