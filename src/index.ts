@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as envPaths from 'env-paths';
 import { getStandalone, generateCACertificate } from 'mockttp';
 
-import { HttpToolkitServer } from './htk-server';
+import { HttpToolkitServer } from './httptoolkit-server';
 
 const canAccess = util.promisify(fs.access);
 const mkDir = util.promisify(fs.mkdir);

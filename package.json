@@ -5,7 +5,7 @@
   "types": "lib/index.d.ts",
   "main": "lib/index.js",
   "bin": {
-    "htk-server": "./bin/run"
+    "httptoolkit-server": "./bin/run"
   },
   "files": [
     "/bin",
@@ -58,6 +58,6 @@
   ],
   "license": "Apache-2.0",
   "oclif": {
-    "bin": "htk-server"
+    "bin": "httptoolkit-server"
   }
 }
