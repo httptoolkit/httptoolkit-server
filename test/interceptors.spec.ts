@@ -15,7 +15,7 @@ const newCertPair = generateCACertificate({ commonName: 'HTTP Toolkit CA - DO NO
 fs.writeFileSync(keyPath, newCertPair.key);
 fs.writeFileSync(certPath, newCertPair.cert);
 
-const server = getLocal({ https: { certPath, keyPath }, debug: true });
+const server = getLocal({ https: { certPath, keyPath } });
 const interceptors = buildInterceptors({ configPath, https: { certPath, keyPath } });
 
 _.forEach(interceptors, (interceptor, name) =>

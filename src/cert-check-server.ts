@@ -49,7 +49,7 @@ export class CertCheckServer {
     private server: Mockttp | undefined;
 
     async start(targetUrl: string) {
-        this.server = getLocal({ https: this.config.https, debug: true, cors: true });
+        this.server = getLocal({ https: this.config.https, cors: true });
         await this.server.start();
 
         const certificatePem = await readFile(this.config.https.certPath);
