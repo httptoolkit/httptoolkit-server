@@ -3,11 +3,11 @@
         "declaration": true,
         "importHelpers": true,
         "module": "commonjs",
+        "rootDir": "src",
         "outDir": "lib",
         "strict": true,
         "target": "es2017",
         "composite": true,
-        "resolveJsonModule": true,
         "typeRoots" : [
             "./node_modules/@types",
             "./custom-typings"
@@ -15,6 +15,6 @@
     },
     "include": [
         "src/**/*",
-        "custom-typings/**/*.d.ts",
+        "custom-typings/**/*.d.ts"
     ]
 }
