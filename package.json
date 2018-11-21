@@ -27,7 +27,7 @@
     "env-paths": "^1.0.0",
     "graphql-yoga": "^1.16.7",
     "lodash": "^4.17.11",
-    "mockttp": "^0.11.0",
+    "mockttp": "^0.12.2",
     "rimraf": "^2.6.2",
     "tslib": "^1.9.3"
   },
