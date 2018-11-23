@@ -9,6 +9,7 @@ import { HtkConfig } from '../config';
 
 import { getAvailableBrowsers, launchBrowser, BrowserInstance } from '../browsers';
 import { delay } from '../util';
+import { HideChromeWarningServer } from '../hide-chrome-warning-server';
 
 const readFile = promisify(fs.readFile);
 
@@ -39,13 +40,19 @@ export class FreshChrome {
         const certificatePem = await readFile(path.join(this.config.configPath, 'ca.pem'), 'utf8');
         const spkiFingerprint = generateSPKIFingerprint(certificatePem);
 
-        const browser = await launchBrowser('https://amiusing.httptoolkit.tech', {
+        const hideWarningServer = new HideChromeWarningServer();
+        await hideWarningServer.start('https://amiusing.httptoolkit.tech');
+
+        const browser = await launchBrowser(hideWarningServer.hideWarningUrl, {
             browser: 'chrome',
             proxy: `https://localhost:${proxyPort}`,
             options: [
                 `--ignore-certificate-errors-spki-list=${spkiFingerprint}`
             ]
         }, this.config.configPath);
+
+        await hideWarningServer.completedPromise;
+        await hideWarningServer.stop();
 
         browsers[proxyPort] = browser;
         browser.process.once('exit', () => {

@@ -21,7 +21,11 @@ const interceptors = buildInterceptors({ configPath, https: { certPath, keyPath 
 _.forEach(interceptors, (interceptor, name) =>
     describe(`${name} interceptor`, function () {
 
-        beforeEach(() => server.start());
+        beforeEach(async () => {
+            await server.start();
+            await server.anyRequest().thenPassThrough();
+        });
+
         afterEach(async () => {
             await interceptor.deactivate(server.port);
             await server.stop();
@@ -48,8 +52,6 @@ _.forEach(interceptors, (interceptor, name) =>
                 await server.stop();
                 this.skip();
             }
-
-            await server.anyRequest().thenPassThrough();
 
             const exampleRequestReceived = new Promise<CompletedRequest>((resolve) =>
                 server.on('request', (req) => {
