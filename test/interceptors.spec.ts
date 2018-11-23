@@ -20,6 +20,7 @@ const interceptors = buildInterceptors({ configPath, https: { certPath, keyPath 
 
 _.forEach(interceptors, (interceptor, name) =>
     describe(`${name} interceptor`, function () {
+        this.timeout(5000);
 
         beforeEach(async () => {
             await server.start();
