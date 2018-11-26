@@ -8,6 +8,7 @@
     "httptoolkit-server": "./bin/run"
   },
   "files": [
+    "oclif.manifest.json",
     "/bin",
     "/lib"
   ],
@@ -15,7 +16,7 @@
     "start": "./bin/run",
     "build": "npm run build:src && npm run build:pack",
     "build:src": "rm -rf lib && tsc -b",
-    "build:pack": "oclif-dev pack",
+    "build:pack": "oclif-dev manifest && oclif-dev pack",
     "prepack": "npm run build:src",
     "test": "mocha -r ts-node/register 'test/**/*.spec.ts'"
   },
