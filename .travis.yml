@@ -4,6 +4,8 @@ node_js:
 - node
 - '10'
 - '8'
+before_install:
+- sudo apt-get install p7zip-full
 install:
 - npm install --global npm@4
 - npm install
