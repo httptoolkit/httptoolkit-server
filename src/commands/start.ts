@@ -1,8 +1,8 @@
 import { Command, flags } from '@oclif/command'
-import { runHTK } from './index';
+import { runHTK } from '../index';
 
 class HttpToolkitServer extends Command {
-    static description = 'run the HTTP Toolkit server'
+    static description = 'start the HTTP Toolkit server'
 
     static flags = {
         version: flags.version({char: 'v'}),
