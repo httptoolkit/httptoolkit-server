@@ -5,6 +5,8 @@ import { GraphQLScalarType } from 'graphql';
 import { HtkConfig } from './config';
 import { buildInterceptors, Interceptor } from './interceptors';
 
+const packageJson = require('../package.json');
+
 const typeDefs = `
     type Query {
         version: String!
@@ -38,7 +40,7 @@ const typeDefs = `
 const buildResolvers = (interceptors: _.Dictionary<Interceptor>) => {
     return {
         Query: {
-            version: async () => (await import('../package.json')).version,
+            version: () => packageJson.version,
             interceptors: () => _.values(interceptors),
         },
 
