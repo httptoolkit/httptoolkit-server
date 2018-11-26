@@ -18,3 +18,13 @@ script:
 addons:
   chrome: stable
   firefox: latest
+deploy:
+  provider: releases
+  api_key:
+    secure: BS5tc2PhyIKsw048EG8TxT5HB/EymS8javixTzdpo18+f0BngDfHaTGD9DrXOzepv+4amTdzy0j7K9TdepejMuRDbg+Z3+8IkD0BefqvnnmZZv4ZQFiIdv5VXsAfS9vj0QOOAAwA/oz9rVdA9BEIN/8MNAXClSUT66ciaHLcBq6sr1N9ZEdqaDSYs8UiBEwA7Qnk6Q2/9EuGGozMNrOH5hlyiP0eKtjn4q/PemdBzemGx5KNWFr5zVVYy8kaMB/ELboOUB0AufaOyexsGWJdXSJwOdWUTYWqKsGGXXzdjcW/AT+8tGr968WNmGvg/d2SI2mIbJKrHVk8lc3tbyVfxngUbpZnHMmqtf3JSgTKeIeBMUlrVsh0gUiOU4yYkK2jITqsliREtrZ/ik9QEkw2VXh90A+iUBzeDhHACvPpA8JlPwwtFWu34zdHOyXk/3kVUDINQkVorQ2txwa2yc68a4nbptprHKUqafG0qw8TIViY16T8cZLm0QYJ9hLI1grBR8D9YpqJysSZcJrhUi/GWppzOZm5X0nxd0zvhG1KbmtIc9UgfoUA8rA2srmR9LEhptmWHCVzOeb1WEovm6cV6iKKUnq9jmbYSJPUuiDQPrUeSSGZneRb9rwHXh6Hg2rTo7R3l97/DPPTNF+q0k+qQrXqPvWZk837VmIVaSiMc/8=
+  file_glob: true
+  file: dist/httptoolkit-server-*/*
+  skip_cleanup: true
+  on:
+    repo: httptoolkit/httptoolkit-server
+    tags: true

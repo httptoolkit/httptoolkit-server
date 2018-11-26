@@ -13,8 +13,10 @@
   ],
   "scripts": {
     "start": "./bin/run",
-    "build": "rm -rf lib && tsc -b",
-    "prepack": "npm run build",
+    "build": "npm run build:src && npm run build:pack",
+    "build:src": "rm -rf lib && tsc -b",
+    "build:pack": "oclif-dev pack",
+    "prepack": "npm run build:src",
     "test": "mocha -r ts-node/register 'test/**/*.spec.ts'"
   },
   "repository": "httptoolkit/httptoolkit-server",
@@ -33,6 +35,7 @@
     "tslib": "^1.9.3"
   },
   "devDependencies": {
+    "@oclif/dev-cli": "^1.19.4",
     "@types/aws-lambda": "^8.10.15",
     "@types/chai": "^4.1.6",
     "@types/env-paths": "^1.0.2",
