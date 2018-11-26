@@ -66,6 +66,31 @@
   ],
   "license": "Apache-2.0",
   "oclif": {
-    "bin": "httptoolkit-server"
+    "bin": "httptoolkit-server",
+    "update": {
+      "s3": {
+        "host": "https://github.com/httptoolkit/httptoolkit-server/releases/download/v0.0.3/",
+        "templates": {
+          "target": {
+            "versioned": "<%- channel === 'stable' ? '' : channel + '-' %><%- bin %>-v<%- version %>-<%- platform %>-<%- arch %><%- ext %>",
+            "manifest": "<%- channel === 'stable' ? '' : channel + '-' %><%- platform %>-<%- arch %>"
+          },
+          "vanilla": {
+            "versioned": "<%- channel === 'stable' ? '' : channel + '-' %><%- bin %>-v<%- version %><%- ext %>",
+            "manifest": "<%- channel === 'stable' ? '' : channel + '-' %>version"
+          }
+        }
+      },
+      "node": {
+        "version": "10.0.0",
+        "targets": [
+          "win32-x64",
+          "win32-x86",
+          "linux-x64",
+          "linux-arm",
+          "darwin-x64"
+        ]
+      }
+    }
   }
 }
