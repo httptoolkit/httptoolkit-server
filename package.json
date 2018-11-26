@@ -75,15 +75,15 @@
     ],
     "update": {
       "s3": {
-        "host": "https://github.com/httptoolkit/httptoolkit-server/releases/download/v0.0.3/",
+        "host": "https://github.com/httptoolkit/httptoolkit-server/releases/download/",
         "templates": {
           "target": {
-            "versioned": "<%- channel === 'stable' ? '' : channel + '-' %><%- bin %>-v<%- version %>-<%- platform %>-<%- arch %><%- ext %>",
-            "manifest": "<%- channel === 'stable' ? '' : channel + '-' %><%- platform %>-<%- arch %>"
+            "versioned": "v<%- version %>/<%- channel === 'stable' ? '' : channel + '-' %><%- bin %>-v<%- version %>-<%- platform %>-<%- arch %><%- ext %>",
+            "manifest": "latest-manifest/<%- channel === 'stable' ? '' : channel + '-' %><%- platform %>-<%- arch %>"
           },
           "vanilla": {
-            "versioned": "<%- channel === 'stable' ? '' : channel + '-' %><%- bin %>-v<%- version %><%- ext %>",
-            "manifest": "<%- channel === 'stable' ? '' : channel + '-' %>version"
+            "versioned": "v<%- version %>/<%- channel === 'stable' ? '' : channel + '-' %><%- bin %>-v<%- version %><%- ext %>",
+            "manifest": "latest-manifest/<%- channel === 'stable' ? '' : channel + '-' %>version"
           }
         }
       },

@@ -16,26 +16,51 @@ before_script:
 - sh -e /etc/init.d/xvfb start
 script:
 - npm test
-- npm run build
+- npm run build:src
 addons:
   chrome: stable
   firefox: latest
-deploy:
-- provider: releases
-  api_key:
-    secure: BS5tc2PhyIKsw048EG8TxT5HB/EymS8javixTzdpo18+f0BngDfHaTGD9DrXOzepv+4amTdzy0j7K9TdepejMuRDbg+Z3+8IkD0BefqvnnmZZv4ZQFiIdv5VXsAfS9vj0QOOAAwA/oz9rVdA9BEIN/8MNAXClSUT66ciaHLcBq6sr1N9ZEdqaDSYs8UiBEwA7Qnk6Q2/9EuGGozMNrOH5hlyiP0eKtjn4q/PemdBzemGx5KNWFr5zVVYy8kaMB/ELboOUB0AufaOyexsGWJdXSJwOdWUTYWqKsGGXXzdjcW/AT+8tGr968WNmGvg/d2SI2mIbJKrHVk8lc3tbyVfxngUbpZnHMmqtf3JSgTKeIeBMUlrVsh0gUiOU4yYkK2jITqsliREtrZ/ik9QEkw2VXh90A+iUBzeDhHACvPpA8JlPwwtFWu34zdHOyXk/3kVUDINQkVorQ2txwa2yc68a4nbptprHKUqafG0qw8TIViY16T8cZLm0QYJ9hLI1grBR8D9YpqJysSZcJrhUi/GWppzOZm5X0nxd0zvhG1KbmtIc9UgfoUA8rA2srmR9LEhptmWHCVzOeb1WEovm6cV6iKKUnq9jmbYSJPUuiDQPrUeSSGZneRb9rwHXh6Hg2rTo7R3l97/DPPTNF+q0k+qQrXqPvWZk837VmIVaSiMc/8=
-  file_glob: true
-  file: dist/*
-  skip_cleanup: true
-  on:
-    repo: httptoolkit/httptoolkit-server
-    tags: true
-- provider: npm
-  email: pimterry@gmail.com
-  api_key:
-    secure: cIvp9rBChGI7xv0VaVuk/u/gqRSrzSggVUK8k52JkW6Xw9197Fm6z1v0+0k/a/SGgb21EQeNexUQ71V1Q85+01BV8PPR+flNVGwfkXUvQGUOFeWPflUt/NnSMSBpysNGHdE8urh/sPTHa6FTTfJBF3STCF9nrbOzdEJTvXIDxq8UqGihKAkhSohowr+Wyf3X3g1YpqSsR7lZ8YiNiStrwi5buuz54XxQ6kc7vCV6Nwoe0WjlHXBsMdzHtYCYpq+c7kgyOtgOc2Wc2qmurKSLYfS3o32/eGJsVs14VLX18EWneRwhMs+HEr8gy+hZdglTQ5HvOFo2c7KhDhtE8a7TVzGzXit8PvH2bIxW+UTl+0L96NfsY8ztkJubR4Z7/pmlvjxFG6Oz/2Y1aaan/XLs0/gAmLZ4YlRft6UAn/TxjLRp27uIrKwTOkAeEXx3nB2VRuxdR5OjnZfUG98sgwHKJqElCBqMvR9oVsVN0tcongyI83v8YW21868IL1R8+Wcs+/vG2nqumlVsqP2vAt6/t20R9LNoQ5AG3ERRLeGpogac4A5XYnucluvGJ0cVEdUKdtdODJ1DTBEBQQMGPpb+n5//QN3Rny1RVORh+/lT6N7RcxOLmS2AUpdY6MVvc1of5L7PsBtokSq5M2IdDtWRQekvYKHJ9KTTr58/oafuyN8=
-  skip_cleanup: true
-  on:
-    repo: httptoolkit/httptoolkit-server
-    tags: true
 
+jobs:
+  include:
+    - stage: Release prebuilt binaries
+      node_js: '10'
+      echo: 'Deploying prebuilt binaries...'
+      script: npm run build
+      before_deploy:
+        - |
+          echo "Travis tag was $TRAVIS_TAG"
+
+          if ! [[ $DEPLOY_STEP ]]; then
+            export DEPLOY_STEP=1
+            echo 'About to deploy new tag'
+          else
+            # About to deploy latest-manifest
+            export DEPLOY_STEP=2
+            echo 'About to deploy manifest update'
+            export TRAVIS_TAG=latest-manifest
+          fi
+
+          echo "Travis tag is $TRAVIS_TAG"
+      deploy:
+        - provider: releases
+          api_key:
+            secure: BS5tc2PhyIKsw048EG8TxT5HB/EymS8javixTzdpo18+f0BngDfHaTGD9DrXOzepv+4amTdzy0j7K9TdepejMuRDbg+Z3+8IkD0BefqvnnmZZv4ZQFiIdv5VXsAfS9vj0QOOAAwA/oz9rVdA9BEIN/8MNAXClSUT66ciaHLcBq6sr1N9ZEdqaDSYs8UiBEwA7Qnk6Q2/9EuGGozMNrOH5hlyiP0eKtjn4q/PemdBzemGx5KNWFr5zVVYy8kaMB/ELboOUB0AufaOyexsGWJdXSJwOdWUTYWqKsGGXXzdjcW/AT+8tGr968WNmGvg/d2SI2mIbJKrHVk8lc3tbyVfxngUbpZnHMmqtf3JSgTKeIeBMUlrVsh0gUiOU4yYkK2jITqsliREtrZ/ik9QEkw2VXh90A+iUBzeDhHACvPpA8JlPwwtFWu34zdHOyXk/3kVUDINQkVorQ2txwa2yc68a4nbptprHKUqafG0qw8TIViY16T8cZLm0QYJ9hLI1grBR8D9YpqJysSZcJrhUi/GWppzOZm5X0nxd0zvhG1KbmtIc9UgfoUA8rA2srmR9LEhptmWHCVzOeb1WEovm6cV6iKKUnq9jmbYSJPUuiDQPrUeSSGZneRb9rwHXh6Hg2rTo7R3l97/DPPTNF+q0k+qQrXqPvWZk837VmIVaSiMc/8=
+          file_glob: true
+          tag_name: $TRAVIS_TAG
+          file: dist/v*/*
+          skip_cleanup: true
+          on:
+            repo: httptoolkit/httptoolkit-server
+            tags: true
+        - provider: releases
+          api_key:
+            secure: BS5tc2PhyIKsw048EG8TxT5HB/EymS8javixTzdpo18+f0BngDfHaTGD9DrXOzepv+4amTdzy0j7K9TdepejMuRDbg+Z3+8IkD0BefqvnnmZZv4ZQFiIdv5VXsAfS9vj0QOOAAwA/oz9rVdA9BEIN/8MNAXClSUT66ciaHLcBq6sr1N9ZEdqaDSYs8UiBEwA7Qnk6Q2/9EuGGozMNrOH5hlyiP0eKtjn4q/PemdBzemGx5KNWFr5zVVYy8kaMB/ELboOUB0AufaOyexsGWJdXSJwOdWUTYWqKsGGXXzdjcW/AT+8tGr968WNmGvg/d2SI2mIbJKrHVk8lc3tbyVfxngUbpZnHMmqtf3JSgTKeIeBMUlrVsh0gUiOU4yYkK2jITqsliREtrZ/ik9QEkw2VXh90A+iUBzeDhHACvPpA8JlPwwtFWu34zdHOyXk/3kVUDINQkVorQ2txwa2yc68a4nbptprHKUqafG0qw8TIViY16T8cZLm0QYJ9hLI1grBR8D9YpqJysSZcJrhUi/GWppzOZm5X0nxd0zvhG1KbmtIc9UgfoUA8rA2srmR9LEhptmWHCVzOeb1WEovm6cV6iKKUnq9jmbYSJPUuiDQPrUeSSGZneRb9rwHXh6Hg2rTo7R3l97/DPPTNF+q0k+qQrXqPvWZk837VmIVaSiMc/8=
+          file_glob: true
+          tag_name: latest-manifest # Fixed release, updated with the latest manifests each time
+          overwrite: true
+          file: dist/latest-manifest/*
+          skip_cleanup: true
+          on:
+            repo: httptoolkit/httptoolkit-server
+            tags: true
