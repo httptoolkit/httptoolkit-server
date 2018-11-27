@@ -17,7 +17,7 @@
     "build": "npm run build:src && npm run build:pack",
     "build:src": "rm -rf lib && tsc -b",
     "build:pack": "oclif-dev manifest && oclif-dev pack",
-    "prepack": "npm run build:src",
+    "prepack": "npm run build:src && oclif-dev manifest",
     "test": "mocha -r ts-node/register 'test/**/*.spec.ts'"
   },
   "repository": "httptoolkit/httptoolkit-server",
