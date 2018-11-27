@@ -13,7 +13,7 @@
     "/lib"
   ],
   "scripts": {
-    "start": "./bin/run",
+    "start": "./bin/run start",
     "build": "npm run build:src && npm run build:pack",
     "build:src": "rm -rf lib && tsc -b",
     "build:pack": "oclif-dev manifest && oclif-dev pack",
