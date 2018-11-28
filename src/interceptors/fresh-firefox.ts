@@ -1,4 +1,5 @@
 import { promisify } from 'util';
+import * as fs from 'fs';
 import * as _ from 'lodash';
 import * as rimraf from 'rimraf';
 import * as path from 'path';
@@ -10,6 +11,13 @@ import { CertCheckServer } from '../cert-check-server';
 import { delay } from '../util';
 
 const deleteFolder = promisify(rimraf);
+const readFile = promisify(fs.readFile);
+const canAccess = (path: string) =>
+    new Promise((resolve) => {
+        fs.access(path, (error: Error | null) => resolve(!error));
+    });
+
+const FIREFOX_PREF_REGEX = /\w+_pref\("([^"]+)", (.*)\);/
 
 let browsers: _.Dictionary<BrowserInstance> = {};
 
@@ -40,13 +48,34 @@ export class FreshFirefox {
 
         const firefoxProfile = path.join(this.config.configPath, 'firefox-profile');
 
+        let existingPrefs: _.Dictionary<any> = {}
+
+        if (await canAccess(firefoxProfile)) {
+            // If the profile exists, then we've run this before and not deleted the profile,
+            // so it probably worked. If so, reuse the existing preferences to avoids issues
+            // where on pref setup firefox behaves badly (opening a 2nd window) on OSX.
+            const prefContents = await readFile(path.join(firefoxProfile, 'prefs.js'), {
+                encoding: 'utf8'
+            });
+
+            existingPrefs = _(prefContents)
+                .split('\n')
+                .reduce((prefs: _.Dictionary<any>, line) => {
+                    const match = FIREFOX_PREF_REGEX.exec(line);
+                    if (match) {
+                        prefs[match[1]] = match[2];
+                    }
+                    return prefs
+                }, {});
+        }
+
         const browser = await launchBrowser(certCheckServer.checkCertUrl, {
             browser: 'firefox',
             profile: firefoxProfile,
             proxy: `localhost:${proxyPort}`,
             // Don't intercept our cert testing requests
             noProxy: certCheckServer.host,
-            prefs: {
+            prefs: _.assign(existingPrefs, {
                 // By default james-launcher only configures HTTP, so we need to add HTTPS:
                 'network.proxy.ssl': '"localhost"',
                 'network.proxy.ssl_port': proxyPort,
@@ -76,7 +105,7 @@ export class FreshFirefox {
                 "datareporting.policy.dataSubmissionEnabled": false,
                 "datareporting.policy.dataSubmissionPolicyAccepted": false,
                 "datareporting.policy.dataSubmissionPolicyBypassNotification": true
-            }
+            })
         }, this.config.configPath);
 
         let success = false;
