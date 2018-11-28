@@ -49,6 +49,11 @@ export class HideChromeWarningServer {
         `);
     }
 
+    get host(): string {
+        return this.server!.url
+            .replace('https://', '');
+    }
+
     get hideWarningUrl(): string {
         return this.server.url.replace(/\/?$/, '/hide-chrome-warning');
     }

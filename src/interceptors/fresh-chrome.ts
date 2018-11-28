@@ -46,6 +46,8 @@ export class FreshChrome {
         const browser = await launchBrowser(hideWarningServer.hideWarningUrl, {
             browser: 'chrome',
             proxy: `https://localhost:${proxyPort}`,
+            // Don't intercept our warning hiding requests
+            noProxy: hideWarningServer.host,
             options: [
                 `--ignore-certificate-errors-spki-list=${spkiFingerprint}`
             ]
