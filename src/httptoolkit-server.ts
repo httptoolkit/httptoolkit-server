@@ -47,13 +47,21 @@ const buildResolvers = (interceptors: _.Dictionary<Interceptor>) => {
         Mutation: {
             activateInterceptor: async (__: void, args: _.Dictionary<any>) => {
                 const { id, proxyPort, options } = args;
-                await interceptors[id].activate(proxyPort, options);
-                return interceptors[id].isActive(proxyPort);
+
+                const interceptor = interceptors[id];
+                if (!interceptor) throw new Error(`Unknown interceptor ${id}`);
+
+                await interceptor.activate(proxyPort, options);
+                return interceptor.isActive(proxyPort);
             },
             deactivateInterceptor: async (__: void, args: _.Dictionary<any>) => {
                 const { id, proxyPort, options } = args;
-                await interceptors[id].deactivate(proxyPort, options);
-                return !interceptors[id].isActive(proxyPort);
+
+                const interceptor = interceptors[id];
+                if (!interceptor) throw new Error(`Unknown interceptor ${id}`);
+
+                await interceptor.deactivate(proxyPort, options);
+                return !interceptor.isActive(proxyPort);
             }
         },
 
