@@ -5,13 +5,8 @@ import { promisify } from 'util';
 
 export { BrowserInstance };
 
-let launcher: Launch | undefined;
 async function getLauncher(configPath: string) {
-    if (!launcher) {
-        launcher = await promisify(getBrowserLauncher)(path.join(configPath, 'browsers.json'));
-    }
-
-    return launcher;
+    return await promisify(getBrowserLauncher)(path.join(configPath, 'browsers.json'));
 }
 
 export const getAvailableBrowsers = async (configPath: string) => {
