@@ -48,6 +48,8 @@ declare module '@james-proxy/james-browser-launcher' {
             process: ChildProcess;
             stderr: stream.Readable;
             stdout: stream.Readable;
+
+            stop(): void;
         }
     }
 

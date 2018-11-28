@@ -66,8 +66,9 @@ export class FreshChrome {
     async deactivate(proxyPort: number) {
         if (this.isActive(proxyPort)) {
             const browser = browsers[proxyPort];
-            browser!.process.kill();
-            await new Promise((resolve) => browser!.process.once('exit', resolve));
+            const exitPromise = new Promise((resolve) => browser!.process.once('exit', resolve));
+            browser!.stop();
+            await exitPromise;
         }
     }
 };
