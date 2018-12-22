@@ -54,7 +54,10 @@ export async function runHTK(options: {
             https: httpsConfig
         }
     });
-    standalone.start();
+    standalone.start({
+        port: 45456,
+        host: 'localhost'
+    });
 
     // Start a HTK server
     const htkServer = new HttpToolkitServer({
