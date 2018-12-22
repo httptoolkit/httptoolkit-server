@@ -131,7 +131,8 @@ export class HttpToolkitServer {
         await this.graphql.start(<any> {
             // Hacky solution that lets us limit the server to only localhost,
             // and override the port from 4000 to something less likely to conflict.
-            port: { port: 45457, host: 'localhost' }
+            port: { port: 45457, host: 'localhost' },
+            playground: false
         });
     }
 };
