@@ -10,6 +10,7 @@ const packageJson = require('../package.json');
 const typeDefs = `
     type Query {
         version: String!
+        config: InterceptionConfig!
         interceptors: [Interceptor!]!
     }
 
@@ -25,6 +26,10 @@ const typeDefs = `
         ): Boolean!
     }
 
+    type InterceptionConfig {
+        certificatePath: String!
+    }
+
     type Interceptor {
         id: ID!
         version: String!
@@ -37,11 +42,17 @@ const typeDefs = `
     scalar Error
 `
 
-const buildResolvers = (interceptors: _.Dictionary<Interceptor>) => {
+const buildResolvers = (
+    config: HtkConfig,
+    interceptors: _.Dictionary<Interceptor>
+) => {
     return {
         Query: {
             version: () => packageJson.version,
             interceptors: () => _.values(interceptors),
+            config: () => ({
+                certificatePath: config.https.certPath
+            })
         },
 
         Mutation: {
@@ -112,7 +123,7 @@ export class HttpToolkitServer {
 
         this.graphql = new GraphQLServer({
             typeDefs,
-            resolvers: buildResolvers(interceptors)
+            resolvers: buildResolvers(config, interceptors)
         });
     }
 
