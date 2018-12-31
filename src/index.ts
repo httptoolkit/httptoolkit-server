@@ -4,6 +4,8 @@ import * as fs from 'fs';
 import * as envPaths from 'env-paths';
 import { getStandalone, generateCACertificate } from 'mockttp';
 
+import updateCommand from '@oclif/plugin-update/lib/commands/update';
+
 import { HttpToolkitServer } from './httptoolkit-server';
 
 const canAccess = util.promisify(fs.access);
@@ -64,6 +66,10 @@ export async function runHTK(options: {
         configPath,
         https: httpsConfig
     });
+    htkServer.on('update-requested', () => {
+        updateCommand.run(['stable']);
+    });
+
     await htkServer.start();
 
     console.log('Server started');

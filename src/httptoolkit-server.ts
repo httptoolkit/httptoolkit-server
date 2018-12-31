@@ -1,4 +1,5 @@
 import * as _ from 'lodash';
+import * as events from 'events';
 import { GraphQLServer } from 'graphql-yoga'
 import { GraphQLScalarType } from 'graphql';
 
@@ -24,6 +25,7 @@ const typeDefs = `
             id: ID!,
             proxyPort: Int!
         ): Boolean!
+        triggerUpdate: Void
     }
 
     type InterceptionConfig {
@@ -40,11 +42,13 @@ const typeDefs = `
 
     scalar Json
     scalar Error
+    scalar Void
 `
 
 const buildResolvers = (
     config: HtkConfig,
-    interceptors: _.Dictionary<Interceptor>
+    interceptors: _.Dictionary<Interceptor>,
+    eventEmitter: events.EventEmitter
 ) => {
     return {
         Query: {
@@ -73,6 +77,9 @@ const buildResolvers = (
 
                 await interceptor.deactivate(proxyPort, options);
                 return !interceptor.isActive(proxyPort);
+            },
+            triggerUpdate: () => {
+                eventEmitter.emit('update-requested');
             }
         },
 
@@ -91,6 +98,14 @@ const buildResolvers = (
             serialize: (value: any) => JSON.stringify(value),
             parseValue: (input: string): any => JSON.parse(input),
             parseLiteral: (): any => { throw new Error('JSON literals are not supported') }
+        }),
+
+        Void: new GraphQLScalarType({
+            name: 'Void',
+            description: 'Nothing at all',
+            serialize: (value: any) => null,
+            parseValue: (input: string): any => null,
+            parseLiteral: (): any => { throw new Error('Void literals are not supported') }
         }),
 
         Error: new GraphQLScalarType({
@@ -114,16 +129,18 @@ const buildResolvers = (
     }
 };
 
-export class HttpToolkitServer {
+export class HttpToolkitServer extends events.EventEmitter {
 
     private graphql: GraphQLServer;
 
     constructor(config: HtkConfig) {
+        super();
+
         let interceptors = buildInterceptors(config);
 
         this.graphql = new GraphQLServer({
             typeDefs,
-            resolvers: buildResolvers(config, interceptors)
+            resolvers: buildResolvers(config, interceptors, this)
         });
     }
 
