@@ -80,6 +80,12 @@ export class FreshFirefox {
                 'network.proxy.ssl': '"localhost"',
                 'network.proxy.ssl_port': proxyPort,
 
+                // The above james proxy/noProxy settings should do this, but don't seem to
+                // reliably overwrite existing values, so we set them explicitly.
+                'network.proxy.http': '"localhost"',
+                'network.proxy.http_port': proxyPort,
+                'network.proxy.http.network.proxy.http.no_proxies_on': certCheckServer.host,
+
                 // Disable the noisy captive portal check requests
                 'network.captive-portal-service.enabled': false,
 
