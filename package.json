@@ -33,7 +33,7 @@
     "graphql": "^14.0.2",
     "graphql-yoga": "^1.16.7",
     "lodash": "^4.17.11",
-    "mockttp": "^0.12.4",
+    "mockttp": "^0.12.5",
     "rimraf": "^2.6.2",
     "tslib": "^1.9.3"
   },
