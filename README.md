@@ -24,7 +24,7 @@ Once the server has installed it automatically updates in the background periodi
 
 ## Contributing
 
-Come help make HTTP Toolkit better for everybody. If you're intending to add new interceptors, change/fix existing interceptor behaviour (but not their UI) or reconfigure how the underlying proxy server is set up, then you're in the right place :+1:.
+If you want to add new interceptors, change/fix existing interceptor behaviour (but not their UI) or reconfigure how the underlying proxy server is set up, then you're in the right place :+1:.
 
 To get started:
 
@@ -37,6 +37,7 @@ To get started:
     * Running `npm run start:web` there to start the UI without its own server.
 
 A few tips:
+
 * Setting `playground: true` at the bottom of [`src/httptoolkit-server.ts`](src/httptoolkit-server.ts) will give you a GraphQL playground on http://localhost:45457.
 * New interceptors need to be added to `src/interceptors/index.ts`. They will also need to be added to [the UI](https://github.com/httptoolkit/httptoolkit-ui).
 * The tests assume that the required applications are installed to run every interceptor. See [.travis.yml](.travis.yml) for an example of how to set this up.
