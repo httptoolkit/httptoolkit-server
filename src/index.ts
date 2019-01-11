@@ -7,6 +7,7 @@ import { getStandalone, generateCACertificate } from 'mockttp';
 import updateCommand from '@oclif/plugin-update/lib/commands/update';
 
 import { HttpToolkitServer } from './httptoolkit-server';
+import { checkBrowserConfig } from './browsers';
 
 const canAccess = util.promisify(fs.access);
 const mkDir = util.promisify(fs.mkdir);
@@ -46,6 +47,7 @@ export async function runHTK(options: {
     const configPath = options.configPath || envPaths('httptoolkit', { suffix: '' }).config;
 
     await ensureDirectoryExists(configPath);
+    await checkBrowserConfig(configPath);
 
     const httpsConfig = await generateHTTPSConfig(configPath);
 
