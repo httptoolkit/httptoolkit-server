@@ -1,11 +1,15 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as getBrowserLauncher from '@james-proxy/james-browser-launcher';
-import { LaunchOptions, BrowserInstance } from '@james-proxy/james-browser-launcher';
 import { promisify } from 'util';
+
+import { Mutex } from 'async-mutex';
+
+import * as getBrowserLauncherCb from '@james-proxy/james-browser-launcher';
+import { LaunchOptions, BrowserInstance } from '@james-proxy/james-browser-launcher';
 
 const readFile = promisify(fs.readFile);
 const deleteFile = promisify(fs.unlink);
+const getBrowserLauncher = promisify(getBrowserLauncherCb);
 
 const browserConfigPath = (configPath: string) => path.join(configPath, 'browsers.json');
 
@@ -28,8 +32,14 @@ export async function checkBrowserConfig(configPath: string) {
     });
 }
 
-async function getLauncher(configPath: string) {
-    return await promisify(getBrowserLauncher)(browserConfigPath(configPath));
+// It's not safe to call getBrowserLauncher in parallel, as config files can
+// get corrupted. We use a mutex to serialize it.
+const getLauncherMutex = new Mutex();
+
+function getLauncher(configPath: string) {
+    return getLauncherMutex.runExclusive(() =>
+        getBrowserLauncher(browserConfigPath(configPath))
+    );
 }
 
 export const getAvailableBrowsers = async (configPath: string) => {
