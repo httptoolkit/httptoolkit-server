@@ -43,7 +43,7 @@ async function generateHTTPSConfig(configPath: string) {
 
 export async function runHTK(options: {
     configPath?: string
-}) {
+} = {}) {
     const configPath = options.configPath || envPaths('httptoolkit', { suffix: '' }).config;
 
     await ensureDirectoryExists(configPath);
