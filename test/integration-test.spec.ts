@@ -7,7 +7,7 @@ import { delay } from '../src/util';
 import { expect } from 'chai';
 
 describe('Integration test', function () {
-    this.timeout(10000);
+    this.timeout(15000);
 
     let serverProcess: ChildProcess;
     let stdout = '';
@@ -23,7 +23,8 @@ describe('Integration test', function () {
         serverProcess.stdout.on('data', (d) => stdout = stdout + d.toString());
         serverProcess.stderr.on('data', (d) => stderr = stderr + d.toString());
 
-        await delay(5000);
+        // In CI, this takes much longer than locally, so wait a little.
+        await delay(process.env.CI ? 10000 : 2000);
     });
 
     afterEach(() => {
