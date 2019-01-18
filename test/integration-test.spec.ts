@@ -7,7 +7,7 @@ import { delay } from '../src/util';
 import { expect } from 'chai';
 
 describe('Integration test', function () {
-    this.timeout(15000);
+    this.timeout(30000);
 
     let serverProcess: ChildProcess;
     let stdout = '';
@@ -20,17 +20,19 @@ describe('Integration test', function () {
         stdout = "";
         stderr = "";
 
-        serverProcess.stdout.on('data', (d) => {
-            stdout = stdout + d.toString();
-            console.log(d.toString());
-        });
-        serverProcess.stderr.on('data', (d) => {
-            stderr = stderr + d.toString();
-            console.warn(d.toString());
-        });
+        return new Promise((resolve, reject) => {
+            serverProcess.stdout.on('data', (d) => {
+                resolve();
+                stdout = stdout + d.toString();
+                console.log(d.toString());
+            });
 
-        // In CI, this takes much longer than locally, so wait a little.
-        await delay(process.env.CI ? 10000 : 2000);
+            serverProcess.stderr.on('data', (d) => {
+                reject();
+                stderr = stderr + d.toString();
+                console.warn(d.toString());
+            });
+        });
     });
 
     afterEach(() => {
@@ -39,6 +41,7 @@ describe('Integration test', function () {
     });
 
     it('starts and stops successfully', async () => {
+        await delay(500);
         serverProcess.kill();
 
         expect(stderr).to.equal('');
