@@ -3,10 +3,14 @@ import * as path from 'path';
 import { getRemote } from 'mockttp';
 import * as request from 'request-promise-native';
 
+import * as getGraphQL from 'graphql.js';
+
 import { delay } from '../src/util';
 import { expect } from 'chai';
 
 describe('Integration test', function () {
+    // Timeout needs to be long, as first test runs (e.g. in CI) generate
+    // fresh certificates, which can take a little while.
     this.timeout(30000);
 
     let serverProcess: ChildProcess;
@@ -58,5 +62,47 @@ describe('Integration test', function () {
         delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
 
         expect(response).to.equal('Mock response');
+    });
+
+    it('exposes the version over HTTP', async () => {
+        const graphql = getGraphQL('http://localhost:45457/', { asJSON: true });
+
+        const response = await graphql(`
+            query getVersion {
+                version
+            }
+        `)();
+
+        expect(response.version).to.equal(require('../package.json').version);
+    });
+
+    it('exposes interceptors over HTTP', async () => {
+        const graphql = getGraphQL('http://localhost:45457/', { asJSON: true });
+
+        const response = await graphql(`
+            query getInterceptors($proxyPort: Int!) {
+                interceptors {
+                    id
+                    version
+                    isActive(proxyPort: $proxyPort)
+                    isActivable
+                }
+            }
+        `)({ proxyPort: 8000 });
+
+        expect(response.interceptors).to.deep.equal([
+            {
+                "id": "fresh-chrome",
+                "isActivable": true,
+                "isActive": false,
+                "version": "1.0.0"
+            },
+            {
+                "id": "fresh-firefox",
+                "isActivable": true,
+                "isActive": false,
+                "version": "1.0.0"
+            }
+        ]);
     });
 });
