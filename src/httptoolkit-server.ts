@@ -4,6 +4,7 @@ import { GraphQLServer } from 'graphql-yoga'
 import { GraphQLScalarType } from 'graphql';
 
 import { HtkConfig } from './config';
+import { reportError } from './error-tracking';
 import { buildInterceptors, Interceptor } from './interceptors';
 
 const packageJson = require('../package.json');
@@ -85,10 +86,18 @@ const buildResolvers = (
 
         Interceptor: {
             isActivable: (interceptor: Interceptor) => {
-                return interceptor.isActivable();
+                return interceptor.isActivable().catch((e) => {
+                    reportError(e);
+                    return false;
+                });
             },
             isActive: (interceptor: Interceptor, args: _.Dictionary<any>) => {
-                return interceptor.isActive(args.proxyPort);
+                try {
+                    return interceptor.isActive(args.proxyPort);
+                } catch (e) {
+                    reportError(e);
+                    return false;
+                }
             }
         },
 
