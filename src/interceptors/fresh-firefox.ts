@@ -9,6 +9,7 @@ import { HtkConfig } from '../config';
 import { getAvailableBrowsers, launchBrowser, BrowserInstance } from '../browsers';
 import { CertCheckServer } from '../cert-check-server';
 import { delay } from '../util';
+import { Interceptor } from '.';
 
 const deleteFolder = promisify(rimraf);
 const readFile = promisify(fs.readFile);
@@ -21,7 +22,7 @@ const FIREFOX_PREF_REGEX = /\w+_pref\("([^"]+)", (.*)\);/
 
 let browsers: _.Dictionary<BrowserInstance> = {};
 
-export class FreshFirefox {
+export class FreshFirefox implements Interceptor {
     id = 'fresh-firefox';
     version = '1.0.0';
 
@@ -32,9 +33,9 @@ export class FreshFirefox {
     }
 
     async isActivable() {
-        const browsers = await getAvailableBrowsers(this.config.configPath);
+        const availableBrowsers = await getAvailableBrowsers(this.config.configPath);
 
-        return _(browsers)
+        return _(availableBrowsers)
             .map(b => b.name)
             .includes('firefox')
 

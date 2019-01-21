@@ -10,6 +10,7 @@ import { HtkConfig } from '../config';
 import { getAvailableBrowsers, launchBrowser, BrowserInstance } from '../browsers';
 import { delay } from '../util';
 import { HideChromeWarningServer } from '../hide-chrome-warning-server';
+import { Interceptor } from '.';
 
 const readFile = promisify(fs.readFile);
 
@@ -25,7 +26,7 @@ const getChromeBrowserName = async (config: HtkConfig): Promise<string | undefin
         .value()[0];
 };
 
-export class FreshChrome {
+export class FreshChrome implements Interceptor {
     id = 'fresh-chrome';
     version = '1.0.0';
 
@@ -42,7 +43,7 @@ export class FreshChrome {
     async activate(proxyPort: number) {
         if (this.isActive(proxyPort)) return;
 
-        const certificatePem = await readFile(path.join(this.config.configPath, 'ca.pem'), 'utf8');
+        const certificatePem = await readFile(this.config.https.certPath, 'utf8');
         const spkiFingerprint = generateSPKIFingerprint(certificatePem);
 
         const hideWarningServer = new HideChromeWarningServer();
