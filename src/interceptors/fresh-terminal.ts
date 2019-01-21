@@ -30,12 +30,15 @@ const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
         }
     } else if (process.platform === 'linux') {
         if (GSettings.isAvailable()) {
-            const defaultTerminal = GSettings.Key.findById(
+            const gSettingsTerminalKey = GSettings.Key.findById(
                 'org.gnome.desktop.default-applications.terminal', 'exec'
-            ).getValue();
+            );
 
+            const defaultTerminal = gSettingsTerminalKey && gSettingsTerminalKey.getValue();
             if (defaultTerminal) return { command: defaultTerminal };
-        } else if (await commandExists('xterm').catch(() => false)) {
+        }
+
+        if (await commandExists('xterm').catch(() => false)) {
             return { command: 'xterm' };
         }
     } else if (process.platform === 'darwin') {
