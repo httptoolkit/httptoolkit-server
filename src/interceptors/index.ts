@@ -4,6 +4,7 @@ import { HtkConfig } from '../config';
 
 import { FreshChrome } from './fresh-chrome';
 import { FreshFirefox } from './fresh-firefox';
+import { TerminalInterceptor } from './fresh-terminal';
 
 export interface Interceptor {
     id: string;
@@ -19,6 +20,7 @@ export interface Interceptor {
 export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> {
     return _.keyBy([
         new FreshChrome(config),
-        new FreshFirefox(config)
+        new FreshFirefox(config),
+        new TerminalInterceptor(config)
     ], (interceptor) => interceptor.id);
 }

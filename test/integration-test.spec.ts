@@ -102,6 +102,12 @@ describe('Integration test', function () {
                 "isActivable": true,
                 "isActive": false,
                 "version": "1.0.0"
+            },
+            {
+                "id": "fresh-terminal",
+                "isActivable": true,
+                "isActive": false,
+                "version": "1.0.0"
             }
         ]);
     });
