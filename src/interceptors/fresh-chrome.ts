@@ -15,6 +15,16 @@ const readFile = promisify(fs.readFile);
 
 let browsers: _.Dictionary<BrowserInstance> = {};
 
+// Should we launch Chrome, or Chromium, or do we have nothing available at all?
+const getChromeBrowserName = async (config: HtkConfig): Promise<string | undefined> => {
+    const browsers = await getAvailableBrowsers(config.configPath);
+
+    return _(browsers)
+        .map(b => b.name)
+        .intersection(['chrome', 'chromium'])
+        .value()[0];
+};
+
 export class FreshChrome {
     id = 'fresh-chrome';
     version = '1.0.0';
@@ -26,12 +36,7 @@ export class FreshChrome {
     }
 
     async isActivable() {
-        const browsers = await getAvailableBrowsers(this.config.configPath);
-
-        return _(browsers)
-            .map(b => b.name)
-            .includes('chrome')
-
+        return !!(await getChromeBrowserName(this.config));
     }
 
     async activate(proxyPort: number) {
@@ -44,7 +49,9 @@ export class FreshChrome {
         await hideWarningServer.start('https://amiusing.httptoolkit.tech');
 
         const browser = await launchBrowser(hideWarningServer.hideWarningUrl, {
-            browser: 'chrome',
+            // Try to launch Chrome if we're not sure - it'll trigger a config update,
+            // and might find a new install.
+            browser: (await getChromeBrowserName(this.config)) || 'chrome',
             proxy: `https://localhost:${proxyPort}`,
             // Don't intercept our warning hiding requests
             noProxy: hideWarningServer.host,
