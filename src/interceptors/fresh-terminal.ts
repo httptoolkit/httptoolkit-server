@@ -1,21 +1,42 @@
 import * as _ from 'lodash';
-import { spawn, ChildProcess } from 'child_process';
+import * as fs from 'fs';
+import * as util from 'util';
+import { spawn, ChildProcess, SpawnOptions } from 'child_process';
 import * as GSettings from 'node-gsettings-wrapper';
 import * as commandExists from 'command-exists';
 
 import { Interceptor } from '.';
 import { HtkConfig } from '../config';
 
-const getTerminalCommand = _.memoize(async (): Promise<string | null> => {
+const checkAccess = util.promisify(fs.access);
+const canAccess = (path: string) => checkAccess(path).then(() => true).catch(() => false);
+
+const DEFAULT_GIT_BASH_PATH = 'C:/Program Files/git/git-bash.exe';
+
+interface SpawnArgs {
+    command: string;
+    args?: string[];
+    options?: SpawnOptions;
+}
+
+const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
     if (process.platform === 'win32') {
-        return null; // Coming soon
+        if (await commandExists('git-bash').catch(() => false)) {
+            return { command: 'git-bash' };
+        } else if (await canAccess(DEFAULT_GIT_BASH_PATH)) {
+            return { command: DEFAULT_GIT_BASH_PATH };
+        } else {
+            return { command: 'start', args: ['cmd'], options: { shell: true } };
+        }
     } else if (process.platform === 'linux') {
         if (GSettings.isAvailable()) {
-            const defaultTerminal = GSettings.Key.findById('org.gnome.desktop.default-applications.terminal', 'exec').getValue();
+            const defaultTerminal = GSettings.Key.findById(
+                'org.gnome.desktop.default-applications.terminal', 'exec'
+            ).getValue();
 
-            if (defaultTerminal) return defaultTerminal;
+            if (defaultTerminal) return { command: defaultTerminal };
         } else if (await commandExists('xterm').catch(() => false)) {
-            return 'xterm';
+            return { command: 'xterm' };
         }
     } else if (process.platform === 'darwin') {
         return null; // Coming soon
@@ -42,10 +63,12 @@ export class TerminalInterceptor implements Interceptor {
     }
 
     async activate(proxyPort: number): Promise<void> {
-        const terminalCommand = await getTerminalCommand();
-        if (!terminalCommand) throw new Error('Could not find a suitable terminal');
+        const terminalSpawnArgs = await getTerminalCommand();
+        if (!terminalSpawnArgs) throw new Error('Could not find a suitable terminal');
 
-        const childProc = spawn(terminalCommand, [], {
+        const { command, args, options } = terminalSpawnArgs;
+
+        const childProc = spawn(command, args || [], _.assign(options || {}, {
             env: _.assign({
                 'http_proxy': `http://localhost:${proxyPort}`,
                 'HTTP_PROXY': `http://localhost:${proxyPort}`,
@@ -64,7 +87,7 @@ export class TerminalInterceptor implements Interceptor {
                 'GIT_SSL_CAINFO': this.config.https.certPath
             }, process.env),
             cwd: process.env.HOME || process.env.USERPROFILE
-        });
+        }));
 
         terminals[proxyPort] = (terminals[proxyPort] || []).concat(childProc);
 
