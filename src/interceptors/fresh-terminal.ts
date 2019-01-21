@@ -5,6 +5,9 @@ import { spawn, ChildProcess, SpawnOptions } from 'child_process';
 import * as GSettings from 'node-gsettings-wrapper';
 import * as commandExists from 'command-exists';
 
+import findOsxExecutableCb = require('osx-find-executable');
+const findOsxExecutable = util.promisify(findOsxExecutableCb);
+
 import { Interceptor } from '.';
 import { HtkConfig } from '../config';
 
@@ -42,7 +45,21 @@ const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
             return { command: 'xterm' };
         }
     } else if (process.platform === 'darwin') {
-        return null; // Coming soon
+        const terminalExecutables = (await Promise.all(
+            [
+                'co.zeit.hyper',
+                'com.googlecode.iterm2',
+                'com.googlecode.iterm',
+                'com.apple.Terminal'
+            ].map(
+                (bundleId) => findOsxExecutable(bundleId).catch(() => null)
+            )
+        )).filter((executablePath) => !!executablePath);
+
+        const bestAvailableTerminal = terminalExecutables[0];
+        if (bestAvailableTerminal) {
+            return { command: bestAvailableTerminal };
+        }
     }
 
     return null;
