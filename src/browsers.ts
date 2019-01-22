@@ -17,8 +17,6 @@ const browserConfigPath = (configPath: string) => path.join(configPath, 'browser
 
 export { BrowserInstance };
 
-const updateBrowserConfig = promisify(getBrowserLauncherCb.update);
-
 export async function checkBrowserConfig(configPath: string) {
     // It's not clear why, but sometimes the browser config can become corrupted, so it's not valid JSON
     // If that happens JBL doesn't catch it, so we crash. To avoid that, we check it here on startup.
