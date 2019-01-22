@@ -4,6 +4,7 @@ let sentryInitialized = false;
 
 export function initErrorTracking() {
     const packageJson = require('../package.json');
+    
     let { SENTRY_DSN } = process.env;
     if (!SENTRY_DSN && process.env.HTTPTOOLKIT_SERVER_BINPATH) {
         // If we're a built binary, use the standard DSN automatically
@@ -12,6 +13,9 @@ export function initErrorTracking() {
 
     if (SENTRY_DSN) {
         Sentry.init({ dsn: SENTRY_DSN, release: packageJson.version });
+        Sentry.configureScope((scope) => {
+            scope.setTag('platform', process.platform);
+        });
         sentryInitialized = true;
     }
 }
