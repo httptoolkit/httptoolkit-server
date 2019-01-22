@@ -31,6 +31,9 @@ declare module '@james-proxy/james-browser-launcher' {
             export const browsers: Launcher.Browser[];
         }
 
+        export function update(callback: (error: Error | null, config: object) => void): void;
+        export function update(configFile: string, callback: (error: Error | null, config: object) => void): void;
+
         export interface Browser {
             name: string;
             version: string;
