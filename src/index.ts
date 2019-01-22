@@ -3,11 +3,14 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as envPaths from 'env-paths';
 import { getStandalone, generateCACertificate } from 'mockttp';
+import { Mutex } from 'async-mutex';
 
 import updateCommand from '@oclif/plugin-update/lib/commands/update';
 
 import { HttpToolkitServer } from './httptoolkit-server';
 import { checkBrowserConfig } from './browsers';
+import { reportError } from './error-tracking';
+import { delay } from './util';
 
 const canAccess = util.promisify(fs.access);
 const mkDir = util.promisify(fs.mkdir);
@@ -68,8 +71,26 @@ export async function runHTK(options: {
         configPath,
         https: httpsConfig
     });
+
+    const updateMutex = new Mutex();
     htkServer.on('update-requested', () => {
-        updateCommand.run(['stable']);
+        updateMutex.runExclusive(() =>
+            (<Promise<void>> updateCommand.run(['stable']))
+            .catch((error) => {
+                // Received successful update that wants to restart the server
+                if (error.code === 'EEXIT') {
+                    // Block future update checks for one hour.
+
+                    // If we don't, we'll redownload the same update again every check.
+                    // We don't want to block it completely though, in case this server
+                    // stays open for a very long time.
+                    return delay(1000 * 60 * 60);
+                }
+
+                console.log(error);
+                reportError('Failed to check for updates');
+            })
+        );
     });
 
     await htkServer.start();
