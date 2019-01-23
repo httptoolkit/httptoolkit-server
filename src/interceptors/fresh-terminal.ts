@@ -3,16 +3,19 @@ import * as fs from 'fs';
 import * as util from 'util';
 import { spawn, ChildProcess, SpawnOptions } from 'child_process';
 import * as GSettings from 'node-gsettings-wrapper';
-import * as commandExists from 'command-exists';
+import * as ensureCommandExists from 'command-exists';
 
 import findOsxExecutableCb = require('osx-find-executable');
 const findOsxExecutable = util.promisify(findOsxExecutableCb);
 
 import { Interceptor } from '.';
 import { HtkConfig } from '../config';
+import { reportError } from '../error-tracking';
 
 const checkAccess = util.promisify(fs.access);
 const canAccess = (path: string) => checkAccess(path).then(() => true).catch(() => false);
+
+const commandExists = (path: string) => ensureCommandExists(path).then(() => true).catch(() => false);
 
 const DEFAULT_GIT_BASH_PATH = 'C:/Program Files/git/git-bash.exe';
 
@@ -24,7 +27,7 @@ interface SpawnArgs {
 
 const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
     if (process.platform === 'win32') {
-        if (await commandExists('git-bash').catch(() => false)) {
+        if (await commandExists('git-bash')) {
             return { command: 'git-bash' };
         } else if (await canAccess(DEFAULT_GIT_BASH_PATH)) {
             return { command: DEFAULT_GIT_BASH_PATH };
@@ -38,10 +41,12 @@ const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
             );
 
             const defaultTerminal = gSettingsTerminalKey && gSettingsTerminalKey.getValue();
-            if (defaultTerminal) return { command: defaultTerminal };
+            if (defaultTerminal && commandExists(defaultTerminal)) {
+                return { command: defaultTerminal };
+            }
         }
 
-        if (await commandExists('xterm').catch(() => false)) {
+        if (await commandExists('xterm')) {
             return { command: 'xterm' };
         }
     } else if (process.platform === 'darwin') {
