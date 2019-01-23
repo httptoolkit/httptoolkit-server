@@ -116,8 +116,14 @@ export class TerminalInterceptor implements Interceptor {
 
         terminals[proxyPort] = (terminals[proxyPort] || []).concat(childProc);
 
-        childProc.once('exit', () => {
+
+        const onTerminalClosed = () => {
             terminals[proxyPort] = _.reject(terminals[proxyPort], childProc);
+        };
+        childProc.once('exit', onTerminalClosed);
+        childProc.once('error', (e) => {
+            reportError(e);
+            onTerminalClosed();
         });
     }
 
