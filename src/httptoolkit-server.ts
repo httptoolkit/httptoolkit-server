@@ -160,7 +160,10 @@ export class HttpToolkitServer extends events.EventEmitter {
             port: { port: 45457, host: 'localhost' },
             playground: false,
             cors: {
-                origin: [/https?:\/\/localhost(:\d+)?$/, /\.httptoolkit\.tech$/]
+                origin: [
+                    /https?:\/\/localhost(:\d+)?$/,
+                    /\.httptoolkit\.tech(:\d+)?$/
+                ]
             }
         });
     }
