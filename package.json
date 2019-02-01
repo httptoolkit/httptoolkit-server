@@ -78,7 +78,7 @@
     "httptoolkit",
     "http-toolkit"
   ],
-  "license": "Apache-2.0",
+  "license": "AGPL-3.0-or-later",
   "oclif": {
     "bin": "httptoolkit-server",
     "commands": "./lib/commands",
