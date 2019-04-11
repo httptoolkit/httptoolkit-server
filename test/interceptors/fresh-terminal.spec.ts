@@ -1,23 +1,24 @@
 import * as _ from 'lodash';
-import { CompletedRequest } from 'mockttp';
-import { getInterceptorAndServer, itIsAvailable, itCanBeActivated } from './interceptor-test-utils';
+import { setupInterceptor, itIsAvailable, itCanBeActivated } from './interceptor-test-utils';
 
-const { server, interceptor: terminalInterceptor } = getInterceptorAndServer('fresh-terminal');
+const interceptorSetup = setupInterceptor('fresh-terminal');
 
 describe('Terminal interceptor', function () {
     this.timeout(5000);
 
     beforeEach(async () => {
+        const { server } = await interceptorSetup;
         await server.start();
         await server.anyRequest().thenPassThrough();
     });
 
     afterEach(async () => {
+        const { server, interceptor: terminalInterceptor } = await interceptorSetup;
         await terminalInterceptor.deactivate(server.port);
         await server.stop();
     });
 
-    itIsAvailable(terminalInterceptor);
-    itCanBeActivated(terminalInterceptor, server);
+    itIsAvailable(interceptorSetup);
+    itCanBeActivated(interceptorSetup);
 
 });

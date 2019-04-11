@@ -9,11 +9,11 @@ import { getLocal, generateCACertificate, Mockttp } from 'mockttp';
 
 import { buildInterceptors, Interceptor } from '../../src/interceptors';
 
-const getCertificateDetails = _.memoize((configPath: string) => {
+const getCertificateDetails = _.memoize(async (configPath: string) => {
     const keyPath = path.join(configPath, 'ca.key');
     const certPath = path.join(configPath, 'ca.pem');
 
-    const newCertPair = generateCACertificate({ commonName: 'HTTP Toolkit CA - DO NOT TRUST' });
+    const newCertPair = await generateCACertificate({ commonName: 'HTTP Toolkit CA - DO NOT TRUST' });
 
     fs.writeFileSync(keyPath, newCertPair.key);
     fs.writeFileSync(certPath, newCertPair.cert);
@@ -21,10 +21,15 @@ const getCertificateDetails = _.memoize((configPath: string) => {
     return { certPath, keyPath };
 });
 
-export function getInterceptorAndServer(interceptor: string): { server: Mockttp, interceptor: Interceptor } {
+type InterceptorSetup = Promise<{
+    server: Mockttp,
+    interceptor: Interceptor
+}>
+
+export async function setupInterceptor(interceptor: string): InterceptorSetup {
     const configPath = tmp.dirSync({ unsafeCleanup: true }).name;
 
-    const { certPath, keyPath } = getCertificateDetails(configPath);
+    const { certPath, keyPath } = await getCertificateDetails(configPath);
 
     const server = getLocal({ https: { certPath, keyPath } });
     const interceptors = buildInterceptors({ configPath, https: { certPath, keyPath } });
@@ -34,14 +39,17 @@ export function getInterceptorAndServer(interceptor: string): { server: Mockttp,
 
 // Various tests that we'll want to reuse across interceptors:
 
-export function itIsAvailable(interceptor: Interceptor) {
+export function itIsAvailable(interceptorSetup: InterceptorSetup) {
     it('is available', async () => {
+        const { interceptor } = await interceptorSetup;
         expect(await interceptor.isActivable()).to.equal(true);
     });
 }
 
-export function itCanBeActivated(interceptor: Interceptor, server: Mockttp) {
+export function itCanBeActivated(interceptorSetup: InterceptorSetup) {
     it('can be activated', async () => {
+        const { interceptor, server } = await interceptorSetup;
+
         expect(interceptor.isActive(server.port)).to.equal(false);
 
         await interceptor.activate(server.port);

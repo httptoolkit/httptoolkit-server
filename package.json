@@ -37,7 +37,7 @@
     "graphql": "^14.0.2",
     "graphql-yoga": "^1.16.7",
     "lodash": "^4.17.11",
-    "mockttp": "^0.13.0",
+    "mockttp": "^0.14.0",
     "node-gsettings-wrapper": "^0.5.0",
     "osx-find-executable": "^1.0.0",
     "rimraf": "^2.6.2",

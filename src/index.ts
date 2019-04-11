@@ -26,8 +26,8 @@ async function generateHTTPSConfig(configPath: string) {
     await Promise.all([
         canAccess(keyPath, fs.constants.R_OK),
         canAccess(certPath, fs.constants.R_OK)
-    ]).catch(() => {
-        const newCertPair = generateCACertificate({
+    ]).catch(async () => {
+        const newCertPair = await generateCACertificate({
             commonName: 'HTTP Toolkit CA'
         });
 
