@@ -47,12 +47,20 @@ async function generateHTTPSConfig(configPath: string) {
 export async function runHTK(options: {
     configPath?: string
 } = {}) {
+    const startTime = Date.now();
+
     const configPath = options.configPath || envPaths('httptoolkit', { suffix: '' }).config;
 
     await ensureDirectoryExists(configPath);
     await checkBrowserConfig(configPath);
 
+    const configCheckTime = Date.now();
+    console.log('Config checked in', configCheckTime - startTime, 'ms');
+
     const httpsConfig = await generateHTTPSConfig(configPath);
+
+    const certSetupTime = Date.now();
+    console.log('Certificates setup in', certSetupTime - configCheckTime, 'ms');
 
     // Start a standalone server
     const standalone = getStandalone({
@@ -95,5 +103,6 @@ export async function runHTK(options: {
 
     await htkServer.start();
 
-    console.log('Server started');
+    console.log('Server started in', Date.now() - certSetupTime, 'ms');
+    console.log('Total startup took', Date.now() - startTime, 'ms');
 }

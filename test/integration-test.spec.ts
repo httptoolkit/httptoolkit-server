@@ -26,7 +26,7 @@ describe('Integration test', function () {
 
         return new Promise((resolve, reject) => {
             serverProcess.stdout.on('data', (d) => {
-                resolve();
+                if (d.includes('Server started')) resolve();
                 stdout = stdout + d.toString();
                 console.log(d.toString());
             });
@@ -49,7 +49,7 @@ describe('Integration test', function () {
         serverProcess.kill();
 
         expect(stderr).to.equal('');
-        expect(stdout).to.equal('Server started\n');
+        expect(stdout).to.contain('\nServer started');
     });
 
     it('starts a Mockttp server', async () => {
