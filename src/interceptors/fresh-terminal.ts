@@ -15,7 +15,7 @@ import { reportError } from '../error-tracking';
 const checkAccess = util.promisify(fs.access);
 const canAccess = (path: string) => checkAccess(path).then(() => true).catch(() => false);
 
-const commandExists = (path: string) => ensureCommandExists(path).then(() => true).catch(() => false);
+const commandExists = (path: string): Promise<boolean> => ensureCommandExists(path).then(() => true).catch(() => false);
 
 const DEFAULT_GIT_BASH_PATH = 'C:/Program Files/git/git-bash.exe';
 
@@ -41,7 +41,7 @@ const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
             );
 
             const defaultTerminal = gSettingsTerminalKey && gSettingsTerminalKey.getValue();
-            if (defaultTerminal && commandExists(defaultTerminal)) {
+            if (defaultTerminal && await commandExists(defaultTerminal)) {
                 return { command: defaultTerminal };
             }
         }
