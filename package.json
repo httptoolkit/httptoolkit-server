@@ -48,6 +48,7 @@
     "@types/aws-lambda": "^8.10.15",
     "@types/chai": "^4.1.6",
     "@types/env-paths": "^1.0.2",
+    "@types/express": "^4.16.1",
     "@types/lodash": "^4.14.117",
     "@types/mocha": "^5.2.5",
     "@types/node": "^10.12.0",

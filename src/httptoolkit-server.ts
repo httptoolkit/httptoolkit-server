@@ -1,6 +1,7 @@
 import * as _ from 'lodash';
 import * as events from 'events';
-import { GraphQLServer } from 'graphql-yoga'
+import { GraphQLServer } from 'graphql-yoga';
+import * as Express from 'express';
 import { GraphQLScalarType } from 'graphql';
 
 import { HtkConfig } from './config';
@@ -151,6 +152,22 @@ export class HttpToolkitServer extends events.EventEmitter {
         this.graphql = new GraphQLServer({
             typeDefs,
             resolvers: buildResolvers(config, interceptors, this)
+        });
+
+        // TODO: This logic also exists in Mockttp - probably good to commonize it somewhere.
+        this.graphql.use((req: Express.Request, res: Express.Response, next: () => void) => {
+            const origin = req.headers['origin'];
+            // This will have been set (or intentionally not set), by the CORS middleware
+            const allowedOrigin = res.getHeader('Access-Control-Allow-Origin');
+
+            // If origin is set (null or an origin) but was not accepted by the CORS options
+            // Note that if no options.cors is provided, allowedOrigin is always *.
+            if (origin !== undefined && allowedOrigin !== '*' && allowedOrigin !== origin) {
+                // Don't process the request: error out & skip the lot (to avoid CSRF)
+                res.status(403).send('CORS request sent by unacceptable origin');
+            } else {
+                next();
+            }
         });
     }
 
