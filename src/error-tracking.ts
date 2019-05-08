@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/node';
+import { IS_PROD_BUILD } from './util';
 
 let sentryInitialized = false;
 
@@ -6,7 +7,7 @@ export function initErrorTracking() {
     const packageJson = require('../package.json');
 
     let { SENTRY_DSN } = process.env;
-    if (!SENTRY_DSN && process.env.HTTPTOOLKIT_SERVER_BINPATH) {
+    if (!SENTRY_DSN && IS_PROD_BUILD) {
         // If we're a built binary, use the standard DSN automatically
         SENTRY_DSN = 'https://f6775276f60042bea6d5e951ca1d0e91@sentry.io/1371158';
     }

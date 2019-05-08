@@ -1,6 +1,5 @@
 import { promisify } from 'util';
 import * as fs from 'fs';
-import * as path from 'path';
 
 import * as _ from 'lodash';
 import { generateSPKIFingerprint } from 'mockttp';
