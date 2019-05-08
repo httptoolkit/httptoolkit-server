@@ -10,7 +10,7 @@ import updateCommand from '@oclif/plugin-update/lib/commands/update';
 import { HttpToolkitServer } from './httptoolkit-server';
 import { checkBrowserConfig } from './browsers';
 import { reportError } from './error-tracking';
-import { delay } from './util';
+import { delay, ALLOWED_ORIGINS } from './util';
 
 const canAccess = util.promisify(fs.access);
 const mkDir = util.promisify(fs.mkdir);
@@ -67,7 +67,8 @@ export async function runHTK(options: {
         serverDefaults: {
             cors: false,
             https: httpsConfig
-        }
+        },
+        corsOptions: { origin: ALLOWED_ORIGINS }
     });
     standalone.start({
         port: 45456,
