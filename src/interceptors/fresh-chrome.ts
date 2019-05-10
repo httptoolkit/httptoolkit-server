@@ -56,7 +56,11 @@ export class FreshChrome implements Interceptor {
             // Don't intercept our warning hiding requests
             noProxy: hideWarningServer.host,
             options: [
-                `--ignore-certificate-errors-spki-list=${spkiFingerprint}`
+                // Trust our CA certificate's fingerprint:
+                `--ignore-certificate-errors-spki-list=${spkiFingerprint}`,
+                // Force even localhost requests to go through the proxy
+                // See https://bugs.chromium.org/p/chromium/issues/detail?id=899126#c17
+                `--proxy-bypass-list='<-loopback>'`
             ]
         }, this.config.configPath);
 
