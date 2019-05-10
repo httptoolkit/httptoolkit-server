@@ -53,14 +53,16 @@ export class FreshChrome implements Interceptor {
             // and might find a new install.
             browser: (await getChromeBrowserName(this.config)) || 'chrome',
             proxy: `https://localhost:${proxyPort}`,
-            // Don't intercept our warning hiding requests
-            noProxy: hideWarningServer.host,
-            options: [
-                // Trust our CA certificate's fingerprint:
-                `--ignore-certificate-errors-spki-list=${spkiFingerprint}`,
+            noProxy: [
+                // Don't intercept our warning hiding requests
+                hideWarningServer.host,
                 // Force even localhost requests to go through the proxy
                 // See https://bugs.chromium.org/p/chromium/issues/detail?id=899126#c17
-                `--proxy-bypass-list='<-loopback>'`
+                '<-loopback>'
+            ],
+            options: [
+                // Trust our CA certificate's fingerprint:
+                `--ignore-certificate-errors-spki-list=${spkiFingerprint}`
             ]
         }, this.config.configPath);
 
