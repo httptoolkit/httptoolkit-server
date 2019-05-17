@@ -1,4 +1,5 @@
 import * as _ from 'lodash';
+import * as os from 'os';
 import * as events from 'events';
 import { GraphQLServer } from 'graphql-yoga';
 import * as Express from 'express';
@@ -16,6 +17,7 @@ const typeDefs = `
         version: String!
         config: InterceptionConfig!
         interceptors: [Interceptor!]!
+        networkInterfaces: Json
     }
 
     type Mutation {
@@ -59,7 +61,8 @@ const buildResolvers = (
             interceptors: () => _.values(interceptors),
             config: () => ({
                 certificatePath: config.https.certPath
-            })
+            }),
+            networkInterfaces: () => os.networkInterfaces()
         },
 
         Mutation: {
