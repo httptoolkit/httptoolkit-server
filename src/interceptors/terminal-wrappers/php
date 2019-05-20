@@ -1,29 +1,12 @@
 #!/usr/bin/env bash
+set -e
 
 # Exclude ourselves from PATH within this script, to avoid recursing
 PATH="${PATH/`dirname $0`:/}"
 
-# Get the php.ini that would be used
-PHP_INI_LOCATION=`php -r 'echo php_ini_loaded_file();'`
+# Build a new PHP config that trusts our certificate, and use PHPRC
+# to ensure that the next php command uses it.
+export PHPRC=`php $(dirname $0)/build-php-config.php`
 
-# Create a temp directory, and ensure it's cleaned up afterwards
-PHP_INI_OVERRIDE_DIR=$(mktemp -d)
-trap "rm -rf $PHP_INI_OVERRIDE_DIR" EXIT
-
-# Copy the existing php.ini, and set PHPRC so our new copy is used
-export PHPRC=$PHP_INI_OVERRIDE_DIR/php.ini
-cp $PHP_INI_LOCATION $PHPRC
-
-# Ensure the temporary php.ini trusts the HTTP Toolkit certificate
-if grep -q 'openssl.cafile=' $PHPRC; then
-    # If there's an openssl.cafile line (commented or not), enable & set it
-    sed -i -e "s/;\?openssl.cafile=.*/openssl.cafile=${SSL_CERT_FILE//\//\\/}/" $PHPRC
-elif grep -q '\[openssl\]' $PHPRC; then
-    # If not, but there's an [openssl] section, add the setting there
-    sed -i -e "s/\[openssl\]/[openssl]\nopenssl.cafile=${SSL_CERT_FILE//\//\\/}/" $PHPRC
-else
-    # If that's missing too, add it ourselves
-    printf "\n[openssl]\nopenssl.cafile=$SSL_CERT_FILE" >> $PHPRC
-fi
-
+# Pass everything through to PHP (but now using our tweaked config)
 php "$@"
