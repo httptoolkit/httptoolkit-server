@@ -15,7 +15,7 @@
   "scripts": {
     "start": "node-dev ./bin/run start",
     "build": "npm run build:src && npm run build:pack",
-    "build:src": "rm -rf lib && tsc -b",
+    "build:src": "rm -rf lib && tsc -b && cp -r src/interceptors/terminal-wrappers lib/interceptors",
     "build:pack": "oclif-dev manifest && oclif-dev pack",
     "prepack": "npm run build:src && oclif-dev manifest",
     "test": "TS_NODE_FILES=true mocha -r ts-node/register 'test/**/*.spec.ts'"
