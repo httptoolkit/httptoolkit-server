@@ -97,6 +97,12 @@ if ($phpIniContents['openssl']) {
     $phpIniContents['openssl'] = array('openssl.cafile' => getenv('SSL_CERT_FILE'));
 }
 
+if ($phpIniContents['curl']) {
+    $phpIniContents['curl']['curl.cainfo'] = getenv('SSL_CERT_FILE');
+} else {
+    $phpIniContents['curl'] = array('curl.cainfo' => getenv('SSL_CERT_FILE'));
+}
+
 // Create a new config file that the real PHP instance will use
 $newPhpIni = tempnam(sys_get_temp_dir(), 'httptoolkit-php.ini');
 write_ini_file($phpIniContents, $newPhpIni);
