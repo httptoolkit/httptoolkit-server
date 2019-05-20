@@ -3,8 +3,8 @@ import * as path from 'path';
 import { promisify } from 'util';
 import { Mutex } from 'async-mutex';
 
-import * as getBrowserLauncherCb from '@james-proxy/james-browser-launcher';
-import { LaunchOptions, BrowserInstance } from '@james-proxy/james-browser-launcher';
+import * as getBrowserLauncherCb from '@httptoolkit/browser-launcher';
+import { LaunchOptions, BrowserInstance } from '@httptoolkit/browser-launcher';
 
 import { reportError } from './error-tracking';
 

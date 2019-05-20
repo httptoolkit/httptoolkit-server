@@ -24,7 +24,7 @@
   "homepage": "https://github.com/httptoolkit/httptoolkit-server",
   "bugs": "https://github.com/httptoolkit/httptoolkit-server/issues",
   "dependencies": {
-    "@james-proxy/james-browser-launcher": "^1.3.4",
+    "@httptoolkit/browser-launcher": "^1.4.1",
     "@oclif/command": "^1.5.4",
     "@oclif/config": "^1.8.8",
     "@oclif/plugin-help": "^2.1.3",
