@@ -10,8 +10,51 @@ then they'll start exactly the same way as normal, except
 they'll automatically trust the certificate.
 */
 
-// PHP has ini reading built in, but not writing.
-// From https://gist.github.com/edvardHua/a9830a68ae68f57cd892a8a2903a1fb4
+// Like the built-in parse_ini_file, but handles duplicate keys
+// correctly (instead of overwriting them).
+function read_ini_file($file){
+    $arr = array();
+    $handle = fopen($file, "r");
+    $currentSection = $arr;
+
+    while (($line = fgets($handle)) !== false) {
+        $parsed = parse_ini_string($line, true);
+
+        if (empty($parsed)) {
+            continue;
+        }
+
+        if ($line[0] == '[') {
+            # Start of a new section
+            $sectionName = key($parsed);
+            $arr[$sectionName] = array();
+            $currentSection = &$arr[$sectionName];
+        } else {
+            # key=value - insert into the current section
+            $key = key($parsed);
+            $value = $parsed[$key];
+
+            if (isset($currentSection[$key])) {
+                # Duplicate: turn the value into an array
+                if (!is_array($currentSection[$key])) {
+                    $tmp = $currentSection[$key];
+                    $currentSection[$key] = array($tmp);
+                }
+                $currentSection[$key][] = $value;
+            } else {
+                # New value: add it bare
+                $currentSection[$key] = $value;
+                var_dump($currentSection);
+            }
+        }
+    }
+    fclose($handle);
+
+    return $arr;
+}
+
+// PHP has no ini writing methods available: build one.
+// Based on https://gist.github.com/edvardHua/a9830a68ae68f57cd892a8a2903a1fb4
 function write_ini_file($assoc_arr, $path) {
     $content = "";
     foreach ($assoc_arr as $key => $elem) {
@@ -19,7 +62,8 @@ function write_ini_file($assoc_arr, $path) {
         foreach ($elem as $key2 => $elem2) {
             if (is_array($elem2)) {
                 for ($i = 0; $i < count($elem2); $i++) {
-                    $content .= $key2 . "[] = \"" . $elem2[$i] . "\"\n";
+                    // php.ini allows (requires, for extensions) duplicate keys
+                    $content .= $key2 . " = \"" . $elem2[$i] . "\"\n";
                 }
             } else if ($elem2 == "") {
                 $content .= $key2 . " = \n";
@@ -41,7 +85,7 @@ function write_ini_file($assoc_arr, $path) {
 // Get the contents of the current config file
 $phpIniLocation = php_ini_loaded_file();
 if ($phpIniLocation) {
-    $phpIniContents = parse_ini_file($phpIniLocation, true);
+    $phpIniContents = read_ini_file($phpIniLocation);
 } else {
     $phpIniContents = array();
 }
