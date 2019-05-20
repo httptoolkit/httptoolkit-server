@@ -1,5 +1,6 @@
 import * as _ from 'lodash';
 import * as fs from 'fs';
+import * as path from 'path';
 import * as util from 'util';
 import { spawn, ChildProcess, SpawnOptions } from 'child_process';
 import * as GSettings from 'node-gsettings-wrapper';
@@ -18,6 +19,7 @@ const canAccess = (path: string) => checkAccess(path).then(() => true).catch(() 
 const commandExists = (path: string): Promise<boolean> => ensureCommandExists(path).then(() => true).catch(() => false);
 
 const DEFAULT_GIT_BASH_PATH = 'C:/Program Files/git/git-bash.exe';
+const PATH_VAR_SEPARATOR = process.platform === 'win32' ? ';' : ':';
 
 interface SpawnArgs {
     command: string;
@@ -94,7 +96,7 @@ export class TerminalInterceptor implements Interceptor {
         const { command, args, options } = terminalSpawnArgs;
 
         const childProc = spawn(command, args || [], _.assign(options || {}, {
-            env: _.assign({
+            env: _.assign({}, process.env, {
                 'http_proxy': `http://localhost:${proxyPort}`,
                 'HTTP_PROXY': `http://localhost:${proxyPort}`,
                 'https_proxy': `http://localhost:${proxyPort}`,
@@ -109,8 +111,11 @@ export class TerminalInterceptor implements Interceptor {
                 // Trust cert when using Perl LWP
                 'PERL_LWP_SSL_CA_FILE': this.config.https.certPath,
                 // Trust cert for HTTPS requests from Git
-                'GIT_SSL_CAINFO': this.config.https.certPath
-            }, process.env),
+                'GIT_SSL_CAINFO': this.config.https.certPath,
+
+                // Prepend our bin overrides into $PATH
+                'PATH': `${path.join(__dirname, 'terminal-wrappers')}${PATH_VAR_SEPARATOR}${process.env.PATH}`
+            }),
             cwd: process.env.HOME || process.env.USERPROFILE
         }));
 
