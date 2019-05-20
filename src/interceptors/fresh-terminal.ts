@@ -101,6 +101,8 @@ export class TerminalInterceptor implements Interceptor {
                 'HTTP_PROXY': `http://localhost:${proxyPort}`,
                 'https_proxy': `http://localhost:${proxyPort}`,
                 'HTTPS_PROXY': `http://localhost:${proxyPort}`,
+                // Used by some CGI engines to avoid 'httpoxy' vulnerability
+                'CGI_HTTP_PROXY': `http://localhost:${proxyPort}`,
 
                 // Trust cert when using OpenSSL with default settings
                 'SSL_CERT_FILE': this.config.https.certPath,
