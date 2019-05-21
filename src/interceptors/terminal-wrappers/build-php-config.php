@@ -44,7 +44,6 @@ function read_ini_file($file){
             } else {
                 # New value: add it bare
                 $currentSection[$key] = $value;
-                var_dump($currentSection);
             }
         }
     }
