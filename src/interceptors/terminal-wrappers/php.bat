@@ -10,10 +10,5 @@ set WRAPPER_FOLDER=%THIS_PATH:~0,-1%
 REM Remove that folder from PATH
 call set PATH=%%PATH:%WRAPPER_FOLDER%;=%%
 
-REM Create a php.ini that trusts our cert, and set the path in PHPRC so PHP uses it
-FOR /F "tokens=* USEBACKQ" %%F IN (`php %WRAPPER_FOLDER%\build-php-config.php`) DO (
-    SET PHPRC=%%F
-)
-
-REM Start PHP for real (but now using our tweaked config)
-php %*
+REM Start PHP for real, with extra args to override certain configs
+php -d "openssl.cafile=%SSL_CERT_FILE%" -d "curl.cainfo=%SSL_CERT_FILE%" %*

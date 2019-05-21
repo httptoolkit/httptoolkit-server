@@ -4,9 +4,13 @@ set -e
 # Exclude ourselves from PATH within this script, to avoid recursing
 PATH="${PATH/`dirname $0`:/}"
 
-# Build a new PHP config that trusts our certificate, and use PHPRC
-# to ensure that the next php command uses it.
-export PHPRC=`php $(dirname $0)/build-php-config.php`
-
-# Pass everything through to PHP (but now using our tweaked config)
-php "$@"
+# Call PHP with the given arguments, and a few extra
+PHP_ARGS=(
+    # Make OpenSSL trust us
+    -d "openssl.cafile=$SSL_CERT_FILE" \
+    # Make cURL trust us
+    -d "curl.cainfo=$SSL_CERT_FILE" \
+    # Pass through all other provided arguments
+    "$@"
+)
+php ${PHP_ARGS[@]}
