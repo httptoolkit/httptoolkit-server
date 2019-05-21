@@ -11,4 +11,4 @@ REM Remove that folder from PATH
 call set PATH=%%PATH:%WRAPPER_FOLDER%;=%%
 
 REM Start PHP for real, with extra args to override certain configs
-php -d "openssl.cafile=%SSL_CERT_FILE%" -d "curl.cainfo=%SSL_CERT_FILE%" %*
+php -d "openssl.cafile=%SSL_CERT_FILE%" -d "curl.cainfo=%SSL_CERT_FILE%" -d "auto_prepend_file=%WRAPPER_FOLDER%\prepend.php" %*

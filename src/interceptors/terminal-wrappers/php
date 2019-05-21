@@ -10,6 +10,8 @@ PHP_ARGS=(
     -d "openssl.cafile=$SSL_CERT_FILE" \
     # Make cURL trust us
     -d "curl.cainfo=$SSL_CERT_FILE" \
+    # Prepend a script that enables the proxy
+    -d "auto_prepend_file=`dirname $0`/prepend.php" \
     # Pass through all other provided arguments
     "$@"
 )
