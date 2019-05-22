@@ -22,12 +22,18 @@ const commandExists = (path: string): Promise<boolean> => ensureCommandExists(pa
 const DEFAULT_GIT_BASH_PATH = 'C:/Program Files/git/git-bash.exe';
 const PATH_VAR_SEPARATOR = process.platform === 'win32' ? ';' : ':';
 const SHELL = (process.env.SHELL || '').split('/').slice(-1)[0];
+
 const OVERRIDE_BIN_PATH = path.join(__dirname, 'terminal-wrappers');
+// Generate POSIX paths for git-bash on Windows (or use the normal path everywhere where)
+const POSIX_OVERRIDE_BIN_PATH = process.platform === 'win32'
+    ? OVERRIDE_BIN_PATH.replace(/\\/g, '/').replace(/^(\w+):/, (_all, driveLetter) => `/${driveLetter.toLowerCase()}`)
+    : OVERRIDE_BIN_PATH;
 
 interface SpawnArgs {
     command: string;
     args?: string[];
     options?: SpawnOptions;
+    skipStartupScripts?: true;
 }
 
 const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
@@ -37,7 +43,7 @@ const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
         } else if (await canAccess(DEFAULT_GIT_BASH_PATH)) {
             return { command: DEFAULT_GIT_BASH_PATH };
         } else {
-            return { command: 'start', args: ['cmd'], options: { shell: true } };
+            return { command: 'start', args: ['cmd'], options: { shell: true }, skipStartupScripts: true };
         }
     } else if (process.platform === 'linux') {
         if (GSettings.isAvailable()) {
@@ -200,13 +206,13 @@ export class TerminalInterceptor implements Interceptor {
         const terminalSpawnArgs = await getTerminalCommand();
         if (!terminalSpawnArgs) throw new Error('Could not find a suitable terminal');
 
-        const { command, args, options } = terminalSpawnArgs;
+        const { command, args, options, skipStartupScripts } = terminalSpawnArgs;
 
-        // On OSX, our PATH override below doesn't work, because path_helper always runs and prepends
-        // the real paths over the top. To fix this, we (very carefully!) rewrite shell startup
-        // scripts, to reset PATH there.
+        // Our PATH override below may not work, e.g. because OSX's path_helper always prepends
+        // the real paths over the top, and git-bash ignore env var paths overrides. To fix this,
+        // we (very carefully!) rewrite shell startup scripts, to reset the PATH in our shell.
         // This gets reset on exit, and is behind a flag so it won't affect other shells anyway.
-        if (process.platform === 'darwin') await editShellStartupScripts();
+        if (!skipStartupScripts) await editShellStartupScripts();
 
         const childProc = spawn(
             command,
@@ -242,8 +248,13 @@ export class TerminalInterceptor implements Interceptor {
         terminals[proxyPort] = (terminals[proxyPort] || []).concat(childProc);
 
         const onTerminalClosed = () => {
-            if (process.platform === 'darwin') resetShellStartupScripts();
             terminals[proxyPort] = _.reject(terminals[proxyPort], childProc);
+
+            // Delay slightly as some terminals (gnome-terminal) exit immediately,
+            // and start the terminal elsewhere, so it may not have started yet.
+            setTimeout(() => {
+                if (_.every(terminals, ts => _.isEmpty(ts))) resetShellStartupScripts();
+            }, 500);
         };
         childProc.once('exit', onTerminalClosed);
         childProc.once('error', (e) => {
