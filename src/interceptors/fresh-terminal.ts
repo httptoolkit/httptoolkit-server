@@ -46,6 +46,8 @@ const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
             return { command: 'start', args: ['cmd'], options: { shell: true }, skipStartupScripts: true };
         }
     } else if (process.platform === 'linux') {
+        if (await commandExists('x-terminal-emulator')) return { command: 'x-terminal-emulator' };
+
         if (GSettings.isAvailable()) {
             const gSettingsTerminalKey = GSettings.Key.findById(
                 'org.gnome.desktop.default-applications.terminal', 'exec'
@@ -57,9 +59,8 @@ const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
             }
         }
 
-        if (await commandExists('xterm')) {
-            return { command: 'xterm' };
-        }
+        if (await commandExists('xfce4-terminal')) return { command: 'xfce4-terminal' };
+        if (await commandExists('xterm')) return { command: 'xterm' };
     } else if (process.platform === 'darwin') {
         const terminalExecutables = (await Promise.all(
             [
