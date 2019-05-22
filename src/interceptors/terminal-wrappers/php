@@ -15,4 +15,9 @@ PHP_ARGS=(
     # Pass through all other provided arguments
     "$@"
 )
-php ${PHP_ARGS[@]}
+
+if command -v winpty >/dev/null 2>&1; then
+    winpty php ${PHP_ARGS[@]}
+else
+    php ${PHP_ARGS[@]}
+fi

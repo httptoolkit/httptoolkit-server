@@ -82,16 +82,6 @@ const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
     return null;
 });
 
-// Works in bash, zsh, dash, ksh, sh (not fish)
-const SH_SHELL_PATH_CONFIG = `
-# Do not edit (all lines including $HTTP_TOOLKIT_ACTIVE will be removed automatically)
-if [ -n "$HTTP_TOOLKIT_ACTIVE" ]; then export PATH="${OVERRIDE_BIN_PATH}:$PATH"; fi`;
-const FISH_SHELL_PATH_CONFIG = `
-# Do not edit (all lines including $HTTP_TOOLKIT_ACTIVE will be removed automatically)
-[ -n "$HTTP_TOOLKIT_ACTIVE" ]; and set -x PATH "${OVERRIDE_BIN_PATH}" $PATH;`;
-// Used to remove these lines from the config later
-const SHELL_PATH_CONFIG_MATCHER = /.*\$HTTP_TOOLKIT_ACTIVE.*/;
-
 const appendOrCreateFile = util.promisify(fs.appendFile);
 const appendToFirstExisting = async (paths: string[], forceWrite: boolean, contents: string) => {
     for (let path of paths) {
@@ -106,6 +96,33 @@ const appendToFirstExisting = async (paths: string[], forceWrite: boolean, conte
         return appendOrCreateFile(paths.slice(-1)[0], contents);
     }
 };
+
+const START_CONFIG_SECTION = '# --httptoolkit--';
+const END_CONFIG_SECTION = '# --httptoolkit-end--';
+
+// Works in bash, zsh, dash, ksh, sh (not fish)
+const SH_SHELL_PATH_CONFIG = `
+${START_CONFIG_SECTION} This section will be removed shortly
+if [ -n "$HTTP_TOOLKIT_ACTIVE" ]; then
+    export PATH="${POSIX_OVERRIDE_BIN_PATH}:$PATH"
+
+    if command -v winpty >/dev/null 2>&1; then
+        # Work around for winpty's hijacking of certain commands
+        alias php=php
+    fi
+fi
+${END_CONFIG_SECTION}`;
+const FISH_SHELL_PATH_CONFIG = `
+${START_CONFIG_SECTION} This section will be removed shortly
+if [ -n "$HTTP_TOOLKIT_ACTIVE" ]
+    set -x PATH "${POSIX_OVERRIDE_BIN_PATH}" $PATH;
+
+    if command -v winpty >/dev/null 2>&1
+        # Work around for winpty's hijacking of certain commands
+        alias php=php
+    end
+end
+${END_CONFIG_SECTION}`;
 
 // Find the relevant user shell config file, add the above line to it, so that
 // shells launched with HTTP_TOOLKIT_ACTIVE set use the interception PATH.
@@ -149,7 +166,7 @@ const editShellStartupScripts = async () => {
 const readFile = util.promisify(fs.readFile);
 const writeFile = util.promisify(fs.writeFile);
 const renameFile = util.promisify(fs.rename);
-const removeMatchingInFile = async (path: string, matcher: RegExp) => {
+const removeConfigSectionsFromFile = async (path: string) => {
     let fileLines: string[];
 
     try {
@@ -159,8 +176,16 @@ const removeMatchingInFile = async (path: string, matcher: RegExp) => {
         return;
     }
 
-    // Drop all matching lines from the config file
-    fileLines = fileLines.filter(line => !matcher.test(line));
+    // Remove everything between each pair of start/end section markers
+    let sectionStart = _.findIndex(fileLines, (l) => l.startsWith(START_CONFIG_SECTION));
+    while (sectionStart !== -1) {
+        let sectionEnd = _.findIndex(fileLines, (l) => l.startsWith(END_CONFIG_SECTION));
+
+        if (sectionEnd === -1 || sectionEnd <= sectionStart) return; // Odd config file state - don't edit it
+        fileLines.splice(sectionStart, (sectionEnd - sectionStart) + 1);
+        sectionStart = _.findIndex(fileLines, (l) => l.startsWith(START_CONFIG_SECTION));
+    }
+
     // Write & rename to ensure this is atomic, and avoid races here
     // as much as we reasonably can.
     const tempFile = path + Date.now() + '.temp';
@@ -181,8 +206,7 @@ const resetShellStartupScripts = () => {
         path.join(os.homedir(), '.zshrc'),
         path.join(os.homedir(), '.config', 'fish', 'config.fish'),
     ].map((configFile) =>
-        removeMatchingInFile(configFile, SHELL_PATH_CONFIG_MATCHER)
-        .catch(reportError)
+        removeConfigSectionsFromFile(configFile).catch(reportError)
     ));
 };
 
