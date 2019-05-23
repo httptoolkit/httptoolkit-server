@@ -28,7 +28,7 @@ export class FreshFirefox implements Interceptor {
 
     constructor(private config: HtkConfig) { }
 
-    isActive(proxyPort: number) {
+    isActive(proxyPort: number | string) {
         return browsers[proxyPort] != null && !!browsers[proxyPort].pid;
     }
 
@@ -133,12 +133,18 @@ export class FreshFirefox implements Interceptor {
         await delay(1000);
     }
 
-    async deactivate(proxyPort: number) {
+    async deactivate(proxyPort: number | string) {
         if (this.isActive(proxyPort)) {
             const browser = browsers[proxyPort];
             const exitPromise = new Promise((resolve) => browser!.process.once('exit', resolve));
             browser!.stop();
             await exitPromise;
         }
+    }
+
+    async deactivateAll(): Promise<void> {
+        await Promise.all(
+            Object.keys(browsers).map((proxyPort) => this.deactivate(proxyPort))
+        );
     }
 };

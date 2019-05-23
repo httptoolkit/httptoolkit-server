@@ -223,7 +223,7 @@ export class TerminalInterceptor implements Interceptor {
         return !!(await getTerminalCommand());
     }
 
-    isActive(proxyPort: number): boolean {
+    isActive(proxyPort: number | string): boolean {
         return !!(terminals[proxyPort] && terminals[proxyPort]!.length);
     }
 
@@ -288,7 +288,7 @@ export class TerminalInterceptor implements Interceptor {
         });
     }
 
-    async deactivate(proxyPort: number): Promise<void> {
+    async deactivate(proxyPort: number | string): Promise<void> {
         if (!this.isActive(proxyPort)) return;
 
         await Promise.all((terminals[proxyPort] || []).map((proc) => {
@@ -297,6 +297,12 @@ export class TerminalInterceptor implements Interceptor {
                 proc.kill();
             });
         }));
+    }
+
+    async deactivateAll(): Promise<void> {
+        await Promise.all(
+            Object.keys(terminals).map((proxyPort) => this.deactivate(proxyPort))
+        );
     }
 
 }

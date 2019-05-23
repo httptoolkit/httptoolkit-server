@@ -11,6 +11,7 @@ import { HttpToolkitServer } from './httptoolkit-server';
 import { checkBrowserConfig } from './browsers';
 import { reportError } from './error-tracking';
 import { delay, ALLOWED_ORIGINS } from './util';
+import { registerShutdownHandler } from './shutdown';
 
 const canAccess = util.promisify(fs.access);
 const mkDir = util.promisify(fs.mkdir);
@@ -48,6 +49,7 @@ export async function runHTK(options: {
     configPath?: string
 } = {}) {
     const startTime = Date.now();
+    registerShutdownHandler();
 
     const configPath = options.configPath || envPaths('httptoolkit', { suffix: '' }).config;
 

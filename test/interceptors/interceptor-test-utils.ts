@@ -59,4 +59,17 @@ export function itCanBeActivated(interceptorSetup: InterceptorSetup) {
         await interceptor.deactivate(server.port);
         expect(interceptor.isActive(server.port)).to.equal(false);
     });
+
+    it('can deactivate all', async () => {
+        const { interceptor, server } = await interceptorSetup;
+
+        expect(interceptor.isActive(server.port)).to.equal(false);
+
+        await interceptor.activate(server.port);
+        expect(interceptor.isActive(server.port)).to.equal(true);
+        expect(interceptor.isActive(server.port + 1)).to.equal(false);
+
+        await interceptor.deactivateAll();
+        expect(interceptor.isActive(server.port)).to.equal(false);
+    });
 }
