@@ -104,9 +104,7 @@
         "version": "10.15.1",
         "targets": [
           "win32-x64",
-          "win32-x86",
           "linux-x64",
-          "linux-arm",
           "darwin-x64"
         ]
       }
