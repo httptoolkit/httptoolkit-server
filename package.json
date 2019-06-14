@@ -10,12 +10,13 @@
   "files": [
     "oclif.manifest.json",
     "/bin",
-    "/lib"
+    "/lib",
+    "/overrides"
   ],
   "scripts": {
     "start": "node-dev ./bin/run start",
     "build": "npm run build:src && npm run build:release",
-    "build:src": "rm -rf lib && tsc -b && cp -r src/interceptors/terminal-wrappers lib/interceptors",
+    "build:src": "rm -rf lib && tsc -b",
     "build:release": "oclif-dev manifest && ./build-release.sh linux && ./build-release.sh darwin && ./build-release.sh win32",
     "prepack": "npm run build:src && oclif-dev manifest",
     "test": "TS_NODE_FILES=true mocha -r ts-node/register 'test/**/*.spec.ts'"

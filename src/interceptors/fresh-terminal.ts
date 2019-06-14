@@ -23,7 +23,9 @@ const DEFAULT_GIT_BASH_PATH = 'C:/Program Files/git/git-bash.exe';
 const PATH_VAR_SEPARATOR = process.platform === 'win32' ? ';' : ':';
 const SHELL = (process.env.SHELL || '').split('/').slice(-1)[0];
 
-const OVERRIDE_BIN_PATH = path.join(__dirname, 'terminal-wrappers');
+const OVERRIDES_DIR = path.join(__dirname, '..', '..', 'overrides');
+
+const OVERRIDE_BIN_PATH = path.join(OVERRIDES_DIR, 'path');
 // Generate POSIX paths for git-bash on Windows (or use the normal path everywhere where)
 const POSIX_OVERRIDE_BIN_PATH = process.platform === 'win32'
     ? OVERRIDE_BIN_PATH.replace(/\\/g, '/').replace(/^(\w+):/, (_all, driveLetter) => `/${driveLetter.toLowerCase()}`)
