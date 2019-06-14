@@ -30,6 +30,7 @@ const OVERRIDE_BIN_PATH = path.join(OVERRIDES_DIR, 'path');
 const POSIX_OVERRIDE_BIN_PATH = process.platform === 'win32'
     ? OVERRIDE_BIN_PATH.replace(/\\/g, '/').replace(/^(\w+):/, (_all, driveLetter) => `/${driveLetter.toLowerCase()}`)
     : OVERRIDE_BIN_PATH;
+const OVERRIDE_RUBYGEMS_PATH = path.join(OVERRIDES_DIR, 'gems');
 
 interface SpawnArgs {
     command: string;
@@ -267,7 +268,11 @@ export class TerminalInterceptor implements Interceptor {
                 'HTTP_TOOLKIT_ACTIVE': 'true',
 
                 // Prepend our bin overrides into $PATH
-                'PATH': `${OVERRIDE_BIN_PATH}${PATH_VAR_SEPARATOR}${process.env.PATH}`
+                'PATH': `${OVERRIDE_BIN_PATH}${PATH_VAR_SEPARATOR}${process.env.PATH}`,
+                // Prepend our Ruby gem overrides into $LOAD_PATH
+                'RUBYLIB': process.env.RUBYLIB
+                    ? `${OVERRIDE_RUBYGEMS_PATH}:${process.env.RUBYLIB}`
+                    : OVERRIDE_RUBYGEMS_PATH
             }),
             cwd: process.env.HOME || process.env.USERPROFILE
         }));
