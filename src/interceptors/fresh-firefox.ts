@@ -87,6 +87,9 @@ export class FreshFirefox implements Interceptor {
                 'network.proxy.http_port': proxyPort,
                 'network.proxy.http.network.proxy.http.no_proxies_on': certCheckServer.host,
 
+                // Send localhost reqs via the proxy too
+                'network.proxy.allow_hijacking_localhost': true,
+
                 // Disable the noisy captive portal check requests
                 'network.captive-portal-service.enabled': false,
 
