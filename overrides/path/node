@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -e
+
+# Exclude ourselves from PATH within this script, to avoid recursing
+PATH="${PATH/`dirname $0`:/}"
+
+# Call node with the given arguments, prefixed with our extra logic
+if command -v winpty >/dev/null 2>&1; then
+    winpty node -r "`dirname $0`/node_modules/global-agent/bootstrap" "$@"
+else
+    node -r "`dirname $0`/node_modules/global-agent/bootstrap" "$@"
+fi

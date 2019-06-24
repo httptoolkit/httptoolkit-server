@@ -251,6 +251,8 @@ export class TerminalInterceptor implements Interceptor {
                 'HTTP_PROXY': `http://localhost:${proxyPort}`,
                 'https_proxy': `http://localhost:${proxyPort}`,
                 'HTTPS_PROXY': `http://localhost:${proxyPort}`,
+                // Used by global-agent to configure node.js HTTP(S) defaults
+                'GLOBAL_AGENT_HTTP_PROXY': `http://localhost:${proxyPort}`,
                 // Used by some CGI engines to avoid 'httpoxy' vulnerability
                 'CGI_HTTP_PROXY': `http://localhost:${proxyPort}`,
 
