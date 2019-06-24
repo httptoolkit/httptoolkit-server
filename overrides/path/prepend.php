@@ -1,7 +1,7 @@
 <?php
     stream_context_set_default(
         array(
-            'http' => array('proxy' => 'localhost:8000')
+            'http' => array('proxy' => str_replace('http://', '', getenv('HTTPS_PROXY')))
         )
     );
 
