@@ -255,6 +255,9 @@ export class TerminalInterceptor implements Interceptor {
                 'GLOBAL_AGENT_HTTP_PROXY': `http://localhost:${proxyPort}`,
                 // Used by some CGI engines to avoid 'httpoxy' vulnerability
                 'CGI_HTTP_PROXY': `http://localhost:${proxyPort}`,
+                // Used by npm, for versions that don't support HTTP_PROXY etc
+                'npm_config_proxy': `http://localhost:${proxyPort}`,
+                'npm_config_https_proxy': `http://localhost:${proxyPort}`,
 
                 // Trust cert when using OpenSSL with default settings
                 'SSL_CERT_FILE': this.config.https.certPath,
