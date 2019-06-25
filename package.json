@@ -36,6 +36,7 @@
     "command-exists": "^1.2.8",
     "env-paths": "^1.0.0",
     "global-agent": "^1.12.2",
+    "global-tunnel-ng": "^2.7.1",
     "graphql": "^14.0.2",
     "graphql-yoga": "^1.16.7",
     "lodash": "^4.17.11",

@@ -4,9 +4,11 @@ set -e
 # Exclude ourselves from PATH within this script, to avoid recursing
 PATH="${PATH/`dirname $0`:/}"
 
+GLOBAL_AGENT_PATH=`dirname $0`/prepend.js
+
 # Call node with the given arguments, prefixed with our extra logic
 if command -v winpty >/dev/null 2>&1; then
-    winpty node -r "`dirname $0`/node_modules/global-agent/bootstrap" "$@"
+    winpty node -r "$GLOBAL_AGENT_PATH" "$@"
 else
-    node -r "`dirname $0`/node_modules/global-agent/bootstrap" "$@"
+    node -r "$GLOBAL_AGENT_PATH" "$@"
 fi
