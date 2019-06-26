@@ -26,6 +26,10 @@ function interceptAllHttp() {
     }
 }
 
+// Grab the built-in module loader that we're going to intercept
+const mod = require('module');
+const realLoad = mod._load;
+
 // Intercept calls to require() certain modules, to monkey-patch/wrap them.
 
 // Primarily exists to intercept http/https, but could be used for any
@@ -44,25 +48,57 @@ const alreadyIntercepted = [];
 // requires that can cause problems here.
 let delayedInterception = false;
 
-const mod = require('module');
-const realLoad = mod._load;
-
 // Given a just-loaded module's name, do whatever is required to set up interception
-function fixModule(name) {
+// This must return the resulting module, but due to delayed interception, that isn't
+// used if it's hit in a circular require. Works for now, but needs careful thought.
+function fixModule(name, loadedModule) {
     if (name === 'http' || name === 'https') {
         delayedInterception = [];
 
         interceptAllHttp();
 
         delayedInterception.forEach(function (modDetails) {
-            fixModule(modDetails.name);
+            fixModule(modDetails.name, modDetails.loadedModule);
         });
+        delayedInterception = false;
+
+        return loadedModule;
+    } else if (name === 'axios') {
+        // Disable built-in proxy support, to let global-agent/tunnel take precedence
+        // Supported back to the very first release of Axios
+        loadedModule.defaults.proxy = false;
+        return loadedModule;
+    } else if (name === 'request') {
+        // Disable built-in proxy support, to let global-agent/tunnel take precedence
+        if (loadedModule.defaults) {
+            return loadedModule.defaults({ proxy: false });
+        } else {
+            // Request < 2.17 (_very_ old). Predates the proxy support that makes
+            // this necessary in the first place (added in 2.38).
+            return loadedModule;
+        }
+    } else if (name === 'stripe') {
+        stripeReplacement = Object.assign(function () {
+            const result = loadedModule.apply(this, arguments);
+
+            if (global.GLOBAL_AGENT) {
+                // Set by global-agent in Node 10+
+                result.setHttpAgent(global.GLOBAL_AGENT.HTTPS_PROXY_AGENT);
+            } else {
+                // Set by global-tunnel in Node < 10 (or global-agent in 11.7+)
+                result.setHttpAgent(require('https').globalAgent);
+            }
+
+            return result;
+        }, loadedModule);
+        return stripeReplacement;
     }
+    else return loadedModule;
 }
 
 // Our hook into require():
 mod._load = function (name) {
-    const loadedModule = realLoad.apply(this, arguments);
+    let loadedModule = realLoad.apply(this, arguments);
 
     // Should always be set, but check just in case. This also allows users to disable
     // interception explicitly, if need be.
@@ -75,7 +111,7 @@ mod._load = function (name) {
     if (delayedInterception !== false) {
         delayedInterception.push({ name: name, loadedModule: loadedModule });
     } else {
-        fixModule(name);
+        loadedModule = fixModule(name, loadedModule);
     }
 
     return loadedModule;
