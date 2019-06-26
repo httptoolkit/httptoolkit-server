@@ -74,6 +74,24 @@ function fixModule(requestedName, filename, loadedModule) {
         // Disable built-in proxy support, to let global-agent/tunnel take precedence
         fixedModule = loadedModule.defaults({ proxy: false });
         fixedModule.INTERCEPTED_BY_HTTPTOOLKIT = true;
+    } else if (
+        requestedName === 'superagent' &&
+        !global.GLOBAL_AGENT && // Works automatically with global-agent
+        !loadedModule.INTERCEPTED_BY_HTTPTOOLKIT // Make this idempotent
+    ) {
+        loadedModule.INTERCEPTED_BY_HTTPTOOLKIT = true;
+
+        // Global tunnel doesn't successfully reconfigure superagent.
+        // To fix it, we forcibly override the agent property on every request.
+        const originalRequestMethod = loadedModule.Request.prototype.request;
+        fixedModule.Request.prototype.request = function () {
+            if (this.url.indexOf('https:') === 0) {
+                this._agent = require('https').globalAgent;
+            } else {
+                this._agent = require('http').globalAgent;
+            }
+            return originalRequestMethod.apply(this, arguments);
+        };
     } else if (requestedName === 'stripe' && !loadedModule.INTERCEPTED_BY_HTTPTOOLKIT) {
         fixedModule = Object.assign(function () {
             const result = loadedModule.apply(this, arguments);
