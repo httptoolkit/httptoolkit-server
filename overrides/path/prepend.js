@@ -98,6 +98,8 @@ function fixModule(requestedName, filename, loadedModule) {
 
             if (global.GLOBAL_AGENT) {
                 // Set by global-agent in Node 10+
+                // This won't actually work until https://github.com/gajus/global-agent/pull/13
+                // is somehow resolved, one way or another.
                 result.setHttpAgent(global.GLOBAL_AGENT.HTTPS_PROXY_AGENT);
             } else {
                 // Set by global-tunnel in Node < 10 (or global-agent in 11.7+)
