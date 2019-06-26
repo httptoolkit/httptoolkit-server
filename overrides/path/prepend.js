@@ -40,8 +40,6 @@ const realLoad = mod._load;
 // it's deferred until the first require(), in case the user cares about
 // require order (e.g. if they're mocking out the 'http' module completely).
 
-const alreadyIntercepted = [];
-
 // Normally false, but can be set to a list of modules to defer interception so
 // we can use the required modules as part of the monkey patching process.
 // E.g. global-agent requires http & https, so we would otherwise get circular
@@ -51,34 +49,33 @@ let delayedInterception = false;
 // Given a just-loaded module's name, do whatever is required to set up interception
 // This must return the resulting module, but due to delayed interception, that isn't
 // used if it's hit in a circular require. Works for now, but needs careful thought.
-function fixModule(name, loadedModule) {
-    if (name === 'http' || name === 'https') {
+// All fixes must be idempotent (must not cause problems if run repeatedly).
+function fixModule(requestedName, filename, loadedModule) {
+    let fixedModule = loadedModule;
+
+    if (requestedName === 'http' || requestedName === 'https') {
         delayedInterception = [];
 
         interceptAllHttp();
 
         delayedInterception.forEach(function (modDetails) {
-            fixModule(modDetails.name, modDetails.loadedModule);
+            fixModule(modDetails.requestedName, modDetails.filename, modDetails.loadedModule);
         });
         delayedInterception = false;
-
-        return loadedModule;
-    } else if (name === 'axios') {
+    } else if (requestedName === 'axios') {
         // Disable built-in proxy support, to let global-agent/tunnel take precedence
         // Supported back to the very first release of Axios
-        loadedModule.defaults.proxy = false;
-        return loadedModule;
-    } else if (name === 'request') {
+        fixedModule.defaults.proxy = false;
+    } else if (
+        requestedName === 'request' &&
+        loadedModule.defaults && // Request >= 2.17 (before that, proxy support isn't a problem anyway)
+        !loadedModule.INTERCEPTED_BY_HTTPTOOLKIT // Make this idempotent
+    ) {
         // Disable built-in proxy support, to let global-agent/tunnel take precedence
-        if (loadedModule.defaults) {
-            return loadedModule.defaults({ proxy: false });
-        } else {
-            // Request < 2.17 (_very_ old). Predates the proxy support that makes
-            // this necessary in the first place (added in 2.38).
-            return loadedModule;
-        }
-    } else if (name === 'stripe') {
-        stripeReplacement = Object.assign(function () {
+        fixedModule = loadedModule.defaults({ proxy: false });
+        fixedModule.INTERCEPTED_BY_HTTPTOOLKIT = true;
+    } else if (requestedName === 'stripe' && !loadedModule.INTERCEPTED_BY_HTTPTOOLKIT) {
+        fixedModule = Object.assign(function () {
             const result = loadedModule.apply(this, arguments);
 
             if (global.GLOBAL_AGENT) {
@@ -90,28 +87,35 @@ function fixModule(name, loadedModule) {
             }
 
             return result;
-        }, loadedModule);
-        return stripeReplacement;
+        }, fixedModule);
+        fixedModule.INTERCEPTED_BY_HTTPTOOLKIT = true;
     }
-    else return loadedModule;
+
+    // Very carefully overwrite node's built-in module cache:
+    if (fixedModule !== loadedModule && mod._cache[filename] && mod._cache[filename].exports) {
+        mod._cache[filename].exports = fixedModule;
+    }
+
+    return fixedModule;
 }
 
 // Our hook into require():
-mod._load = function (name) {
+mod._load = function (requestedName, parent, isMain) {
+    const filename = mod._resolveFilename(requestedName, parent, isMain);
     let loadedModule = realLoad.apply(this, arguments);
 
     // Should always be set, but check just in case. This also allows users to disable
     // interception explicitly, if need be.
     if (!process.env.HTTP_TOOLKIT_ACTIVE) return loadedModule;
 
-    // Don't mess with modules if we've seen them before
-    if (alreadyIntercepted.indexOf(name) >= 0) return loadedModule;
-    else alreadyIntercepted.push(name);
-
     if (delayedInterception !== false) {
-        delayedInterception.push({ name: name, loadedModule: loadedModule });
+        delayedInterception.push({
+            requestedName: requestedName,
+            filename: filename,
+            loadedModule: loadedModule
+        });
     } else {
-        loadedModule = fixModule(name, loadedModule);
+        loadedModule = fixModule(requestedName, filename, loadedModule);
     }
 
     return loadedModule;
