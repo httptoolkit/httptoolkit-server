@@ -235,17 +235,32 @@ ${END_CONFIG_SECTION}`;
 const editShellStartupScripts = async () => {
     await resetShellStartupScripts();
 
+    // The key risk here is that one of these scripts (or some other process) will be
+    // overriding PATH itself, so we need to append some PATH reset logic. The main
+    // offenders are: nvm config's in .bashrc/.bash_profile, OSX's path_helper and
+    // git-bash ignoring the inherited $PATH.
+
     // .profile is used by Dash, Bash sometimes, and by Sh:
     appendOrCreateFile(path.join(os.homedir(), '.profile'), SH_SHELL_PATH_CONFIG)
         .catch(reportError);
 
-    // Bash uses some other files by preference, if they exist:
+    // Bash login shells use some other files by preference, if they exist.
+    // Note that on OSX, all shells are login - elsewhere they only are at actual login time.
     appendToFirstExisting(
         [
             path.join(os.homedir(), '.bash_profile'),
             path.join(os.homedir(), '.bash_login')
         ],
         false, // Do nothing if they don't exist - it falls back to .profile
+        SH_SHELL_PATH_CONFIG
+    ).catch(reportError);
+
+    // Bash non-login shells use .bashrc, if it exists:
+    appendToFirstExisting(
+        [
+            path.join(os.homedir(), '.bashrc')
+        ],
+        SHELL === 'bash', // If you use bash, we _always_ want to set this
         SH_SHELL_PATH_CONFIG
     ).catch(reportError);
 
