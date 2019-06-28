@@ -377,6 +377,8 @@ export class TerminalInterceptor implements Interceptor {
                 // Used by npm, for versions that don't support HTTP_PROXY etc
                 'npm_config_proxy': `http://localhost:${proxyPort}`,
                 'npm_config_https_proxy': `http://localhost:${proxyPort}`,
+                // Stop npm warning about having a different 'node' in $PATH
+                'npm_config_scripts_prepend_node_path': 'false',
 
                 // Trust cert when using OpenSSL with default settings
                 'SSL_CERT_FILE': this.config.https.certPath,
