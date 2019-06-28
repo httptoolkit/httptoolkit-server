@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
-# Exclude ourselves from PATH within this script, to avoid recursing
-PATH="${PATH/`dirname $0`:/}"
+# Exclude ourselves from PATH, find the real php, then reset PATH
+PATH="${PATH//`dirname $0`:/}"
+real_php=`command -v php`
+PATH="`dirname $0`:$PATH"
 
 # Call PHP with the given arguments, and a few extra
 PHP_ARGS=(
@@ -17,7 +19,7 @@ PHP_ARGS=(
 )
 
 if command -v winpty >/dev/null 2>&1; then
-    winpty php ${PHP_ARGS[@]}
+    winpty $real_php ${PHP_ARGS[@]}
 else
-    php ${PHP_ARGS[@]}
+    $real_php ${PHP_ARGS[@]}
 fi

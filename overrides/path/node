@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 set -e
 
-# Exclude ourselves from PATH within this script, to avoid recursing
-PATH="${PATH/`dirname $0`:/}"
+# Exclude ourselves from PATH, find the real node, then reset PATH
+PATH="${PATH//`dirname $0`:/}"
+real_node=`command -v node`
+PATH="`dirname $0`:$PATH"
 
-GLOBAL_AGENT_PATH=`dirname $0`/prepend.js
+PREPEND_PATH=`dirname $0`/prepend.js
 
 # Call node with the given arguments, prefixed with our extra logic
 if command -v winpty >/dev/null 2>&1; then
-    winpty node -r "$GLOBAL_AGENT_PATH" "$@"
+    winpty $real_node -r "$PREPEND_PATH" "$@"
 else
-    node -r "$GLOBAL_AGENT_PATH" "$@"
+    $real_node -r "$PREPEND_PATH" "$@"
 fi
