@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import * as util from 'util';
-import { spawn, ChildProcess, SpawnOptions } from 'child_process';
+import { spawn, exec, ChildProcess, SpawnOptions } from 'child_process';
 import * as GSettings from 'node-gsettings-wrapper';
 import * as ensureCommandExists from 'command-exists';
 
@@ -39,51 +39,150 @@ interface SpawnArgs {
     skipStartupScripts?: true;
 }
 
+const execAsync = (command: string): Promise<{ stdout: string, stderr: string }> => {
+    return new Promise((resolve, reject) => exec(command, (error, stdout, stderr) => {
+        if (error) reject(error);
+        else resolve({ stdout, stderr });
+    }));
+};
+
 const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
-    if (process.platform === 'win32') {
-        if (await commandExists('git-bash')) {
-            return { command: 'git-bash' };
-        } else if (await canAccess(DEFAULT_GIT_BASH_PATH)) {
-            return { command: DEFAULT_GIT_BASH_PATH };
-        } else {
-            return { command: 'start', args: ['cmd'], options: { shell: true }, skipStartupScripts: true };
-        }
-    } else if (process.platform === 'linux') {
-        if (await commandExists('x-terminal-emulator')) return { command: 'x-terminal-emulator' };
+    if (process.platform === 'win32') return getWindowsTerminalCommand();
+    else if (process.platform === 'darwin') return getOSXTerminalCommand();
+    else if (process.platform === 'linux') return getLinuxTerminalCommand();
+    else return null;
+});
 
-        if (GSettings.isAvailable()) {
-            const gSettingsTerminalKey = GSettings.Key.findById(
-                'org.gnome.desktop.default-applications.terminal', 'exec'
-            );
+const getWindowsTerminalCommand = async (): Promise<SpawnArgs | null> => {
+    if (await commandExists('git-bash')) {
+        return { command: 'git-bash' };
+    } else if (await canAccess(DEFAULT_GIT_BASH_PATH)) {
+        return { command: DEFAULT_GIT_BASH_PATH };
+    }
 
-            const defaultTerminal = gSettingsTerminalKey && gSettingsTerminalKey.getValue();
-            if (defaultTerminal && await commandExists(defaultTerminal)) {
-                return { command: defaultTerminal };
-            }
-        }
+    return { command: 'start', args: ['cmd'], options: { shell: true }, skipStartupScripts: true };
+};
 
-        if (await commandExists('xfce4-terminal')) return { command: 'xfce4-terminal' };
-        if (await commandExists('xterm')) return { command: 'xterm' };
-    } else if (process.platform === 'darwin') {
-        const terminalExecutables = (await Promise.all(
-            [
-                'co.zeit.hyper',
-                'com.googlecode.iterm2',
-                'com.googlecode.iterm',
-                'com.apple.Terminal'
-            ].map(
-                (bundleId) => findOsxExecutable(bundleId).catch(() => null)
-            )
-        )).filter((executablePath) => !!executablePath);
+const getOSXTerminalCommand = async (): Promise<SpawnArgs | null> => {
+    const terminalExecutables = (await Promise.all(
+        [
+            'co.zeit.hyper',
+            'com.googlecode.iterm2',
+            'com.googlecode.iterm',
+            'com.apple.Terminal'
+        ].map(
+            (bundleId) => findOsxExecutable(bundleId).catch(() => null)
+        )
+    )).filter((executablePath) => !!executablePath);
 
-        const bestAvailableTerminal = terminalExecutables[0];
-        if (bestAvailableTerminal) {
-            return { command: bestAvailableTerminal };
+    const bestAvailableTerminal = terminalExecutables[0];
+
+    if (bestAvailableTerminal) return { command: bestAvailableTerminal };
+    else return null;
+};
+
+const getLinuxTerminalCommand = async (): Promise<SpawnArgs | null> => {
+    // Symlink/wrapper that should indicate the system default
+    if (await commandExists('x-terminal-emulator')) return getXTerminalCommand();
+
+    // Check gnome app settings, if available
+    if (GSettings.isAvailable()) {
+        const gSettingsTerminalKey = GSettings.Key.findById(
+            'org.gnome.desktop.default-applications.terminal', 'exec'
+        );
+
+        const defaultTerminal = gSettingsTerminalKey && gSettingsTerminalKey.getValue();
+        if (defaultTerminal && await commandExists(defaultTerminal)) {
+            if (defaultTerminal.includes('gnome-terminal')) return getGnomeTerminalCommand(defaultTerminal);
+            if (defaultTerminal.includes('konsole')) return getKonsoleTerminalCommand(defaultTerminal);
+            if (defaultTerminal.includes('xfce4-terminal')) return getXfceTerminalCommand(defaultTerminal);
+            if (defaultTerminal.includes('x-terminal-emulator')) return getXTerminalCommand(defaultTerminal);
+            return { command: defaultTerminal };
         }
     }
 
+    // If a specific term like this is installed, it's probably the preferred one
+    if (await commandExists('konsole')) return getKonsoleTerminalCommand();
+    if (await commandExists('xfce4-terminal')) return getXfceTerminalCommand();
+    if (await commandExists('xterm')) return { command: 'xterm' };
+
     return null;
-});
+}
+
+const getXTerminalCommand = async (command = 'x-terminal-emulator'): Promise<SpawnArgs> => {
+    // x-terminal-emulator is a wrapper/symlink to the terminal of choice.
+    // Unfortunately, we need to pass specific args that aren't supported by all terminals (to ensure
+    // terminals run in the foreground), and the Debian XTE wrapper at least doesn't pass through
+    // any of the args we want to use. To fix this, we parse --help to try and detect the underlying
+    // terminal, and run it directly with the args we need.
+    try {
+        const { stdout } = await execAsync(`${command} --help`); // debian wrapper ignores --version
+        const helpOutput = stdout.toLowerCase().replace(/[^\w\d]+/g, ' ');
+
+        if (helpOutput.includes('gnome terminal') && await commandExists('gnome-terminal')) {
+            return getGnomeTerminalCommand();
+        } else if (helpOutput.includes('xfce4 terminal') && await commandExists('xfce4-terminal')) {
+            return getXfceTerminalCommand();
+        } else if (helpOutput.includes('konsole') && await commandExists('konsole')) {
+            return getKonsoleTerminalCommand();
+        }
+    } catch (e) {
+        reportError(e);
+    }
+
+    // If there's an error, or we just don't recognize the console, give up & run it directly
+    return { command: 'x-terminal-emulator' };
+};
+
+const getKonsoleTerminalCommand = async (command = 'konsole'): Promise<SpawnArgs> => {
+    let extraArgs: string[] = [];
+
+    const { stdout } = await execAsync(`${command} --help`);
+
+    // Forces Konsole to run in the foreground, with no separate process
+    // Seems to be well supported for a long time, but check just in case
+    if (stdout.includes('--nofork')) {
+        extraArgs = ['--nofork'];
+    }
+
+    return { command, args: extraArgs };
+};
+
+const getGnomeTerminalCommand = async (command = 'gnome-terminal'): Promise<SpawnArgs> => {
+    let extraArgs: string[] = [];
+
+    const { stdout } = await execAsync(`${command} --help-all`);
+
+    // Officially supported option, but only supported in v3.28+
+    if (stdout.includes('--wait')) {
+        extraArgs = ['--wait'];
+    } else {
+        // Debugging option - works back to v3.7 (2012), but not officially supported
+        // Documented at https://wiki.gnome.org/Apps/Terminal/Debugging
+        const randomId = Math.round((Math.random() * 100000));
+        extraArgs = ['--app-id', `com.httptoolkit.${randomId}`];
+    }
+
+    // We're assuming here that nobody is developing in a pre-2012 un-updated gnome-terminal.
+    // If they are then gnome-terminal is not going to recognize --app-id, and will fail to
+    // start. Hard to avoid, rare case, so c'est la vie.
+
+    return { command, args: extraArgs };
+};
+
+const getXfceTerminalCommand = async (command = 'xfce4-terminal'): Promise<SpawnArgs> => {
+    let extraArgs: string[] = [];
+
+    const { stdout } = await execAsync(`${command} --help`);
+
+    // Disables the XFCE terminal server for this terminal, so it runs in the foreground.
+    // Seems to be well supported for a long time, but check just in case
+    if (stdout.includes('--disable-server')) {
+        extraArgs = ['--disable-server'];
+    }
+
+    return { command, args: extraArgs };
+};
 
 const appendOrCreateFile = util.promisify(fs.appendFile);
 const appendToFirstExisting = async (paths: string[], forceWrite: boolean, contents: string) => {
@@ -105,8 +204,10 @@ const END_CONFIG_SECTION = '# --httptoolkit-end--';
 
 // Works in bash, zsh, dash, ksh, sh (not fish)
 const SH_SHELL_PATH_CONFIG = `
-${START_CONFIG_SECTION} This section will be removed shortly
+${START_CONFIG_SECTION}
+# This section will be reset each time a HTTP Toolkit terminal is opened
 if [ -n "$HTTP_TOOLKIT_ACTIVE" ]; then
+    # When HTTP Toolkit is active, we inject various overrides into PATH
     export PATH="${POSIX_OVERRIDE_BIN_PATH}:$PATH"
 
     if command -v winpty >/dev/null 2>&1; then
@@ -116,8 +217,10 @@ if [ -n "$HTTP_TOOLKIT_ACTIVE" ]; then
 fi
 ${END_CONFIG_SECTION}`;
 const FISH_SHELL_PATH_CONFIG = `
-${START_CONFIG_SECTION} This section will be removed shortly
+${START_CONFIG_SECTION}
+# This section will be reset each time a HTTP Toolkit terminal is opened
 if [ -n "$HTTP_TOOLKIT_ACTIVE" ]
+    # When HTTP Toolkit is active, we inject various overrides into PATH
     set -x PATH "${POSIX_OVERRIDE_BIN_PATH}" $PATH;
 
     if command -v winpty >/dev/null 2>&1
