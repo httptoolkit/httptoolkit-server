@@ -371,9 +371,10 @@ export class TerminalInterceptor implements Interceptor {
             command,
             (args || []),
             _.assign(options || {}, {
-            env: _.assign({}, process.env, getTerminalEnvVars(proxyPort, this.config.https)),
-            cwd: process.env.HOME || process.env.USERPROFILE
-        }));
+                env: _.assign({}, process.env, getTerminalEnvVars(proxyPort, this.config.https)),
+                cwd: process.env.HOME || process.env.USERPROFILE
+            })
+        );
 
         terminals[proxyPort] = (terminals[proxyPort] || []).concat(childProc);
 

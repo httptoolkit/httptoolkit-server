@@ -23,18 +23,19 @@ const getCertificateDetails = _.memoize(async (configPath: string) => {
 
 type InterceptorSetup = Promise<{
     server: Mockttp,
-    interceptor: Interceptor
+    interceptor: Interceptor,
+    httpsConfig: { certPath: string, keyPath: string }
 }>
 
 export async function setupInterceptor(interceptor: string): InterceptorSetup {
     const configPath = tmp.dirSync({ unsafeCleanup: true }).name;
 
-    const { certPath, keyPath } = await getCertificateDetails(configPath);
+    const httpsConfig = await getCertificateDetails(configPath);
 
-    const server = getLocal({ https: { certPath, keyPath } });
-    const interceptors = buildInterceptors({ configPath, https: { certPath, keyPath } });
+    const server = getLocal({ https: httpsConfig });
+    const interceptors = buildInterceptors({ configPath, https: httpsConfig });
 
-    return { server, interceptor: interceptors[interceptor] };
+    return { server, interceptor: interceptors[interceptor], httpsConfig };
 }
 
 // Various tests that we'll want to reuse across interceptors:
