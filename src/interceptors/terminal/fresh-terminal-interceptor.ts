@@ -36,10 +36,13 @@ interface SpawnArgs {
 }
 
 const execAsync = (command: string): Promise<{ stdout: string, stderr: string }> => {
-    return new Promise((resolve, reject) => exec(command, (error, stdout, stderr) => {
-        if (error) reject(error);
-        else resolve({ stdout, stderr });
-    }));
+    return new Promise((resolve, reject) => {
+        const childProc = exec(command, (error, stdout, stderr) => {
+            if (error) reject(error);
+            else resolve({ stdout, stderr });
+        });
+        childProc.once('error', reject);
+    });
 };
 
 const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
