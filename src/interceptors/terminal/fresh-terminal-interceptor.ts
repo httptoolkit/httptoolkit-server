@@ -116,7 +116,9 @@ const getXTerminalCommand = async (command = 'x-terminal-emulator'): Promise<Spa
     // any of the args we want to use. To fix this, we parse --help to try and detect the underlying
     // terminal, and run it directly with the args we need.
     try {
-        const { stdout } = await execAsync(`${command} --help`); // debian wrapper ignores --version
+        // Run the command with -h to get some output we can use to infer the terminal itself.
+        // --version would be nice, but the debian wrapper ignores it. --help isn't supported by xterm.
+        const { stdout } = await execAsync(`${command} -h`);
         const helpOutput = stdout.toLowerCase().replace(/[^\w\d]+/g, ' ');
 
         if (helpOutput.includes('gnome terminal') && await commandExists('gnome-terminal')) {
@@ -127,7 +129,12 @@ const getXTerminalCommand = async (command = 'x-terminal-emulator'): Promise<Spa
             return getKonsoleTerminalCommand();
         }
     } catch (e) {
-        reportError(e);
+        if (e.message.includes('rxvt')) {
+            // Bizarrely, rxvt -h prints help but always returns a non-zero exit code.
+            // Doesn't need any special arguments anyway though, so just ignore it
+        } else {
+            reportError(e);
+        }
     }
 
     // If there's an error, or we just don't recognize the console, give up & run it directly
