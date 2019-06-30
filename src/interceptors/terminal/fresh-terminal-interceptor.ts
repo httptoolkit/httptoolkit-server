@@ -10,9 +10,10 @@ import * as ensureCommandExists from 'command-exists';
 import findOsxExecutableCb = require('osx-find-executable');
 const findOsxExecutable = util.promisify(findOsxExecutableCb);
 
-import { Interceptor } from '.';
-import { HtkConfig } from '../config';
-import { reportError } from '../error-tracking';
+import { Interceptor } from '..';
+import { HtkConfig } from '../../config';
+import { reportError } from '../../error-tracking';
+import { OVERRIDE_BIN_PATH, getTerminalEnvVars } from './terminal-env-overrides';
 
 const checkAccess = util.promisify(fs.access);
 const canAccess = (path: string) => checkAccess(path).then(() => true).catch(() => false);
@@ -20,17 +21,12 @@ const canAccess = (path: string) => checkAccess(path).then(() => true).catch(() 
 const commandExists = (path: string): Promise<boolean> => ensureCommandExists(path).then(() => true).catch(() => false);
 
 const DEFAULT_GIT_BASH_PATH = 'C:/Program Files/git/git-bash.exe';
-const PATH_VAR_SEPARATOR = process.platform === 'win32' ? ';' : ':';
 const SHELL = (process.env.SHELL || '').split('/').slice(-1)[0];
 
-const OVERRIDES_DIR = path.join(__dirname, '..', '..', 'overrides');
-
-const OVERRIDE_BIN_PATH = path.join(OVERRIDES_DIR, 'path');
 // Generate POSIX paths for git-bash on Windows (or use the normal path everywhere where)
 const POSIX_OVERRIDE_BIN_PATH = process.platform === 'win32'
     ? OVERRIDE_BIN_PATH.replace(/\\/g, '/').replace(/^(\w+):/, (_all, driveLetter) => `/${driveLetter.toLowerCase()}`)
     : OVERRIDE_BIN_PATH;
-const OVERRIDE_RUBYGEMS_PATH = path.join(OVERRIDES_DIR, 'gems');
 
 interface SpawnArgs {
     command: string;
@@ -365,41 +361,7 @@ export class TerminalInterceptor implements Interceptor {
             command,
             (args || []),
             _.assign(options || {}, {
-            env: _.assign({}, process.env, {
-                'http_proxy': `http://localhost:${proxyPort}`,
-                'HTTP_PROXY': `http://localhost:${proxyPort}`,
-                'https_proxy': `http://localhost:${proxyPort}`,
-                'HTTPS_PROXY': `http://localhost:${proxyPort}`,
-                // Used by global-agent to configure node.js HTTP(S) defaults
-                'GLOBAL_AGENT_HTTP_PROXY': `http://localhost:${proxyPort}`,
-                // Used by some CGI engines to avoid 'httpoxy' vulnerability
-                'CGI_HTTP_PROXY': `http://localhost:${proxyPort}`,
-                // Used by npm, for versions that don't support HTTP_PROXY etc
-                'npm_config_proxy': `http://localhost:${proxyPort}`,
-                'npm_config_https_proxy': `http://localhost:${proxyPort}`,
-                // Stop npm warning about having a different 'node' in $PATH
-                'npm_config_scripts_prepend_node_path': 'false',
-
-                // Trust cert when using OpenSSL with default settings
-                'SSL_CERT_FILE': this.config.https.certPath,
-                // Trust cert when using Node 7.3.0+
-                'NODE_EXTRA_CA_CERTS': this.config.https.certPath,
-                // Trust cert when using Requests (Python)
-                'REQUESTS_CA_BUNDLE': this.config.https.certPath,
-                // Trust cert when using Perl LWP
-                'PERL_LWP_SSL_CA_FILE': this.config.https.certPath,
-                // Trust cert for HTTPS requests from Git
-                'GIT_SSL_CAINFO': this.config.https.certPath,
-
-                'HTTP_TOOLKIT_ACTIVE': 'true',
-
-                // Prepend our bin overrides into $PATH
-                'PATH': `${OVERRIDE_BIN_PATH}${PATH_VAR_SEPARATOR}${process.env.PATH}`,
-                // Prepend our Ruby gem overrides into $LOAD_PATH
-                'RUBYLIB': process.env.RUBYLIB
-                    ? `${OVERRIDE_RUBYGEMS_PATH}:${process.env.RUBYLIB}`
-                    : OVERRIDE_RUBYGEMS_PATH
-            }),
+            env: _.assign({}, process.env, getTerminalEnvVars(proxyPort, this.config.https)),
             cwd: process.env.HOME || process.env.USERPROFILE
         }));
 

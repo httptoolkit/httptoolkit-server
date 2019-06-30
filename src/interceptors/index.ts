@@ -4,7 +4,7 @@ import { HtkConfig } from '../config';
 
 import { FreshChrome } from './fresh-chrome';
 import { FreshFirefox } from './fresh-firefox';
-import { TerminalInterceptor } from './fresh-terminal';
+import { TerminalInterceptor } from './terminal/fresh-terminal-interceptor';
 import { addShutdownHandler } from '../shutdown';
 
 export interface Interceptor {
