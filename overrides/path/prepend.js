@@ -62,16 +62,17 @@ function fixModule(requestedName, filename, loadedModule) {
             fixModule(modDetails.requestedName, modDetails.filename, modDetails.loadedModule);
         });
         delayedInterception = false;
-    } else if (requestedName === 'axios') {
-        // Disable built-in proxy support, to let global-agent/tunnel take precedence
+    } else if (requestedName === 'axios' && !global.GLOBAL_AGENT) {
+        // Disable built-in proxy support, to let global-tunnel take precedence
         // Supported back to the very first release of Axios
         fixedModule.defaults.proxy = false;
     } else if (
         requestedName === 'request' &&
+        !global.GLOBAL_AGENT && // Works automatically with global-agent
         loadedModule.defaults && // Request >= 2.17 (before that, proxy support isn't a problem anyway)
         !loadedModule.INTERCEPTED_BY_HTTPTOOLKIT // Make this idempotent
     ) {
-        // Disable built-in proxy support, to let global-agent/tunnel take precedence
+        // Disable built-in proxy support, to let global-tunnel take precedence
         fixedModule = loadedModule.defaults({ proxy: false });
         fixedModule.INTERCEPTED_BY_HTTPTOOLKIT = true;
     } else if (
@@ -92,20 +93,15 @@ function fixModule(requestedName, filename, loadedModule) {
             }
             return originalRequestMethod.apply(this, arguments);
         };
-    } else if (requestedName === 'stripe' && !loadedModule.INTERCEPTED_BY_HTTPTOOLKIT) {
+    } else if (
+        requestedName === 'stripe' &&
+        !loadedModule.INTERCEPTED_BY_HTTPTOOLKIT
+    ) {
         fixedModule = Object.assign(function () {
             const result = loadedModule.apply(this, arguments);
 
-            if (global.GLOBAL_AGENT) {
-                // Set by global-agent in Node 10+
-                // This won't actually work until https://github.com/gajus/global-agent/pull/13
-                // is somehow resolved, one way or another.
-                result.setHttpAgent(global.GLOBAL_AGENT.HTTPS_PROXY_AGENT);
-            } else {
-                // Set by global-tunnel in Node < 10 (or global-agent in 11.7+)
-                result.setHttpAgent(require('https').globalAgent);
-            }
-
+            // Set by global-tunnel in Node < 10 (or global-agent in 11.7+)
+            result.setHttpAgent(require('https').globalAgent);
             return result;
         }, fixedModule);
         fixedModule.INTERCEPTED_BY_HTTPTOOLKIT = true;
