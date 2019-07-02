@@ -51,3 +51,6 @@ pids
 typings/
 yarn-debug.log*
 yarn-error.log*
+
+__pycache__
+*.pyc
