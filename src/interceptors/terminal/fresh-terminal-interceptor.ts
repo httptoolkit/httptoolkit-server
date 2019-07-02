@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import * as util from 'util';
-import { spawn, exec, ChildProcess, SpawnOptions } from 'child_process';
+import { spawn, ChildProcess, SpawnOptions } from 'child_process';
 import * as GSettings from 'node-gsettings-wrapper';
 import * as ensureCommandExists from 'command-exists';
 
@@ -35,13 +35,25 @@ interface SpawnArgs {
     skipStartupScripts?: true;
 }
 
-const execAsync = (command: string): Promise<{ stdout: string, stderr: string }> => {
+// Spawn a command, and resolve with all stdout & stderr output as strings when it terminates
+const spawnAndCollectOutput = (command: string, args: string[] = []): Promise<{ stdout: string, stderr: string }> => {
     return new Promise((resolve, reject) => {
-        const childProc = exec(command, (error, stdout, stderr) => {
-            if (error) reject(error);
-            else resolve({ stdout, stderr });
-        });
+        const childProc = spawn(command, args, { stdio: 'pipe' });
+        const { stdout, stderr } = childProc;
+
+        const stdoutData: Buffer[] = [];
+        stdout.on('data', (d) => stdoutData.push(d));
+        const stderrData: Buffer[] = [];
+        stderr.on('data', (d) => stderrData.push(d));
+
         childProc.once('error', reject);
+        childProc.once('exit', () => {
+            // Note that we do _not_ check the error code
+            resolve({
+                stdout: Buffer.concat(stdoutData).toString(),
+                stderr: Buffer.concat(stderrData).toString()
+            });
+        });
     });
 };
 
@@ -107,7 +119,7 @@ const getLinuxTerminalCommand = async (): Promise<SpawnArgs | null> => {
     if (await commandExists('xterm')) return { command: 'xterm' };
 
     return null;
-}
+};
 
 const getXTerminalCommand = async (command = 'x-terminal-emulator'): Promise<SpawnArgs> => {
     // x-terminal-emulator is a wrapper/symlink to the terminal of choice.
@@ -118,7 +130,7 @@ const getXTerminalCommand = async (command = 'x-terminal-emulator'): Promise<Spa
     try {
         // Run the command with -h to get some output we can use to infer the terminal itself.
         // --version would be nice, but the debian wrapper ignores it. --help isn't supported by xterm.
-        const { stdout } = await execAsync(`${command} -h`);
+        const { stdout } = await spawnAndCollectOutput(command, ['-h']);
         const helpOutput = stdout.toLowerCase().replace(/[^\w\d]+/g, ' ');
 
         if (helpOutput.includes('gnome terminal') && await commandExists('gnome-terminal')) {
@@ -138,13 +150,13 @@ const getXTerminalCommand = async (command = 'x-terminal-emulator'): Promise<Spa
     }
 
     // If there's an error, or we just don't recognize the console, give up & run it directly
-    return { command: 'x-terminal-emulator' };
+    return { command };
 };
 
 const getKonsoleTerminalCommand = async (command = 'konsole'): Promise<SpawnArgs> => {
     let extraArgs: string[] = [];
 
-    const { stdout } = await execAsync(`${command} --help`);
+    const { stdout } = await spawnAndCollectOutput(command, ['--help']);
 
     // Forces Konsole to run in the foreground, with no separate process
     // Seems to be well supported for a long time, but check just in case
@@ -158,7 +170,7 @@ const getKonsoleTerminalCommand = async (command = 'konsole'): Promise<SpawnArgs
 const getGnomeTerminalCommand = async (command = 'gnome-terminal'): Promise<SpawnArgs> => {
     let extraArgs: string[] = [];
 
-    const { stdout } = await execAsync(`${command} --help-all`);
+    const { stdout } = await spawnAndCollectOutput(command, ['--help-all']);
 
     // Officially supported option, but only supported in v3.28+
     if (stdout.includes('--wait')) {
@@ -180,7 +192,7 @@ const getGnomeTerminalCommand = async (command = 'gnome-terminal'): Promise<Spaw
 const getXfceTerminalCommand = async (command = 'xfce4-terminal'): Promise<SpawnArgs> => {
     let extraArgs: string[] = [];
 
-    const { stdout } = await execAsync(`${command} --help`);
+    const { stdout } = await spawnAndCollectOutput(command, ['--help']);
 
     // Disables the XFCE terminal server for this terminal, so it runs in the foreground.
     // Seems to be well supported for a long time, but check just in case
