@@ -19,7 +19,7 @@ PHP_ARGS=(
 )
 
 if command -v winpty >/dev/null 2>&1; then
-    winpty $real_php ${PHP_ARGS[@]}
+    winpty "$real_php" ${PHP_ARGS[@]}
 else
-    $real_php ${PHP_ARGS[@]}
+    "$real_php" ${PHP_ARGS[@]}
 fi
