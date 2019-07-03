@@ -48,7 +48,7 @@ describe('Terminal interceptor', function () {
             const stripeRule = await server.get('https://api.stripe.com/v1/customers').thenJson(200, {});
 
             // Spawn node, as if it was run inside an intercepted terminal
-            const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig);
+            const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env);
             const nodeScript = fork(require.resolve('./fresh-terminal-js-script'), [], {
                 execArgv: ['-r', require.resolve('../../overrides/path/prepend.js')],
                 env: Object.assign({}, process.env, terminalEnvOverrides)

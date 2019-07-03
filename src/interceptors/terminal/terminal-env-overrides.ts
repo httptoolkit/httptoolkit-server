@@ -12,7 +12,8 @@ export const OVERRIDE_BIN_PATH = path.join(OVERRIDES_DIR, 'path');
 
 export function getTerminalEnvVars(
     proxyPort: number,
-    httpsConfig: HttpsPathOptions
+    httpsConfig: HttpsPathOptions,
+    currentEnv: { [key: string]: string | undefined }
 ): { [key: string]: string } {
     return {
         'http_proxy': `http://localhost:${proxyPort}`,
@@ -44,16 +45,16 @@ export function getTerminalEnvVars(
         'HTTP_TOOLKIT_ACTIVE': 'true',
 
         // Prepend our bin overrides into $PATH
-        'PATH': `${OVERRIDE_BIN_PATH}${PATH_VAR_SEPARATOR}${process.env.PATH}`,
+        'PATH': `${OVERRIDE_BIN_PATH}${PATH_VAR_SEPARATOR}${currentEnv.PATH}`,
 
         // Prepend our Ruby gem overrides into $LOAD_PATH
-        'RUBYLIB': process.env.RUBYLIB
-            ? `${OVERRIDE_RUBYGEMS_PATH}:${process.env.RUBYLIB}`
+        'RUBYLIB': currentEnv.RUBYLIB
+            ? `${OVERRIDE_RUBYGEMS_PATH}:${currentEnv.RUBYLIB}`
             : OVERRIDE_RUBYGEMS_PATH,
 
         // Prepend our Python package overrides into $PYTHONPATH
-        'PYTHONPATH': process.env.PYTHONPATH
-            ? `${OVERRIDE_PYTHONPATH}:${process.env.PYTHONPATH}`
+        'PYTHONPATH': currentEnv.PYTHONPATH
+            ? `${OVERRIDE_PYTHONPATH}:${currentEnv.PYTHONPATH}`
             : OVERRIDE_PYTHONPATH
     };
 }

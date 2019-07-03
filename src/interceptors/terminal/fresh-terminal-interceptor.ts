@@ -379,12 +379,21 @@ export class TerminalInterceptor implements Interceptor {
         // This gets reset on exit, and is behind a flag so it won't affect other shells anyway.
         if (!skipStartupScripts) await editShellStartupScripts();
 
+
+        const currentEnv = (process.platform === 'win32')
+            // Windows env var behaviour is very odd. Windows env vars are case-insensitive, and node
+            // simulates this for process.env accesses, but when used in an object they become
+            // case-*sensitive* object keys, and it's easy to end up with duplicates.
+            // To fix this, on Windows we enforce here that all env var input keys are uppercase.
+            ? _.mapKeys(process.env, (_value, key) => key.toUpperCase())
+            : process.env;
+
         const childProc = spawn(
             command,
             (args || []),
             _.assign(options || {}, {
-                env: _.assign({}, process.env, getTerminalEnvVars(proxyPort, this.config.https)),
-                cwd: process.env.HOME || process.env.USERPROFILE
+                env: _.assign({}, currentEnv, getTerminalEnvVars(proxyPort, this.config.https, currentEnv)),
+                cwd: currentEnv.HOME || currentEnv.USERPROFILE
             })
         );
 
