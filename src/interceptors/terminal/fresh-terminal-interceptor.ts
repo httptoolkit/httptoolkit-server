@@ -221,6 +221,12 @@ const appendToFirstExisting = async (paths: string[], forceWrite: boolean, conte
 const START_CONFIG_SECTION = '# --httptoolkit--';
 const END_CONFIG_SECTION = '# --httptoolkit-end--';
 
+// The shell config required to ensure every spawned shell always has the right
+// configuration, even if it has its env vars reset somehow. This also includes
+// fixes for winpty with git-bash. By default, winpty will intercept known
+// commands to manage them, so our PATH overrides never get run. We avoid that
+// with trivial aliases, and then run winpty ourselves inside the overrides.
+
 // Works in bash, zsh, dash, ksh, sh (not fish)
 const SH_SHELL_PATH_CONFIG = `
 ${START_CONFIG_SECTION}
@@ -232,6 +238,7 @@ if [ -n "$HTTP_TOOLKIT_ACTIVE" ]; then
     if command -v winpty >/dev/null 2>&1; then
         # Work around for winpty's hijacking of certain commands
         alias php=php
+        alias node=node
     fi
 fi
 ${END_CONFIG_SECTION}`;
@@ -245,6 +252,7 @@ if [ -n "$HTTP_TOOLKIT_ACTIVE" ]
     if command -v winpty >/dev/null 2>&1
         # Work around for winpty's hijacking of certain commands
         alias php=php
+        alias node=node
     end
 end
 ${END_CONFIG_SECTION}`;
