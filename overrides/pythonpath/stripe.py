@@ -1,5 +1,3 @@
-import sys, os
-
 try:
     import importlib
     if not hasattr(importlib, 'reload'):
@@ -9,20 +7,24 @@ except:
     importlib = imp
 
 def _load_real_stripe():
+    # Importing this at the top level breaks after deleting sys.modules['stripe'],
+    # in Python 2. Some interesting internal issues there, but this works in Py 2 & 3.
+    import sys, os
+
     override_path = os.path.dirname(os.path.abspath(__file__))
 
     original_sys_path = list(sys.path)
+
     sys.path = [p for p in sys.path if p != override_path]
     del sys.modules['stripe']
     import stripe
+
     sys.path = original_sys_path
 
-def _inject_http_toolkit_certificate():
-    import stripe
-    stripe.ca_bundle_path = os.environ['SSL_CERT_FILE']
-
 _load_real_stripe()
-_inject_http_toolkit_certificate()
+
+import stripe, os
+stripe.ca_bundle_path = os.environ['SSL_CERT_FILE']
 
 # Re-export all public fields from Stripe
 from stripe import *
