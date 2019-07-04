@@ -19,7 +19,9 @@
     "build:src": "rm -rf lib && tsc -b",
     "build:release": "oclif-dev manifest && ./build-release.sh linux && ./build-release.sh darwin && ./build-release.sh win32",
     "prepack": "npm run build:src && oclif-dev manifest",
-    "test": "TS_NODE_FILES=true mocha -r ts-node/register 'test/**/*.spec.ts'"
+    "test": "TS_NODE_FILES=true mocha -r ts-node/register 'test/**/*.spec.ts'",
+    "snyk-protect": "snyk protect",
+    "prepare": "npm run snyk-protect"
   },
   "repository": "httptoolkit/httptoolkit-server",
   "homepage": "https://github.com/httptoolkit/httptoolkit-server",
@@ -44,7 +46,8 @@
     "node-gsettings-wrapper": "^0.5.0",
     "osx-find-executable": "^1.0.0",
     "rimraf": "^2.6.2",
-    "tslib": "^1.9.3"
+    "tslib": "^1.9.3",
+    "snyk": "^1.189.0"
   },
   "devDependencies": {
     "@oclif/dev-cli": "^1.19.4",
@@ -122,5 +125,6 @@
         ]
       }
     }
-  }
+  },
+  "snyk": true
 }
