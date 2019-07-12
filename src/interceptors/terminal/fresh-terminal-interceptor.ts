@@ -368,7 +368,9 @@ export class TerminalInterceptor implements Interceptor {
     constructor(private config: HtkConfig) { }
 
     async isActivable(): Promise<boolean> {
-        return !!(await getTerminalCommand());
+        const terminalAvailable = !!(await getTerminalCommand());
+        if (!terminalAvailable) reportError('No terminal could be detected');
+        return terminalAvailable;
     }
 
     isActive(proxyPort: number | string): boolean {
