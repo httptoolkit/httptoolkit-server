@@ -74,7 +74,7 @@ export async function runHTK(options: {
     });
     standalone.start({
         port: 45456,
-        host: 'localhost'
+        host: '127.0.0.1'
     });
 
     // Start a HTK server

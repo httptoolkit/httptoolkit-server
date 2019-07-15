@@ -16,17 +16,17 @@ export function getTerminalEnvVars(
     currentEnv: { [key: string]: string | undefined }
 ): { [key: string]: string } {
     return {
-        'http_proxy': `http://localhost:${proxyPort}`,
-        'HTTP_PROXY': `http://localhost:${proxyPort}`,
-        'https_proxy': `http://localhost:${proxyPort}`,
-        'HTTPS_PROXY': `http://localhost:${proxyPort}`,
+        'http_proxy': `http://127.0.0.1:${proxyPort}`,
+        'HTTP_PROXY': `http://127.0.0.1:${proxyPort}`,
+        'https_proxy': `http://127.0.0.1:${proxyPort}`,
+        'HTTPS_PROXY': `http://127.0.0.1:${proxyPort}`,
         // Used by global-agent to configure node.js HTTP(S) defaults
-        'GLOBAL_AGENT_HTTP_PROXY': `http://localhost:${proxyPort}`,
+        'GLOBAL_AGENT_HTTP_PROXY': `http://127.0.0.1:${proxyPort}`,
         // Used by some CGI engines to avoid 'httpoxy' vulnerability
-        'CGI_HTTP_PROXY': `http://localhost:${proxyPort}`,
+        'CGI_HTTP_PROXY': `http://127.0.0.1:${proxyPort}`,
         // Used by npm, for versions that don't support HTTP_PROXY etc
-        'npm_config_proxy': `http://localhost:${proxyPort}`,
-        'npm_config_https_proxy': `http://localhost:${proxyPort}`,
+        'npm_config_proxy': `http://127.0.0.1:${proxyPort}`,
+        'npm_config_https_proxy': `http://127.0.0.1:${proxyPort}`,
         // Stop npm warning about having a different 'node' in $PATH
         'npm_config_scripts_prepend_node_path': 'false',
 

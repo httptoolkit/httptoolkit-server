@@ -52,7 +52,7 @@ export class FreshChrome implements Interceptor {
             // Try to launch Chrome if we're not sure - it'll trigger a config update,
             // and might find a new install.
             browser: (await getChromeBrowserName(this.config)) || 'chrome',
-            proxy: `https://localhost:${proxyPort}`,
+            proxy: `https://127.0.0.1:${proxyPort}`,
             noProxy: [
                 // Don't intercept our warning hiding requests
                 hideWarningServer.host,

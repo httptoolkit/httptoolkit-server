@@ -73,17 +73,17 @@ export class FreshFirefox implements Interceptor {
         const browser = await launchBrowser(certCheckServer.checkCertUrl, {
             browser: 'firefox',
             profile: firefoxProfile,
-            proxy: `localhost:${proxyPort}`,
+            proxy: `127.0.0.1:${proxyPort}`,
             // Don't intercept our cert testing requests
             noProxy: certCheckServer.host,
             prefs: _.assign(existingPrefs, {
-                // By default james-launcher only configures HTTP, so we need to add HTTPS:
-                'network.proxy.ssl': '"localhost"',
+                // By default browser-launcher only configures HTTP, so we need to add HTTPS:
+                'network.proxy.ssl': '"127.0.0.1"',
                 'network.proxy.ssl_port': proxyPort,
 
-                // The above james proxy/noProxy settings should do this, but don't seem to
+                // The above browser-launcher proxy/noProxy settings should do this, but don't seem to
                 // reliably overwrite existing values, so we set them explicitly.
-                'network.proxy.http': '"localhost"',
+                'network.proxy.http': '"127.0.0.1"',
                 'network.proxy.http_port': proxyPort,
                 'network.proxy.http.network.proxy.http.no_proxies_on': certCheckServer.host,
 

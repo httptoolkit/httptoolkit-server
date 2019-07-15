@@ -178,7 +178,7 @@ export class HttpToolkitServer extends events.EventEmitter {
         await this.graphql.start(<any> {
             // Hacky solution that lets us limit the server to only localhost,
             // and override the port from 4000 to something less likely to conflict.
-            port: { port: 45457, host: 'localhost' },
+            port: { port: 45457, host: '127.0.0.1' },
             playground: false,
             cors: { origin: ALLOWED_ORIGINS }
         });
