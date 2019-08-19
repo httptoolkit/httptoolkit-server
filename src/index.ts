@@ -70,7 +70,10 @@ export async function runHTK(options: {
             cors: false,
             https: httpsConfig
         },
-        corsOptions: { origin: ALLOWED_ORIGINS }
+        corsOptions: {
+            origin: ALLOWED_ORIGINS,
+            maxAge: 86400 // Cache this result for as long as possible
+        }
     });
     standalone.start({
         port: 45456,

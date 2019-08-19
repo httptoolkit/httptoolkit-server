@@ -180,7 +180,10 @@ export class HttpToolkitServer extends events.EventEmitter {
             // and override the port from 4000 to something less likely to conflict.
             port: { port: 45457, host: '127.0.0.1' },
             playground: false,
-            cors: { origin: ALLOWED_ORIGINS }
+            cors: {
+                origin: ALLOWED_ORIGINS,
+                maxAge: 86400 // Cache this result for as long as possible
+            }
         });
     }
 };
