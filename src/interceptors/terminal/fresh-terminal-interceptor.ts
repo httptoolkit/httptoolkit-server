@@ -360,6 +360,11 @@ const resetShellStartupScripts = () => {
 
 const terminals: _.Dictionary<ChildProcess[] | undefined> = {}
 
+// Memoize this report: i.e. send it only once
+const reportNoTerminal = _.memoize(() => {
+    reportError('No terminal could be detected');
+});
+
 export class TerminalInterceptor implements Interceptor {
 
     id = 'fresh-terminal';
@@ -369,7 +374,7 @@ export class TerminalInterceptor implements Interceptor {
 
     async isActivable(): Promise<boolean> {
         const terminalAvailable = !!(await getTerminalCommand());
-        if (!terminalAvailable) reportError('No terminal could be detected');
+        if (!terminalAvailable) reportNoTerminal();
         return terminalAvailable;
     }
 

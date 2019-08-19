@@ -9,7 +9,7 @@ export function initErrorTracking() {
     let { SENTRY_DSN } = process.env;
     if (!SENTRY_DSN && IS_PROD_BUILD) {
         // If we're a built binary, use the standard DSN automatically
-        SENTRY_DSN = 'https://f6775276f60042bea6d5e951ca1d0e91@sentry.io/1371158';
+        SENTRY_DSN = 'https://5838a5520ad44602ae46793727e49ef5@sentry.io/1371158';
     }
 
     if (SENTRY_DSN) {
