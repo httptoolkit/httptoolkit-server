@@ -46,7 +46,7 @@ export class HideChromeWarningServer {
                     <a href="${targetUrl}">this link</a>
                 </body>
             </html>
-        `);
+        `, { "content-type": "text/html" });
     }
 
     get host(): string {
