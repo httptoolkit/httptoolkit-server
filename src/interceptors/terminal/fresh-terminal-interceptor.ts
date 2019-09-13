@@ -7,7 +7,7 @@ import { spawn, ChildProcess, SpawnOptions } from 'child_process';
 import * as GSettings from 'node-gsettings-wrapper';
 import * as ensureCommandExists from 'command-exists';
 
-import findOsxExecutableCb = require('osx-find-executable');
+import findOsxExecutableCb = require('@httptoolkit/osx-find-executable');
 const findOsxExecutable = util.promisify(findOsxExecutableCb);
 
 import { Interceptor } from '..';
