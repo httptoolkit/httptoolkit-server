@@ -48,14 +48,15 @@ export class FreshFirefox implements Interceptor {
         await certCheckServer.start('https://amiusing.httptoolkit.tech');
 
         const firefoxProfile = path.join(this.config.configPath, 'firefox-profile');
+        const firefoxPrefsFile = path.join(firefoxProfile, 'prefs.js');
 
-        let existingPrefs: _.Dictionary<any> = {}
+        let existingPrefs: _.Dictionary<any> = {};
 
-        if (await canAccess(firefoxProfile)) {
+        if (await canAccess(firefoxPrefsFile)) {
             // If the profile exists, then we've run this before and not deleted the profile,
-            // so it probably worked. If so, reuse the existing preferences to avoids issues
+            // so it probably worked. If so, reuse the existing preferences to avoid issues
             // where on pref setup firefox behaves badly (opening a 2nd window) on OSX.
-            const prefContents = await readFile(path.join(firefoxProfile, 'prefs.js'), {
+            const prefContents = await readFile(firefoxPrefsFile, {
                 encoding: 'utf8'
             });
 
