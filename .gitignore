@@ -54,3 +54,5 @@ yarn-error.log*
 
 __pycache__
 *.pyc
+
+bundle/
