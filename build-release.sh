@@ -63,7 +63,7 @@ case "$TARGET_PLATFORM" in
     linux)
         EXPECTED_BIN_STRING="ELF"
         # Builds raw on non-Windows, but never used
-        PACKAGE_WHITELIST="registry-js"
+        PACKAGE_WHITELIST="registry.node"
         ;;
     win32)
         EXPECTED_BIN_STRING="MS Windows"
@@ -72,7 +72,7 @@ case "$TARGET_PLATFORM" in
     darwin)
         EXPECTED_BIN_STRING="Mach-O"
         # Builds raw on non-Windows, but never used
-        PACKAGE_WHITELIST="registry-js"
+        PACKAGE_WHITELIST="registry.node"
         ;;
     *)
         echo "Unknown platform $TARGET_PLATFORM"
