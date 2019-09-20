@@ -108,6 +108,7 @@ const getLinuxTerminalCommand = async (): Promise<SpawnArgs | null> => {
             if (defaultTerminal.includes('konsole')) return getKonsoleTerminalCommand(defaultTerminal);
             if (defaultTerminal.includes('xfce4-terminal')) return getXfceTerminalCommand(defaultTerminal);
             if (defaultTerminal.includes('x-terminal-emulator')) return getXTerminalCommand(defaultTerminal);
+            if (defaultTerminal.includes('terminator')) return { command: 'terminator', args: ['-u'] };
             return { command: defaultTerminal };
         }
     }
@@ -115,7 +116,13 @@ const getLinuxTerminalCommand = async (): Promise<SpawnArgs | null> => {
     // If a specific term like this is installed, it's probably the preferred one
     if (await commandExists('konsole')) return getKonsoleTerminalCommand();
     if (await commandExists('xfce4-terminal')) return getXfceTerminalCommand();
+    if (await commandExists('kitty')) return { command: 'kitty' };
+    if (await commandExists('urxvt')) return { command: 'urxvt' };
     if (await commandExists('rxvt')) return { command: 'rxvt' };
+    if (await commandExists('termit')) return { command: 'termit' };
+    if (await commandExists('terminator')) return { command: 'terminator', args: ['-u'] };
+    if (await commandExists('alacritty')) return { command: 'alacritty' };
+    if (await commandExists('uxterm')) return { command: 'uxterm' };
     if (await commandExists('xterm')) return { command: 'xterm' };
 
     return null;
