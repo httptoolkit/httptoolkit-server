@@ -112,8 +112,7 @@
       "@oclif/command",
       "@oclif/config",
       "@oclif/plugin-help",
-      "@oclif/plugin-update",
-      "@sentry/node"
+      "@oclif/plugin-update"
     ],
     "update": {
       "s3": {

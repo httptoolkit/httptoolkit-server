@@ -3,10 +3,13 @@ const path = require('path');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = {
-    entry: './src/index.ts',
+    entry: {
+        index: './src/index.ts',
+        'error-tracking': './src/error-tracking.ts'
+    },
     output: {
         path: path.resolve(__dirname, 'bundle'),
-        filename: 'index.js',
+        filename: '[name].js',
         libraryTarget: 'commonjs2'
     },
     mode: 'production',
