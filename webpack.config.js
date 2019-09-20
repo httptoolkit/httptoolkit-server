@@ -40,7 +40,7 @@ module.exports = {
     ],
     plugins: [
         // Optimistic require for 'iconv' in 'encoding', falls back to 'iconv-lite'
-        new webpack.IgnorePlugin(/^iconv$/),
+        new webpack.NormalModuleReplacementPlugin(/\/iconv-loader$/, 'node-noop'),
         // Optimistically required in (various) ws versions, with fallback
         new webpack.IgnorePlugin(/^bufferutil$/),
         // Optimistically required in (various) ws versions, with fallback
