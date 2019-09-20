@@ -58,7 +58,9 @@ const packageApp = async () => {
         // Include package-lock.json, to keep dependencies locked:
         'package-lock.json',
         // Add the fully bundled source (not normally packaged by npm):
-        'bundle'
+        path.join('bundle', 'index.js'),
+        path.join('bundle', 'error-tracking.js'),
+        path.join('bundle', 'schema.gql')
     ].map((extraFile) =>
         fs.copy(path.join(__dirname, extraFile), path.join(OUTPUT_DIR, extraFile))
     ));

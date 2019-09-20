@@ -1,6 +1,11 @@
 const webpack = require('webpack');
 const path = require('path');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const SentryPlugin = require('@sentry/webpack-plugin');
+
+const pjson = require('./package.json');
+
+const OUTPUT_DIR = path.resolve(__dirname, 'bundle');
 
 module.exports = {
     entry: {
@@ -8,7 +13,7 @@ module.exports = {
         'error-tracking': './src/error-tracking.ts'
     },
     output: {
-        path: path.resolve(__dirname, 'bundle'),
+        path: OUTPUT_DIR,
         filename: '[name].js',
         libraryTarget: 'commonjs2'
     },
@@ -53,7 +58,15 @@ module.exports = {
         // Copy Mockttp's schema (read with readFile) into the output directory
         new CopyWebpackPlugin([
             { from: path.join('node_modules', 'mockttp', 'dist', 'standalone', 'schema.gql') }
-        ])
+        ]),
+        // If SENTRY_AUTH_TOKEN is set, upload this sourcemap to Sentry
+        process.env.SENTRY_AUTH_TOKEN
+            ? new SentryPlugin({
+                release: pjson.version,
+                include: OUTPUT_DIR,
+                validate: true
+            })
+            : { apply: () => {} }
     ],
     resolve: {
         extensions: [ '.tsx', '.ts', '.js' ]
