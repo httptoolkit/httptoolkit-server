@@ -19,7 +19,8 @@
     "build:src": "rm -rf lib && tsc -b",
     "build:release": "oclif-dev manifest && webpack && ts-node ./pack.ts",
     "prepack": "npm run build:src && oclif-dev manifest",
-    "test": "TS_NODE_FILES=true mocha -r ts-node/register 'test/**/*.spec.ts'"
+    "test": "TS_NODE_FILES=true mocha -r ts-node/register 'test/**/*.spec.ts'",
+    "test:release": "TEST_BUILT_TARBALL=1 npm run test"
   },
   "repository": "httptoolkit/httptoolkit-server",
   "homepage": "https://github.com/httptoolkit/httptoolkit-server",
@@ -79,6 +80,7 @@
     "reqwest": "^2.0.5",
     "stripe": "^7.4.0",
     "superagent": "^5.1.0",
+    "tarball-extract": "0.0.6",
     "tmp": "0.0.33",
     "ts-loader": "^6.0.0",
     "ts-node": "^7.0.1",

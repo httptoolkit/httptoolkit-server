@@ -1,12 +1,43 @@
+import { promisify } from 'util';
 import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 import { getRemote } from 'mockttp';
 import * as request from 'request-promise-native';
+import * as tmp from 'tmp';
+import { extractTarball as extractTarballCb } from 'tarball-extract';
+const extractTarball = promisify(extractTarballCb) as (source: string, dest: string) => Promise<void>;
 
 import * as getGraphQL from 'graphql.js';
 
 import { delay } from '../src/util';
 import { expect } from 'chai';
+
+async function setupServerPath() {
+    if (!process.env.TEST_BUILT_TARBALL) {
+        // By default, test the current folder code
+        return path.join(__dirname, '..', 'bin', 'run');
+    }
+
+    // If TEST_BUILT_TARBALL is set, test the latest build ready-to-go tarball:
+    const tmpDir = tmp.dirSync({ unsafeCleanup: true }).name;
+    const version = require(path.join('..', 'package.json')).version;
+    const tarballPath = path.join(
+        __dirname,
+        '..',
+        'build',
+        'dist',
+        `v${version}`,
+        `httptoolkit-server-v${version}.tar.gz`
+    );
+
+    console.log('Extracting built tarball to', tmpDir);
+    await extractTarball(tarballPath, tmpDir);
+
+    // Pretend this is being called by the real startup script,
+    // so it acts like a proper prod build.
+    process.env.HTTPTOOLKIT_SERVER_BINPATH = 'PROD-TEST';
+    return path.join(tmpDir, 'httptoolkit-server', 'bin', 'run');
+}
 
 describe('Integration test', function () {
     // Timeout needs to be long, as first test runs (e.g. in CI) generate
@@ -18,7 +49,9 @@ describe('Integration test', function () {
     let stderr = '';
 
     beforeEach(async () => {
-        serverProcess = spawn(path.join(__dirname, '..', 'bin', 'run'), ['start'], {
+        const serverRunPath = await setupServerPath();
+
+        serverProcess = spawn(serverRunPath, ['start'], {
             stdio: 'pipe'
         });
         stdout = "";

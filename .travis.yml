@@ -23,10 +23,13 @@ addons:
 
 jobs:
   include:
-    - stage: Release prebuilt binaries
+    - stage: Build and release binaries
       node_js: '10.15.3'
-      echo: 'Deploying prebuilt binaries...'
-      script: npm run build
+      echo: 'Building binaries...'
+      script:
+        - |
+          npm run build
+          npm run test:release
       before_deploy:
         - |
           echo "Travis tag was $TRAVIS_TAG"
