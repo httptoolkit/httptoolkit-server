@@ -42,7 +42,7 @@
     "graphql": "^14.0.2",
     "graphql-yoga": "^1.18.1",
     "lodash": "^4.17.13",
-    "mockttp": "^0.17.3",
+    "mockttp": "^0.18.0",
     "node-gsettings-wrapper": "^0.5.0",
     "rimraf": "^2.6.2",
     "tslib": "^1.9.3"
