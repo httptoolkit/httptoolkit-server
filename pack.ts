@@ -19,26 +19,6 @@ const spawn = (command: string, args: string[] = [], options?: SpawnOptions) => 
     });
 }
 
-const updateRegistryJs = async (platform: string) => {
-    // Install registry JS for a given target platform, and copy its native
-    // module into our bundle.
-    const registryJsDir = path.join(OUTPUT_DIR, 'node_modules', 'registry-js');
-    await fs.rmdir(registryJsDir).catch(() => {});
-    await spawn('npm', [
-        'install',
-        'registry-js',
-        '--no-save'
-    ], {
-        cwd: OUTPUT_DIR,
-        stdio: 'inherit',
-        env: Object.assign({}, process.env, { 'npm_config_platform': platform })
-    });
-    await fs.copyFile(
-        path.join(registryJsDir, 'build', 'Release', 'registry.node'),
-        path.join(OUTPUT_DIR, 'bundle', 'registry.node'),
-    );
-};
-
 const packageApp = async () => {
     console.log('Preparing packaging directory');
     await fs.emptyDir(OUTPUT_DIR);
@@ -75,15 +55,12 @@ const packageApp = async () => {
 
     // Run build-release in this folder, for each platform:
     console.log('Building for Linux');
-    await updateRegistryJs('linux');
     await spawn(buildScript, ['linux'], { cwd: OUTPUT_DIR, stdio: 'inherit' });
 
     console.log('Building for Darwin');
-    await updateRegistryJs('darwin');
     await spawn(buildScript, ['darwin'], { cwd: OUTPUT_DIR, stdio: 'inherit' });
 
     console.log('Building for Win32');
-    await updateRegistryJs('win32');
     await spawn(buildScript, ['win32'], { cwd: OUTPUT_DIR, stdio: 'inherit' });
 }
 

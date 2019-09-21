@@ -35,16 +35,13 @@ module.exports = {
                 test: /\.mjs$/,
                 include: /node_modules/,
                 type: "javascript/auto",
-            },
-            {
-                // Allows us to require native modules
-                test: /\.node$/,
-                loader: "native-ext-loader"
             }
         ]
     },
     externals: [
-        '@oclif/plugin-update/lib/commands/update'
+        '@oclif/plugin-update/lib/commands/update', // Lots of complicated dynamic requires in @oclif
+        'registry-js', // Native module
+        'win-version-info' // Native module
     ],
     plugins: [
         // Optimistic require for 'iconv' in 'encoding', falls back to 'iconv-lite'
