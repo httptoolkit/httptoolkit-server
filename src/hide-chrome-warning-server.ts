@@ -5,11 +5,7 @@ let targetUrl: string;
 
 // The first tab that opens opens with a Chrome warning about dangerous flags
 // Closing it and immediately opening a new one is a bit cheeky, but
-// is completely gets rid that, more or less invisibly.
-function jumpToNewTab() {
-    window.open(targetUrl, '_blank');
-    window.close();
-}
+// is completely gets rid that, more or less invisibly:
 
 export class HideChromeWarningServer {
 
@@ -37,9 +33,8 @@ export class HideChromeWarningServer {
                 </style>
                 <script>
                     const targetUrl = ${JSON.stringify(targetUrl)};
-
-                    ${jumpToNewTab.toString()}
-                    jumpToNewTab();
+                    window.open(targetUrl, '_blank');
+                    window.close();
                 </script>
                 <body>
                     This page should disappear momentarily. If it doesn't, click

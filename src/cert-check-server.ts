@@ -15,31 +15,7 @@ let installingCert: boolean;
 // If it doesn't, redirect to the certificate itself (the browser will prompt to install)
 // Note that this function is stringified, and run in the browser, not here in node.
 function ensureCertificateIsInstalled() {
-    const testUrl = window.location.href.replace('http://', 'https://').replace('check-cert', 'test-https');
-    const downloadUrl = window.location.href.replace('check-cert', 'download-cert');
-    const reportSuccessUrl = window.location.href.replace('check-cert', 'report-success');
 
-    fetch(testUrl)
-        .then(() => true)
-        .catch(() => false)
-        .then((certificateIsTrusted) => {
-            if (certificateIsTrusted) {
-                // Report success (ignoring errors) then continue.
-                fetch(reportSuccessUrl).catch(() => {}).then(() => {
-                    window.location.replace(targetUrl);
-                });
-            } else {
-                // Start trying to prompt the user to install the cert
-                if (!installingCert) {
-                    installingCert = true;
-                    document.body.className = 'show-content';
-                    const iframe = document.createElement('iframe');
-                    iframe.src = downloadUrl;
-                    document.body.appendChild(iframe);
-                    setInterval(ensureCertificateIsInstalled, 500);
-                }
-            }
-        });
 }
 
 export class CertCheckServer {
@@ -91,8 +67,34 @@ export class CertCheckServer {
                         let installingCert = false;
                         const targetUrl = ${JSON.stringify(targetUrl)};
 
-                        ${ensureCertificateIsInstalled.toString()}
-                        ensureCertificateIsInstalled();
+                        function ensureCertificateIsInstalled() {
+                            const testUrl = window.location.href.replace('http://', 'https://').replace('check-cert', 'test-https');
+                            const downloadUrl = window.location.href.replace('check-cert', 'download-cert');
+                            const reportSuccessUrl = window.location.href.replace('check-cert', 'report-success');
+
+                            fetch(testUrl)
+                                .then(() => true)
+                                .catch(() => false)
+                                .then((certificateIsTrusted) => {
+                                    if (certificateIsTrusted) {
+                                        // Report success (ignoring errors) then continue.
+                                        fetch(reportSuccessUrl).catch(() => {}).then(() => {
+                                            window.location.replace(targetUrl);
+                                        });
+                                    } else {
+                                        // Start trying to prompt the user to install the cert
+                                        if (!installingCert) {
+                                            installingCert = true;
+                                            document.body.className = 'show-content';
+                                            const iframe = document.createElement('iframe');
+                                            iframe.src = downloadUrl;
+                                            document.body.appendChild(iframe);
+                                            setInterval(ensureCertificateIsInstalled, 500);
+                                        }
+                                    }
+                                });
+                            }
+                            ensureCertificateIsInstalled();
                     </script>
                     <body>
                         <h1>
