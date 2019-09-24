@@ -118,7 +118,9 @@
       "@oclif/plugin-help",
       "@oclif/plugin-update",
       "registry-js",
-      "win-version-info"
+      "win-version-info",
+      "global-agent",
+      "global-tunnel-ng"
     ],
     "update": {
       "s3": {

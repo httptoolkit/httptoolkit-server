@@ -63,7 +63,9 @@ module.exports = {
                 include: OUTPUT_DIR,
                 validate: true
             })
-            : { apply: () => {} }
+            : { apply: () => {} },
+        // Used to e.g. fix the relative path to the overrides directory
+        new webpack.EnvironmentPlugin({ HTK_IS_BUNDLED: true })
     ],
     resolve: {
         extensions: [ '.tsx', '.ts', '.js' ]

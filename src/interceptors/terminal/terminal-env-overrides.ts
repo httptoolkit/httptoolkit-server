@@ -4,7 +4,12 @@ import { HttpsPathOptions } from 'mockttp/dist/util/tls';
 
 const PATH_VAR_SEPARATOR = process.platform === 'win32' ? ';' : ':';
 
-const OVERRIDES_DIR = path.join(__dirname, '..', '..', '..', 'overrides');
+const OVERRIDES_DIR = path.join(
+    process.env.HTK_IS_BUNDLED
+        ? path.join(__dirname, '..')
+        : path.join(__dirname, '..', '..', '..'),
+    'overrides'
+);
 const OVERRIDE_RUBYGEMS_PATH = path.join(OVERRIDES_DIR, 'gems');
 const OVERRIDE_PYTHONPATH = path.join(OVERRIDES_DIR, 'pythonpath');
 
