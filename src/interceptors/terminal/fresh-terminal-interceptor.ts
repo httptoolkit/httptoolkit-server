@@ -12,7 +12,7 @@ const findOsxExecutable = util.promisify(findOsxExecutableCb);
 
 import { Interceptor } from '..';
 import { HtkConfig } from '../../config';
-import { reportError } from '../../error-tracking';
+import { reportError, addBreadcrumb } from '../../error-tracking';
 import { OVERRIDE_BIN_PATH, getTerminalEnvVars } from './terminal-env-overrides';
 
 const checkAccess = util.promisify(fs.access);
@@ -58,10 +58,19 @@ const spawnAndCollectOutput = (command: string, args: string[] = []): Promise<{ 
 };
 
 const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
-    if (process.platform === 'win32') return getWindowsTerminalCommand();
-    else if (process.platform === 'darwin') return getOSXTerminalCommand();
-    else if (process.platform === 'linux') return getLinuxTerminalCommand();
-    else return null;
+    let result: Promise<SpawnArgs | null>;
+
+    if (process.platform === 'win32') result = getWindowsTerminalCommand();
+    else if (process.platform === 'darwin') result = getOSXTerminalCommand();
+    else if (process.platform === 'linux') result = getLinuxTerminalCommand();
+    else result = Promise.resolve(null);
+
+    result.then((terminal) => {
+        if (terminal) addBreadcrumb('Found terminal', { data: { terminal } });
+        else reportError('No terminal could be detected');
+    });
+
+    return result;
 });
 
 const getWindowsTerminalCommand = async (): Promise<SpawnArgs | null> => {
@@ -367,11 +376,6 @@ const resetShellStartupScripts = () => {
 
 const terminals: _.Dictionary<ChildProcess[] | undefined> = {}
 
-// Memoize this report: i.e. send it only once
-const reportNoTerminal = _.memoize(() => {
-    reportError('No terminal could be detected');
-});
-
 export class TerminalInterceptor implements Interceptor {
 
     id = 'fresh-terminal';
@@ -380,9 +384,7 @@ export class TerminalInterceptor implements Interceptor {
     constructor(private config: HtkConfig) { }
 
     async isActivable(): Promise<boolean> {
-        const terminalAvailable = !!(await getTerminalCommand());
-        if (!terminalAvailable) reportNoTerminal();
-        return terminalAvailable;
+        return !!(await getTerminalCommand());
     }
 
     isActive(proxyPort: number | string): boolean {
