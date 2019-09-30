@@ -54,11 +54,12 @@ export class FreshChrome implements Interceptor {
             browser: (await getChromeBrowserName(this.config)) || 'chrome',
             proxy: `https://127.0.0.1:${proxyPort}`,
             noProxy: [
-                // Don't intercept our warning hiding requests
-                hideWarningServer.host,
                 // Force even localhost requests to go through the proxy
                 // See https://bugs.chromium.org/p/chromium/issues/detail?id=899126#c17
-                '<-loopback>'
+                '<-loopback>',
+                // Don't intercept our warning hiding requests. Note that this must be
+                // the 2nd rule here, or <-loopback> would override it.
+                hideWarningServer.host
             ],
             options: [
                 // Trust our CA certificate's fingerprint:
