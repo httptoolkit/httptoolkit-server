@@ -61,6 +61,7 @@ module.exports = {
             ? new SentryPlugin({
                 release: pjson.version,
                 include: OUTPUT_DIR,
+                urlPrefix: '~/bundle',
                 validate: true
             })
             : { apply: () => {} },

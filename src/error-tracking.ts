@@ -1,5 +1,7 @@
+import * as path from 'path';
 import * as child_process from 'child_process';
 import * as Sentry from '@sentry/node';
+import { RewriteFrames } from '@sentry/integrations';
 import { IS_PROD_BUILD } from './util';
 
 let sentryInitialized = false;
@@ -17,6 +19,12 @@ export function initErrorTracking() {
         Sentry.init({
             dsn: SENTRY_DSN,
             release: packageJson.version,
+            integrations: [
+                new RewriteFrames({
+                    // We're one dir down: either /bundle, or /src
+                    root: path.join(__dirname, '..')
+                })
+            ],
             beforeBreadcrumb(breadcrumb, hint) {
                 if (breadcrumb.category === 'http') {
                     // Almost all HTTP requests sent by the server are actually forwarded HTTP from
