@@ -13,10 +13,39 @@ export function initErrorTracking() {
     }
 
     if (SENTRY_DSN) {
-        Sentry.init({ dsn: SENTRY_DSN, release: packageJson.version });
+        Sentry.init({
+            dsn: SENTRY_DSN,
+            release: packageJson.version,
+            beforeBreadcrumb(breadcrumb, hint) {
+                if (breadcrumb.category === 'http') {
+                    // Almost all HTTP requests sent by the server are actually forwarded HTTP from
+                    // the proxy, so could be very sensitive. We need to ensure errors don't leak data.
+
+                    // Remove all but the host from the breadcrumb data. The host is fairly safe & often
+                    // useful for context, but the path & query could easily contain sensitive secrets.
+                    if (breadcrumb.data && breadcrumb.data.url) {
+                        const url = breadcrumb.data.url as string;
+                        const hostIndex = url.indexOf('://') + 3;
+                        const pathIndex = url.indexOf('/', hostIndex);
+                        if (pathIndex !== -1) {
+                            breadcrumb.data.url = url.slice(0, pathIndex);
+                        }
+                    }
+
+                    if (hint) {
+                        // Make sure we don't collect the full HTTP data in hints either.
+                        delete hint.request;
+                        delete hint.response;
+                    }
+                }
+                return breadcrumb;
+            }
+        });
+
         Sentry.configureScope((scope) => {
             scope.setTag('platform', process.platform);
         });
+
         sentryInitialized = true;
     }
 }
