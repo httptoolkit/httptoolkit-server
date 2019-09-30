@@ -1,3 +1,4 @@
+import * as child_process from 'child_process';
 import * as Sentry from '@sentry/node';
 import { IS_PROD_BUILD } from './util';
 
@@ -45,6 +46,25 @@ export function initErrorTracking() {
         Sentry.configureScope((scope) => {
             scope.setTag('platform', process.platform);
         });
+
+        // Include breadcrumbs for subprocess spawning, to trace interceptor startup details:
+        const rawSpawn = child_process.spawn;
+        (child_process as any).spawn = function (command: any, args?: any, options?: { [key: string]: string }) {
+            const sanitizedOptions = { ...options,
+                env: Object.entries((options && options.env) || {})
+                    .map(([key, value]) => {
+                        // Remove all actual env values from this reporting; only included our changed values.
+                        const realValue = process.env[key];
+                        if (value === realValue) return undefined;
+                        else if (realValue) return [key, value.replace(realValue, '[...]')];
+                        else return [key, value];
+                    })
+                    .filter((entry) => entry !== undefined)
+            };
+
+            addBreadcrumb('Spawning process', { data: { command, args, options: sanitizedOptions } });
+            return rawSpawn.apply(this, arguments);
+        };
 
         sentryInitialized = true;
     }
