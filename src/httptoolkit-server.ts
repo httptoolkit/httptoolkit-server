@@ -6,9 +6,9 @@ import * as Express from 'express';
 import { GraphQLScalarType } from 'graphql';
 
 import { HtkConfig } from './config';
-import { reportError } from './error-tracking';
+import { reportError, addBreadcrumb } from './error-tracking';
 import { buildInterceptors, Interceptor } from './interceptors';
-import { ALLOWED_ORIGINS } from './util';
+import { ALLOWED_ORIGINS, delay } from './util';
 
 const packageJson = require('../package.json');
 
@@ -69,11 +69,25 @@ const buildResolvers = (
             activateInterceptor: async (__: void, args: _.Dictionary<any>) => {
                 const { id, proxyPort, options } = args;
 
+                addBreadcrumb(`Activating ${id}`, { category: 'interceptor', data: { id, options } });
+
                 const interceptor = interceptors[id];
                 if (!interceptor) throw new Error(`Unknown interceptor ${id}`);
 
-                await interceptor.activate(proxyPort, options);
-                return interceptor.isActive(proxyPort);
+                await Promise.race([
+                    interceptor.activate(proxyPort, options),
+                    delay(30000) // After 30s, we don't stop activating, but we do report failure
+                ]);
+
+                const isActive = interceptor.isActive(proxyPort);
+
+                if (isActive) {
+                    addBreadcrumb(`Successfully activated ${id}`, { category: 'interceptor' });
+                } else {
+                    reportError(new Error(`Failed to activate ${id}`));
+                }
+
+                return isActive;
             },
             deactivateInterceptor: async (__: void, args: _.Dictionary<any>) => {
                 const { id, proxyPort, options } = args;

@@ -50,6 +50,10 @@ export function initErrorTracking() {
     }
 }
 
+export function addBreadcrumb(message: string, data: Sentry.Breadcrumb) {
+    Sentry.addBreadcrumb(Object.assign({ message }, data));
+}
+
 export function reportError(error: Error | string) {
     console.warn(error);
     if (!sentryInitialized) return;
