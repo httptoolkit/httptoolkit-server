@@ -20,9 +20,7 @@ module.exports = {
     mode: 'production',
     devtool: 'source-map',
     target: 'node',
-    node: {
-        __dirname: false
-    },
+    node: false, // Don't mess with any node built-ins or globals
     module: {
         rules: [
             {
