@@ -41,7 +41,16 @@ module.exports = {
     externals: [
         '@oclif/plugin-update/lib/commands/update', // Lots of complicated dynamic requires in @oclif
         'registry-js', // Native module
-        'win-version-info' // Native module
+        'win-version-info', // Native module
+        function (context, request, callback) {
+            if (context !== __dirname && request.endsWith('/error-tracking')) {
+                // Direct all requires of error-tracking to its entrypoint at the top level,
+                // except the root require that actually builds the entrypoint.
+                callback(null, 'commonjs ./error-tracking');
+            } else {
+                callback();
+            }
+        }
     ],
     plugins: [
         // Optimistic require for 'iconv' in 'encoding', falls back to 'iconv-lite'
