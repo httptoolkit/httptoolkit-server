@@ -82,7 +82,7 @@ export function addBreadcrumb(message: string, data: Sentry.Breadcrumb) {
     Sentry.addBreadcrumb(Object.assign({ message }, data));
 }
 
-export function reportError(error: Error | string) {
+export function reportError(error: Error | string): undefined | Promise<void> {
     console.warn(error);
     if (!sentryInitialized) return;
 
@@ -91,4 +91,8 @@ export function reportError(error: Error | string) {
     } else {
         Sentry.captureException(error);
     }
+
+    return Sentry.flush(500).then((sentSuccessfully) => {
+        if (sentSuccessfully === false) console.log('Error reporting timed out');
+    });
 }

@@ -75,7 +75,7 @@ const buildResolvers = (
                 if (!interceptor) throw new Error(`Unknown interceptor ${id}`);
 
                 await Promise.race([
-                    interceptor.activate(proxyPort, options),
+                    interceptor.activate(proxyPort, options).catch(reportError),
                     delay(30000) // After 30s, we don't stop activating, but we do report failure
                 ]);
 
@@ -95,7 +95,7 @@ const buildResolvers = (
                 const interceptor = interceptors[id];
                 if (!interceptor) throw new Error(`Unknown interceptor ${id}`);
 
-                await interceptor.deactivate(proxyPort, options);
+                await interceptor.deactivate(proxyPort, options).catch(reportError);
                 return !interceptor.isActive(proxyPort);
             },
             triggerUpdate: () => {

@@ -1,6 +1,6 @@
 // Import types only from TS
-import * as ErrorTrackingModule from '../error-tracking';
-import * as IndexTypeModule from '../index';
+type ErrorTrackingModule = typeof import('../error-tracking');
+type IndexTypeModule = typeof import('../index');
 
 import { IS_PROD_BUILD } from '../util';
 
@@ -19,12 +19,12 @@ function maybeBundleImport<T>(moduleName: string): T {
         return require('../' + moduleName);
     }
 }
-const { initErrorTracking } = maybeBundleImport<typeof ErrorTrackingModule>('error-tracking');
+const { initErrorTracking, reportError } = maybeBundleImport<ErrorTrackingModule>('error-tracking');
 initErrorTracking();
 
 import { Command, flags } from '@oclif/command'
 
-const { runHTK } = maybeBundleImport<typeof IndexTypeModule>('index');
+const { runHTK } = maybeBundleImport<IndexTypeModule>('index');
 
 class HttpToolkitServer extends Command {
     static description = 'start the HTTP Toolkit server'
@@ -39,7 +39,10 @@ class HttpToolkitServer extends Command {
     async run() {
         const { flags } = this.parse(HttpToolkitServer);
 
-        await runHTK({ configPath: flags.config });
+        await runHTK({ configPath: flags.config }).catch(async (error) => {
+            await reportError(error);
+            throw error;
+        });
     }
 }
 
