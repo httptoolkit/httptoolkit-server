@@ -2,9 +2,9 @@
 set -e
 
 # Exclude ourselves from PATH, find the real php, then reset PATH
-PATH="${PATH//`dirname $0`:/}"
+PATH="${PATH//`dirname "$0"`:/}"
 real_php=`command -v php`
-PATH="`dirname $0`:$PATH"
+PATH="`dirname "$0"`:$PATH"
 
 # Call PHP with the given arguments, and a few extra
 PHP_ARGS=(
@@ -13,13 +13,13 @@ PHP_ARGS=(
     # Make cURL trust us
     -d "curl.cainfo=$SSL_CERT_FILE" \
     # Prepend a script that enables the proxy
-    -d "auto_prepend_file=`dirname $0`/prepend.php" \
+    -d "auto_prepend_file=`dirname "$0"`/prepend.php" \
     # Pass through all other provided arguments
     "$@"
 )
 
 if command -v winpty >/dev/null 2>&1; then
-    winpty "$real_php" ${PHP_ARGS[@]}
+    winpty "$real_php" "${PHP_ARGS[@]}"
 else
-    "$real_php" ${PHP_ARGS[@]}
+    "$real_php" "${PHP_ARGS[@]}"
 fi
