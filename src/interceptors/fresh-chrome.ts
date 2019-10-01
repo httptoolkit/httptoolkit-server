@@ -67,6 +67,9 @@ export class FreshChrome implements Interceptor {
             ]
         }, this.config.configPath);
 
+        browser.process.stdout.pipe(process.stdout);
+        browser.process.stderr.pipe(process.stderr);
+
         await hideWarningServer.completedPromise;
         await hideWarningServer.stop();
 

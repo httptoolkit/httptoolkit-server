@@ -119,6 +119,9 @@ export class FreshFirefox implements Interceptor {
             })
         }, this.config.configPath);
 
+        browser.process.stdout.pipe(process.stdout);
+        browser.process.stderr.pipe(process.stderr);
+
         let success = false;
         certCheckServer.waitForSuccess().then(() => {
             success = true;
