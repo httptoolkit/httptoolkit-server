@@ -58,13 +58,13 @@ describe('Integration test', function () {
         stderr = "";
 
         return new Promise((resolve, reject) => {
-            serverProcess.stdout.on('data', (d) => {
+            serverProcess.stdout!.on('data', (d) => {
                 if (d.includes('Server started')) resolve();
                 stdout = stdout + d.toString();
                 console.log(d.toString());
             });
 
-            serverProcess.stderr.on('data', (d) => {
+            serverProcess.stderr!.on('data', (d) => {
                 reject();
                 stderr = stderr + d.toString();
                 console.warn(d.toString());

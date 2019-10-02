@@ -7,7 +7,7 @@ const OUTPUT_DIR = path.join(__dirname, 'build');
 
 const pjson = require(path.join(__dirname, './package.json'));
 
-const spawn = (command: string, args: string[] = [], options?: SpawnOptions) => {
+const spawn = (command: string, args: string[] = [], options: SpawnOptions = {}) => {
     return new Promise((resolve, reject) => {
         const proc = spawnAsync(command, args, options);
         proc.on('exit', (code) => {
