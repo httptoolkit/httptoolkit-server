@@ -71,7 +71,7 @@ export function initErrorTracking() {
             };
 
             addBreadcrumb('Spawning process', { data: { command, args, options: sanitizedOptions } });
-            return rawSpawn.apply(this, arguments);
+            return rawSpawn.apply(this, arguments as any);
         };
 
         sentryInitialized = true;
