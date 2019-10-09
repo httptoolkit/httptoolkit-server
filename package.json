@@ -1,6 +1,6 @@
 {
   "name": "httptoolkit-server",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "author": "Tim Perry <pimterry@gmail.com>",
   "types": "lib/index.d.ts",
   "main": "lib/index.js",
