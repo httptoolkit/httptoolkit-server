@@ -18,7 +18,7 @@ export const OVERRIDE_BIN_PATH = path.join(OVERRIDES_DIR, 'path');
 export function getTerminalEnvVars(
     proxyPort: number,
     httpsConfig: HttpsPathOptions,
-    currentEnv: { [key: string]: string | undefined }
+    currentEnv: { [key: string]: string | undefined } | 'runtime-inherit'
 ): { [key: string]: string } {
     return {
         'http_proxy': `http://127.0.0.1:${proxyPort}`,
@@ -50,16 +50,22 @@ export function getTerminalEnvVars(
         'HTTP_TOOLKIT_ACTIVE': 'true',
 
         // Prepend our bin overrides into $PATH
-        'PATH': `${OVERRIDE_BIN_PATH}${PATH_VAR_SEPARATOR}${currentEnv.PATH}`,
+        'PATH': `${OVERRIDE_BIN_PATH}${PATH_VAR_SEPARATOR}${
+            currentEnv == 'runtime-inherit' ? '$PATH' : currentEnv.PATH
+        }`,
 
         // Prepend our Ruby gem overrides into $LOAD_PATH
-        'RUBYLIB': currentEnv.RUBYLIB
-            ? `${OVERRIDE_RUBYGEMS_PATH}:${currentEnv.RUBYLIB}`
+        'RUBYLIB': currentEnv === 'runtime-inherit'
+                ? `${OVERRIDE_RUBYGEMS_PATH}:$RUBYLIB`
+            : !!currentEnv.RUBYLIB
+                ? `${OVERRIDE_RUBYGEMS_PATH}:${currentEnv.RUBYLIB}`
             : OVERRIDE_RUBYGEMS_PATH,
 
         // Prepend our Python package overrides into $PYTHONPATH
-        'PYTHONPATH': currentEnv.PYTHONPATH
-            ? `${OVERRIDE_PYTHONPATH}:${currentEnv.PYTHONPATH}`
+        'PYTHONPATH': currentEnv === 'runtime-inherit'
+                ? `${OVERRIDE_PYTHONPATH}:$PYTHONPATH`
+            : currentEnv.PYTHONPATH
+                ? `${OVERRIDE_PYTHONPATH}:${currentEnv.PYTHONPATH}`
             : OVERRIDE_PYTHONPATH
     };
 }
