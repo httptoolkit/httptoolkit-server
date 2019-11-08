@@ -25,7 +25,7 @@ const typeDefs = `
             id: ID!,
             proxyPort: Int!,
             options: Json
-        ): Boolean!
+        ): Json
         deactivateInterceptor(
             id: ID!,
             proxyPort: Int!
@@ -74,8 +74,11 @@ const buildResolvers = (
                 const interceptor = interceptors[id];
                 if (!interceptor) throw new Error(`Unknown interceptor ${id}`);
 
+                let metadata: any = null;
                 await Promise.race([
-                    interceptor.activate(proxyPort, options).catch(reportError),
+                    interceptor.activate(proxyPort, options)
+                        .then((result) => metadata = result)
+                        .catch(reportError),
                     delay(30000) // After 30s, we don't stop activating, but we do report failure
                 ]);
 
@@ -87,7 +90,7 @@ const buildResolvers = (
                     reportError(new Error(`Failed to activate ${id}`));
                 }
 
-                return isActive;
+                return { success: isActive, metadata };
             },
             deactivateInterceptor: async (__: void, args: _.Dictionary<any>) => {
                 const { id, proxyPort, options } = args;
@@ -96,7 +99,7 @@ const buildResolvers = (
                 if (!interceptor) throw new Error(`Unknown interceptor ${id}`);
 
                 await interceptor.deactivate(proxyPort, options).catch(reportError);
-                return !interceptor.isActive(proxyPort);
+                return { success: !interceptor.isActive(proxyPort) };
             },
             triggerUpdate: () => {
                 eventEmitter.emit('update-requested');

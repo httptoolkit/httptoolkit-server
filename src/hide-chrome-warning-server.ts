@@ -1,8 +1,5 @@
 import { getLocal, Mockttp } from 'mockttp';
 
-// Make the types for some of the browser code below happy.
-let targetUrl: string;
-
 // The first tab that opens opens with a Chrome warning about dangerous flags
 // Closing it and immediately opening a new one is a bit cheeky, but
 // is completely gets rid that, more or less invisibly:
