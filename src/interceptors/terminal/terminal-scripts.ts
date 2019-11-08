@@ -71,6 +71,20 @@ if [ -n "$HTTP_TOOLKIT_ACTIVE" ]
 end
 ${END_CONFIG_SECTION}`;
 
+// A source-able shell script. Should work for everything except fish, sadly.
+export const getShellScript = (env: { [name: string]: string }) => `${
+        _.map(env, (value, key) => `    export ${key}="${value}"`).join('\n')
+    }
+
+    if command -v winpty >/dev/null 2>&1; then
+        # Work around for winpty's hijacking of certain commands
+        alias php=php
+        alias node=node
+    fi
+
+    echo 'HTTP Toolkit interception enabled'
+`;
+
 // Find the relevant user shell config file, add the above line to it, so that
 // shells launched with HTTP_TOOLKIT_ACTIVE set use the interception PATH.
 export const editShellStartupScripts = async () => {

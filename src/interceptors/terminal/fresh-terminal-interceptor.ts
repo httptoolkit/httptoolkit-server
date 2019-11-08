@@ -214,7 +214,7 @@ const getXfceTerminalCommand = async (command = 'xfce4-terminal'): Promise<Spawn
 
 const terminals: _.Dictionary<ChildProcess[] | undefined> = {}
 
-export class TerminalInterceptor implements Interceptor {
+export class FreshTerminalInterceptor implements Interceptor {
 
     id = 'fresh-terminal';
     version = '1.0.0';

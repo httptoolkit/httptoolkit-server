@@ -141,6 +141,12 @@ describe('Integration test', function () {
                 "isActivable": true,
                 "isActive": false,
                 "version": "1.0.0"
+            },
+            {
+                "id": "existing-terminal",
+                "isActivable": true,
+                "isActive": false,
+                "version": "1.0.0"
             }
         ]);
     });
