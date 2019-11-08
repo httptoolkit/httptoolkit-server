@@ -16,7 +16,13 @@ async function shutdown() {
     console.log('Shutting down...');
 
     await Promise.all(shutdownHandlers.map(
-        (handler) => handler().catch(reportError)
+        async (handler) => {
+            try {
+                handler();
+            } catch (e) {
+                reportError(e);
+            }
+        }
     ));
 
     process.exit(0);
