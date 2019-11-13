@@ -125,9 +125,9 @@ const buildResolvers = (
 
         Json: new GraphQLScalarType({
             name: 'Json',
-            description: 'A JSON entity, serialized as a simple JSON string',
-            serialize: (value: any) => JSON.stringify(value),
-            parseValue: (input: string): any => JSON.parse(input),
+            description: 'A JSON entity, serialized as a raw object',
+            serialize: (value: any) => value,
+            parseValue: (input: string): any => input,
             parseLiteral: (): any => { throw new Error('JSON literals are not supported') }
         }),
 
