@@ -24,12 +24,16 @@ export class ExistingTerminalInterceptor implements Interceptor {
     }
 
     async activate(proxyPort: number): Promise<{ port: number }> {
+        if (this.servers[proxyPort]) {
+            return { port: this.servers[proxyPort].port };
+        }
+
         const server = getLocal();
-        await server.start();
+        await server.start({ startPort: proxyPort + 1, endPort: 65535 });
 
         const envVars = getTerminalEnvVars(proxyPort, this.config.https, 'runtime-inherit');
         const setupScript = getShellScript(envVars);
-        server.get('/setup').thenReply(200, setupScript, { "content-type": "text/x-shellscript" })
+        server.get('/setup').thenReply(200, setupScript, { "content-type": "text/x-shellscript" });
 
         this.servers[proxyPort] = server;
 
