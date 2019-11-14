@@ -23,7 +23,7 @@ const getChromeBrowserDetails = async (config: HtkConfig): Promise<Browser | und
     const browsers = await getAvailableBrowsers(config.configPath);
 
     // Get the details for the first of these browsers that is installed.
-    return ['chrome', 'chromium']
+    return ['chrome', 'chromium', 'chrome-beta', 'chrome-canary']
         .map((chromeName) => _.find(browsers, b => b.name === chromeName))
         .filter(Boolean)[0] as Browser;
 };
