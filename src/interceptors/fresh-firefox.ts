@@ -10,6 +10,7 @@ import { getAvailableBrowsers, launchBrowser, BrowserInstance } from '../browser
 import { CertCheckServer } from '../cert-check-server';
 import { delay } from '../util';
 import { Interceptor } from '.';
+import { reportError } from '../error-tracking';
 
 const deleteFolder = promisify(rimraf);
 const readFile = promisify(fs.readFile);
@@ -132,6 +133,7 @@ export class FreshFirefox implements Interceptor {
             certCheckServer.stop();
             delete browsers[proxyPort];
             if (!success) {
+                reportError('Firefox certificate check failed');
                 deleteFolder(firefoxProfile).catch(console.warn);
             }
         });

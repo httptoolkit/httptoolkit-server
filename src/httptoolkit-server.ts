@@ -74,23 +74,20 @@ const buildResolvers = (
                 const interceptor = interceptors[id];
                 if (!interceptor) throw new Error(`Unknown interceptor ${id}`);
 
-                let metadata: any = null;
-                await Promise.race([
-                    interceptor.activate(proxyPort, options)
-                        .then((result) => metadata = result)
-                        .catch(reportError),
-                    delay(30000) // After 30s, we don't stop activating, but we do report failure
+                const result = await Promise.race([
+                    // Activate, and either return metadata, or some error
+                    interceptor.activate(proxyPort, options).catch((e) => e),
+                    // After 30s, we don't stop activating, but we do return an error
+                    delay(30000).then(() => new Error(`Timeout activating ${id}`))
                 ]);
 
-                const isActive = interceptor.isActive(proxyPort);
-
-                if (isActive) {
-                    addBreadcrumb(`Successfully activated ${id}`, { category: 'interceptor' });
+                if (_.isError(result)) {
+                    reportError(result);
+                    return { success: false };
                 } else {
-                    reportError(new Error(`Failed to activate ${id}`));
+                    addBreadcrumb(`Successfully activated ${id}`, { category: 'interceptor' });
+                    return { success: true, metadata: result };
                 }
-
-                return { success: isActive, metadata };
             },
             deactivateInterceptor: async (__: void, args: _.Dictionary<any>) => {
                 const { id, proxyPort, options } = args;

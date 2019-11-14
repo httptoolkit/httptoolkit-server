@@ -6,9 +6,16 @@ import { HtkConfig } from '../../config';
 import { getTerminalEnvVars } from './terminal-env-overrides';
 import { getShellScript } from './terminal-scripts';
 
+interface ServerState {
+    server: Mockttp;
+    isActive: boolean;
+}
+
 export class ExistingTerminalInterceptor implements Interceptor {
 
-    private servers: { [proxyPort: number]: Mockttp } = {};
+    private servers: {
+        [proxyPort: number]: ServerState
+    } = {};
 
     id = 'existing-terminal';
     version = '1.0.0';
@@ -20,12 +27,13 @@ export class ExistingTerminalInterceptor implements Interceptor {
     }
 
     isActive(proxyPort: number): boolean {
-        return !!this.servers[proxyPort];
+        const serverState = this.servers[proxyPort];
+        return !!serverState && serverState.isActive;
     }
 
     async activate(proxyPort: number): Promise<{ port: number }> {
         if (this.servers[proxyPort]) {
-            return { port: this.servers[proxyPort].port };
+            return { port: this.servers[proxyPort].server.port };
         }
 
         const server = getLocal();
@@ -33,16 +41,26 @@ export class ExistingTerminalInterceptor implements Interceptor {
 
         const envVars = getTerminalEnvVars(proxyPort, this.config.https, 'runtime-inherit');
         const setupScript = getShellScript(envVars);
-        server.get('/setup').thenReply(200, setupScript, { "content-type": "text/x-shellscript" });
 
-        this.servers[proxyPort] = server;
+        const serverState = { server, isActive: false };
+        await server
+            .get('/setup')
+            .thenCallback(() => {
+                serverState.isActive = true;
+                return {
+                    status: 200,
+                    headers: { "content-type": "text/x-shellscript" },
+                    body: setupScript
+                };
+            });
 
+        this.servers[proxyPort] = serverState;
         return { port: server.port };
     }
 
     async deactivate(proxyPort: number): Promise<void> {
-        if (this.isActive(proxyPort)) {
-            await this.servers[proxyPort].stop();
+        if (this.servers[proxyPort]) {
+            await this.servers[proxyPort].server.stop();
             delete this.servers[proxyPort];
         }
     }
