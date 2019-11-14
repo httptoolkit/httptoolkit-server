@@ -26,7 +26,7 @@
   "homepage": "https://github.com/httptoolkit/httptoolkit-server",
   "bugs": "https://github.com/httptoolkit/httptoolkit-server/issues",
   "dependencies": {
-    "@httptoolkit/browser-launcher": "^1.5.0",
+    "@httptoolkit/browser-launcher": "^1.5.1",
     "@httptoolkit/osx-find-executable": "^1.1.2",
     "@oclif/command": "^1.5.4",
     "@oclif/config": "^1.13.3",

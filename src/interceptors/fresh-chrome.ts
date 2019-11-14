@@ -1,28 +1,31 @@
 import { promisify } from 'util';
 import * as fs from 'fs';
+import * as rimraf from 'rimraf';
 
 import * as _ from 'lodash';
 import { generateSPKIFingerprint } from 'mockttp';
 
 import { HtkConfig } from '../config';
 
-import { getAvailableBrowsers, launchBrowser, BrowserInstance } from '../browsers';
+import { getAvailableBrowsers, launchBrowser, BrowserInstance, Browser } from '../browsers';
 import { delay } from '../util';
 import { HideChromeWarningServer } from '../hide-chrome-warning-server';
 import { Interceptor } from '.';
+import { reportError } from '../error-tracking';
 
 const readFile = promisify(fs.readFile);
+const deleteFolder = promisify(rimraf);
 
 let browsers: _.Dictionary<BrowserInstance> = {};
 
-// Should we launch Chrome, or Chromium, or do we have nothing available at all?
-const getChromeBrowserName = async (config: HtkConfig): Promise<string | undefined> => {
+// Which Chrome variant should we launch, and do we have one available at all?
+const getChromeBrowserDetails = async (config: HtkConfig): Promise<Browser | undefined> => {
     const browsers = await getAvailableBrowsers(config.configPath);
 
-    return _(browsers)
-        .map(b => b.name)
-        .intersection(['chrome', 'chromium'])
-        .value()[0];
+    // Get the details for the first of these browsers that is installed.
+    return ['chrome', 'chromium']
+        .map((chromeName) => _.find(browsers, b => b.name === chromeName))
+        .filter(Boolean)[0] as Browser;
 };
 
 export class FreshChrome implements Interceptor {
@@ -36,7 +39,7 @@ export class FreshChrome implements Interceptor {
     }
 
     async isActivable() {
-        return !!(await getChromeBrowserName(this.config));
+        return !!(await getChromeBrowserDetails(this.config));
     }
 
     async activate(proxyPort: number) {
@@ -48,10 +51,12 @@ export class FreshChrome implements Interceptor {
         const hideWarningServer = new HideChromeWarningServer();
         await hideWarningServer.start('https://amiusing.httptoolkit.tech');
 
+        const chromeDetails = await getChromeBrowserDetails(this.config);
+
         const browser = await launchBrowser(hideWarningServer.hideWarningUrl, {
             // Try to launch Chrome if we're not sure - it'll trigger a config update,
             // and might find a new install.
-            browser: (await getChromeBrowserName(this.config)) || 'chrome',
+            browser: chromeDetails ? chromeDetails.name : 'chrome',
             proxy: `https://127.0.0.1:${proxyPort}`,
             noProxy: [
                 // Force even localhost requests to go through the proxy
@@ -76,6 +81,18 @@ export class FreshChrome implements Interceptor {
         browsers[proxyPort] = browser;
         browser.process.once('exit', () => {
             delete browsers[proxyPort];
+
+            if (Object.keys(browsers).length === 0 && chromeDetails && _.isString(chromeDetails.profile)) {
+                // If we were the last browser, and we have a profile path, and it's in our config
+                // (just in case something's gone wrong) -> delete the profile to reset everything.
+
+                const profilePath = chromeDetails.profile;
+                if (!profilePath.startsWith(this.config.configPath)) {
+                    reportError(`Unexpected Chrome profile location, not deleting: ${profilePath}`);
+                } else {
+                    deleteFolder(chromeDetails.profile).catch(reportError);
+                }
+            }
         });
 
         // Delay the approx amount of time it normally takes Chrome to really open

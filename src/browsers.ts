@@ -4,7 +4,7 @@ import { promisify } from 'util';
 import { Mutex } from 'async-mutex';
 
 import * as getBrowserLauncherCb from '@httptoolkit/browser-launcher';
-import { LaunchOptions, BrowserInstance } from '@httptoolkit/browser-launcher';
+import { LaunchOptions, BrowserInstance, Browser } from '@httptoolkit/browser-launcher';
 
 import { reportError } from './error-tracking';
 
@@ -15,7 +15,7 @@ const getBrowserLauncher = promisify(getBrowserLauncherCb);
 
 const browserConfigPath = (configPath: string) => path.join(configPath, 'browsers.json');
 
-export { BrowserInstance };
+export { BrowserInstance, Browser };
 
 export async function checkBrowserConfig(configPath: string) {
     // It's not clear why, but sometimes the browser config can become corrupted, so it's not valid JSON
