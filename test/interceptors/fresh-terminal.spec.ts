@@ -8,7 +8,7 @@ import { getTerminalEnvVars } from '../../src/interceptors/terminal/terminal-env
 
 const interceptorSetup = setupInterceptor('fresh-terminal');
 
-describe('Terminal interceptor', function () {
+describe('Fresh terminal interceptor', function () {
     this.timeout(5000);
 
     beforeEach(async () => {
@@ -49,7 +49,7 @@ describe('Terminal interceptor', function () {
 
             // Spawn node, as if it was run inside an intercepted terminal
             const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env);
-            const nodeScript = fork(require.resolve('./fresh-terminal-js-script'), [], {
+            const nodeScript = fork(require.resolve('./terminal-js-test-script'), [], {
                 execArgv: ['-r', require.resolve('../../overrides/path/prepend.js')],
                 env: Object.assign({}, process.env, terminalEnvOverrides)
             });
@@ -67,7 +67,7 @@ describe('Terminal interceptor', function () {
             expect(seenRequests).to.include('http://example.com/js/http');
             expect(seenRequests).to.include('https://example.com/js/https');
 
-            // http & http with lots of popular libraries
+            // http & https with lots of popular libraries
             ['http', 'https'].forEach((protocol) =>
                 [
                     'request',

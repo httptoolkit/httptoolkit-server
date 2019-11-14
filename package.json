@@ -61,6 +61,7 @@
     "@types/lodash": "^4.14.117",
     "@types/mocha": "^5.2.5",
     "@types/node": "^12.7.9",
+    "@types/node-fetch": "^2.5.3",
     "@types/request-promise-native": "^1.0.15",
     "@types/rimraf": "^2.0.2",
     "@types/tmp": "0.0.33",
