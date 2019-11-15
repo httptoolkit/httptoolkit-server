@@ -97,7 +97,21 @@ export class FreshFirefox implements Interceptor {
                     "datareporting.policy.dataSubmissionEnabled": false,
                     "datareporting.policy.dataSubmissionPolicyAccepted": false,
                     "datareporting.policy.dataSubmissionPolicyBypassNotification": true,
-                    "trailhead.firstrun.didSeeAboutWelcome": true
+                    "trailhead.firstrun.didSeeAboutWelcome": true,
+
+                    // Refresh all state on shutdown:
+                    "privacy.history.custom": true,
+                    "privacy.sanitize.sanitizeOnShutdown": true,
+                    "privacy.clearOnShutdown.cache": true,
+                    "privacy.clearOnShutdown.cookies": true,
+                    "privacy.clearOnShutdown.downloads": true,
+                    "privacy.clearOnShutdown.formdata": true,
+                    "privacy.clearOnShutdown.history": true,
+                    "privacy.clearOnShutdown.offlineApps": true,
+                    "privacy.clearOnShutdown.sessions": true,
+                    "privacy.clearOnShutdown.siteSettings": true,
+                    // Must be false, or 1st startup 2nd start opens a blank page, not the target URL:
+                    "privacy.clearOnShutdown.openWindows": false
                 }
             )
         }, this.config.configPath);
