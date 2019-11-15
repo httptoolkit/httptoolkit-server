@@ -23,7 +23,9 @@ export class ExistingTerminalInterceptor implements Interceptor {
     constructor(private config: HtkConfig) { }
 
     isActivable(): Promise<boolean> {
-        return Promise.resolve(true);
+        // Not supported on Windows, for now. Doesn't work in cmd or powershell of course (needs bash),
+        // and doesn't work in git bash/WSL due to path transforms. Fixable, I think, but not easily.
+        return Promise.resolve(process.platform !== 'win32');
     }
 
     isActive(proxyPort: number): boolean {
