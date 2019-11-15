@@ -33,17 +33,20 @@ export class CertCheckServer {
                     <link href="http://fonts.googleapis.com/css?family=Lato" rel="stylesheet" />
                     <style>
                         body {
-                            margin: 20px;
+                            margin: 0;
+                            padding: 20px;
                             background-color: #d8e2e6;
                             font-family: Lato, Arial;
+
+                            position: absolute;
+                            bottom: 0;
+                            width: 100%;
+                            box-sizing: border-box;
+                            text-align: center;
                         }
 
                         body:not(.show-content) > * {
                             display: none;
-                        }
-
-                        h1 {
-                            font-size: 36pt;
                         }
 
                         p {
@@ -88,14 +91,40 @@ export class CertCheckServer {
                             ensureCertificateIsInstalled();
                     </script>
                     <body>
-                        <h1>
-                            Configuring Firefox to use HTTP Toolkit
-                        </h1>
+                        <svg
+                            version="1.1"
+                            xmlns="http://www.w3.org/2000/svg"
+                            xmlns:xlink="http://www.w3.org/1999/xlink"
+                            x="0px"
+                            y="0px"
+                            width="400px"
+                            height="400px"
+                            viewBox="0 0 50 50"
+                            style="enable-background:new 0 0 50 50;"
+                        >
+                            <path fill="#b6c2ca" d="M25.251,6.461c-10.318,0-18.683,8.365-18.683,18.683h4.068c0-8.071,6.543-14.615,14.615-14.615V6.461z">
+                                <animateTransform
+                                    attributeType="xml"
+                                    attributeName="transform"
+                                    type="rotate"
+                                    from="0 25 25"
+                                    to="360 25 25"
+                                    dur="6s"
+                                    repeatCount="indefinite"
+                                />
+                            </path>
+                        </svg>
+
                         <p>
                             To intercept HTTPS traffic, you need to trust the HTTP Toolkit certificate.
+                            <br/>
+                            This will only apply to this standalone Firefox profile, not your normal browser.
                         </p>
-                        <p>
+                        <p><strong>
                             Select 'Trust this CA to identify web sites' and press 'OK' to continue.
+                        </strong></p>
+                        <p>
+                            Made a mistake? Quit Firefox and start it again from HTTP Toolkit to retry.
                         </p>
                     </div>
                     </body>
