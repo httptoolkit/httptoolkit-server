@@ -153,11 +153,14 @@ export class FreshFirefox implements Interceptor {
 
         let existingPrefs: _.Dictionary<any> = {};
 
-        if (await canAccess(firefoxPrefsFile) === false) {
+        if (await canAccess(firefoxPrefsFile) === false && process.platform !== 'darwin') {
             /*
             First time, we do a separate pre-usage startup & stop, without the proxy, for certificate setup.
             This helps avoid initial Firefox profile setup request noise, and tidies up some awkward UX where
-            firefox likes to open extra welcome windows/tabs on first run, especially on OSX.
+            firefox likes to open extra welcome windows/tabs on first run.
+
+            Unfortunately, OSX doesn't seem to play nicely with this, so we have to fall back to normal
+            behaviour in that case.
             */
             await this.setupFirefoxProfile();
         }
@@ -165,12 +168,11 @@ export class FreshFirefox implements Interceptor {
         const certCheckServer = new CertCheckServer(this.config);
         await certCheckServer.start('https://amiusing.httptoolkit.tech');
 
-        // At this stage, we've run firefox at least once, at it's working nicely.
         // We need to preserve & reuse any existing preferences, to avoid issues
         // where on pref setup firefox behaves badly (opening a 2nd window) on OSX.
         const prefContents = await readFile(firefoxPrefsFile, {
             encoding: 'utf8'
-        });
+        }).catch(() => '');
 
         existingPrefs = _(prefContents)
             .split('\n')
