@@ -126,14 +126,22 @@ export class FreshFirefox implements Interceptor {
     async setupFirefoxProfile() {
         const certCheckServer = new CertCheckServer(this.config);
         await certCheckServer.start();
-        const certInstalled = certCheckServer.waitForSuccess().catch(reportError);
+
+        let certInstalled: Promise<void> | true = certCheckServer.waitForSuccess().catch(reportError);
 
         certInstallBrowser = await this.startFirefox(certCheckServer);
         certInstallBrowser.process.once('close', () => {
             certCheckServer.stop();
             certInstallBrowser = undefined;
+            if (certInstalled !== true) {
+                reportError('Firefox certificate setup failed');
+                deleteFolder(this.firefoxProfilePath).catch(console.warn);
+            }
         });
+
         await certInstalled;
+        certInstalled = true;
+
         await delay(100); // Tiny delay, so firefox can do initial setup tasks
         certInstallBrowser.stop();
     }
@@ -141,8 +149,7 @@ export class FreshFirefox implements Interceptor {
     async activate(proxyPort: number) {
         if (this.isActive(proxyPort) || !!certInstallBrowser) return;
 
-        const firefoxProfile = path.join(this.config.configPath, 'firefox-profile');
-        const firefoxPrefsFile = path.join(firefoxProfile, 'prefs.js');
+        const firefoxPrefsFile = path.join(this.firefoxProfilePath, 'prefs.js');
 
         let existingPrefs: _.Dictionary<any> = {};
 
@@ -188,7 +195,7 @@ export class FreshFirefox implements Interceptor {
             delete browsers[proxyPort];
             if (!success) {
                 reportError('Firefox certificate check failed');
-                deleteFolder(firefoxProfile).catch(console.warn);
+                deleteFolder(this.firefoxProfilePath).catch(console.warn);
             }
         });
 
