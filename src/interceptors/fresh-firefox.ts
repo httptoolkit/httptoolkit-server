@@ -21,6 +21,7 @@ const canAccess = (path: string) =>
 
 const FIREFOX_PREF_REGEX = /\w+_pref\("([^"]+)", (.*)\);/
 
+let certInstallBrowser: BrowserInstance | undefined;
 let browsers: _.Dictionary<BrowserInstance> = {};
 
 export class FreshFirefox implements Interceptor {
@@ -127,15 +128,18 @@ export class FreshFirefox implements Interceptor {
         await certCheckServer.start();
         const certInstalled = certCheckServer.waitForSuccess().catch(reportError);
 
-        const browser = await this.startFirefox(certCheckServer);
-        browser.process.once('exit', () => certCheckServer.stop());
+        certInstallBrowser = await this.startFirefox(certCheckServer);
+        certInstallBrowser.process.once('exit', () => {
+            certCheckServer.stop();
+            certInstallBrowser = undefined;
+        });
         await certInstalled;
         await delay(100); // Tiny delay, so firefox can do initial setup tasks
-        browser.stop();
+        certInstallBrowser.stop();
     }
 
     async activate(proxyPort: number) {
-        if (this.isActive(proxyPort)) return;
+        if (this.isActive(proxyPort) || !!certInstallBrowser) return;
 
         const firefoxProfile = path.join(this.config.configPath, 'firefox-profile');
         const firefoxPrefsFile = path.join(firefoxProfile, 'prefs.js');
@@ -205,5 +209,9 @@ export class FreshFirefox implements Interceptor {
         await Promise.all(
             Object.keys(browsers).map((proxyPort) => this.deactivate(proxyPort))
         );
+        if (certInstallBrowser) {
+            certInstallBrowser.stop();
+            return new Promise((resolve) => certInstallBrowser!.process.once('exit', resolve));
+        }
     }
 };
