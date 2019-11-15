@@ -7,28 +7,19 @@ import { HttpsPathOptions } from 'mockttp/dist/util/tls';
 
 const readFile = promisify(fs.readFile);
 
-// Make the types for some of the browser code below happy.
-let targetUrl: string;
-let installingCert: boolean;
-
-// Check if an HTTPS cert to a server using the certificate succeeds
-// If it doesn't, redirect to the certificate itself (the browser will prompt to install)
-// Note that this function is stringified, and run in the browser, not here in node.
-function ensureCertificateIsInstalled() {
-
-}
-
 export class CertCheckServer {
 
     constructor(private config: { https: HttpsPathOptions }) { }
 
     private server: Mockttp | undefined;
 
-    async start(targetUrl: string) {
+    async start(targetUrl?: string) {
         this.server = getLocal({ https: this.config.https, cors: true });
         await this.server.start();
 
         const certificatePem = await readFile(this.config.https.certPath);
+
+        if (!targetUrl) targetUrl = this.server.urlFor('/spinner');
 
         await Promise.all([
             this.server.get('/test-https').thenReply(200),
@@ -106,7 +97,21 @@ export class CertCheckServer {
                         <p>
                             Select 'Trust this CA to identify web sites' and press 'OK' to continue.
                         </p>
-
+                    </div>
+                    </body>
+                </html>
+            `),
+            this.server.get('/spinner').thenReply(200, `
+                <html>
+                    <title>HTTP Toolkit Certificate Setup</title>
+                    <meta charset="UTF-8" />
+                    <style>
+                        body {
+                            margin: 20px;
+                            background-color: #d8e2e6;
+                        }
+                    </style>
+                    <body>
                         <svg
                             version="1.1"
                             xmlns="http://www.w3.org/2000/svg"
@@ -133,7 +138,7 @@ export class CertCheckServer {
                     </div>
                     </body>
                 </html>
-            `)
+            `),
         ]);
     }
 
