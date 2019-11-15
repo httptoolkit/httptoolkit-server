@@ -79,7 +79,7 @@ export class FreshChrome implements Interceptor {
         await hideWarningServer.stop();
 
         browsers[proxyPort] = browser;
-        browser.process.once('exit', () => {
+        browser.process.once('close', () => {
             delete browsers[proxyPort];
 
             if (Object.keys(browsers).length === 0 && chromeDetails && _.isString(chromeDetails.profile)) {
@@ -102,7 +102,7 @@ export class FreshChrome implements Interceptor {
     async deactivate(proxyPort: number | string) {
         if (this.isActive(proxyPort)) {
             const browser = browsers[proxyPort];
-            const exitPromise = new Promise((resolve) => browser!.process.once('exit', resolve));
+            const exitPromise = new Promise((resolve) => browser!.process.once('close', resolve));
             browser!.stop();
             await exitPromise;
         }

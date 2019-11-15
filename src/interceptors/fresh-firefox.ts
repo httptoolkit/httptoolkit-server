@@ -129,7 +129,7 @@ export class FreshFirefox implements Interceptor {
         const certInstalled = certCheckServer.waitForSuccess().catch(reportError);
 
         certInstallBrowser = await this.startFirefox(certCheckServer);
-        certInstallBrowser.process.once('exit', () => {
+        certInstallBrowser.process.once('close', () => {
             certCheckServer.stop();
             certInstallBrowser = undefined;
         });
@@ -183,7 +183,7 @@ export class FreshFirefox implements Interceptor {
         }).catch(reportError);
 
         browsers[proxyPort] = browser;
-        browser.process.once('exit', () => {
+        browser.process.once('close', () => {
             certCheckServer.stop();
             delete browsers[proxyPort];
             if (!success) {
@@ -199,9 +199,9 @@ export class FreshFirefox implements Interceptor {
     async deactivate(proxyPort: number | string) {
         if (this.isActive(proxyPort)) {
             const browser = browsers[proxyPort];
-            const exitPromise = new Promise((resolve) => browser!.process.once('exit', resolve));
+            const closePromise = new Promise((resolve) => browser!.process.once('close', resolve));
             browser!.stop();
-            await exitPromise;
+            await closePromise;
         }
     }
 
@@ -211,7 +211,7 @@ export class FreshFirefox implements Interceptor {
         );
         if (certInstallBrowser) {
             certInstallBrowser.stop();
-            return new Promise((resolve) => certInstallBrowser!.process.once('exit', resolve));
+            return new Promise((resolve) => certInstallBrowser!.process.once('close', resolve));
         }
     }
 };

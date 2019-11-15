@@ -40,7 +40,7 @@ const spawnAndCollectOutput = (command: string, args: string[] = []): Promise<{ 
         stderr.on('data', (d) => stderrData.push(d));
 
         childProc.once('error', reject);
-        childProc.once('exit', () => {
+        childProc.once('close', () => {
             // Note that we do _not_ check the error code
             resolve({
                 stdout: Buffer.concat(stdoutData).toString(),
@@ -270,7 +270,7 @@ export class FreshTerminalInterceptor implements Interceptor {
                 if (_.every(terminals, ts => _.isEmpty(ts))) resetShellStartupScripts();
             }, 500);
         };
-        childProc.once('exit', onTerminalClosed);
+        childProc.once('close', onTerminalClosed);
         childProc.once('error', (e) => {
             reportError(e);
             onTerminalClosed();
@@ -282,7 +282,7 @@ export class FreshTerminalInterceptor implements Interceptor {
 
         await Promise.all((terminals[proxyPort] || []).map((proc) => {
             return new Promise((resolve) => {
-                proc.once('exit', resolve);
+                proc.once('close', resolve);
                 proc.kill();
             });
         }));

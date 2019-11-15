@@ -54,7 +54,7 @@ describe('Fresh terminal interceptor', function () {
                 env: Object.assign({}, process.env, terminalEnvOverrides)
             });
             await new Promise((resolve, reject) => {
-                nodeScript.on('exit', resolve);
+                nodeScript.on('close', resolve);
                 nodeScript.on('error', reject);
             });
 
