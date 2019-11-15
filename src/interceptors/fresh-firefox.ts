@@ -53,8 +53,6 @@ export class FreshFirefox implements Interceptor {
             browser: 'firefox',
             profile: this.firefoxProfilePath,
             proxy: proxyPort ? `127.0.0.1:${proxyPort}` : undefined,
-            // Don't intercept our cert testing requests
-            noProxy: proxyPort ? certCheckServer.host : undefined,
             prefs: _.assign(
                 existingPrefs,
                 proxyPort ? {
@@ -62,11 +60,13 @@ export class FreshFirefox implements Interceptor {
                     'network.proxy.ssl': '"127.0.0.1"',
                     'network.proxy.ssl_port': proxyPort,
 
-                    // The above browser-launcher proxy/noProxy settings should do this, but don't seem to
+                    // The above browser-launcher proxy settings should do this, but don't seem to
                     // reliably overwrite existing values, so we set them explicitly.
                     'network.proxy.http': '"127.0.0.1"',
                     'network.proxy.http_port': proxyPort,
-                    'network.proxy.http.network.proxy.http.no_proxies_on': "\"" + certCheckServer.host + "\"",
+                    // Don't intercept our cert testing requests
+                    'network.proxy.no_proxies_on': "\"" + certCheckServer.host + "\"",
+                    'network.proxy.http.no_proxies_on': "\"" + certCheckServer.host + "\"",
 
                     // Send localhost reqs via the proxy too
                     'network.proxy.allow_hijacking_localhost': true,
