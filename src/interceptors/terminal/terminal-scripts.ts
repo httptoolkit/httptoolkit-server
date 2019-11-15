@@ -5,15 +5,19 @@ import * as os from 'os';
 import * as path from 'path';
 
 import { reportError } from '../../error-tracking';
-import { OVERRIDE_BIN_PATH } from './terminal-env-overrides';
+import { OVERRIDES_DIR } from './terminal-env-overrides';
 
 const checkAccess = util.promisify(fs.access);
 const canAccess = (path: string) => checkAccess(path).then(() => true).catch(() => false);
 
-// Generate POSIX paths for git-bash on Windows (or use the normal path everywhere else)
-const POSIX_OVERRIDE_BIN_PATH = process.platform === 'win32'
-    ? OVERRIDE_BIN_PATH.replace(/\\/g, '/').replace(/^(\w+):/, (_all, driveLetter) => `/${driveLetter.toLowerCase()}`)
-    : OVERRIDE_BIN_PATH;
+// Ensure paths are posix. For Mac/Linux do nothing, for Windows transform them into a format git bash can use
+// This *doesn't* support WSL, yet. Harder to do, and seems less used for now, but worth looking at in future.
+const pathAsPosix = (path: string) =>
+    process.platform === 'win32'
+        ? path.replace(/\\/g, '/').replace(/^(\w+):/, (_all, driveLetter) => `/${driveLetter.toLowerCase()}`)
+        : path;
+
+const POSIX_OVERRIDE_BIN_PATH = path.posix.join(pathAsPosix(OVERRIDES_DIR), 'path');
 
 const SHELL = (process.env.SHELL || '').split('/').slice(-1)[0];
 
@@ -71,18 +75,33 @@ if [ -n "$HTTP_TOOLKIT_ACTIVE" ]
 end
 ${END_CONFIG_SECTION}`;
 
+const setOverrideRootScript = process.platform === 'win32'
+     ?
+`if [ -d "${OVERRIDES_DIR}" ]; then
+    export HTTPTOOLKIT_OVERRIDE_DIR="${OVERRIDES_DIR}"
+elif [ -d "${pathAsPosix(OVERRIDES_DIR)}" ]; then
+    export HTTPTOOLKIT_OVERRIDE_DIR="${pathAsPosix(OVERRIDES_DIR)}"
+else
+    echo "Could not find HTTP Toolkit path (expected ${OVERRIDES_DIR})."
+    echo "Please file a bug at https://github.com/httptoolkit/feedback/issues/new"
+    export HTTPTOOLKIT_OVERRIDE_DIR="${OVERRIDES_DIR}"
+fi`
+     :
+`export HTTPTOOLKIT_OVERRIDE_DIR="${OVERRIDES_DIR}"`;
+
 // A source-able shell script. Should work for everything except fish, sadly.
-export const getShellScript = (env: { [name: string]: string }) => `${
-        _.map(env, (value, key) => `    export ${key}="${value}"`).join('\n')
-    }
+export const getShellScript = (env: { [name: string]: string }) =>
+`${setOverrideRootScript}
 
-    if command -v winpty >/dev/null 2>&1; then
-        # Work around for winpty's hijacking of certain commands
-        alias php=php
-        alias node=node
-    fi
+${_.map(env, (value, key) => `export ${key}="${value}"`).join('\n')}
 
-    echo 'HTTP Toolkit interception enabled'
+if command -v winpty >/dev/null 2>&1; then
+    # Work around for winpty's hijacking of certain commands
+    alias php=php
+    alias node=node
+fi
+
+echo 'HTTP Toolkit interception enabled'
 `;
 
 // Find the relevant user shell config file, add the above line to it, so that

@@ -4,22 +4,31 @@ import { HttpsPathOptions } from 'mockttp/dist/util/tls';
 
 const PATH_VAR_SEPARATOR = process.platform === 'win32' ? ';' : ':';
 
-const OVERRIDES_DIR = path.join(
+export const OVERRIDES_DIR = path.join(
     process.env.HTK_IS_BUNDLED
         ? path.join(__dirname, '..')
         : path.join(__dirname, '..', '..', '..'),
     'overrides'
 );
-const OVERRIDE_RUBYGEMS_PATH = path.join(OVERRIDES_DIR, 'gems');
-const OVERRIDE_PYTHONPATH = path.join(OVERRIDES_DIR, 'pythonpath');
-
-export const OVERRIDE_BIN_PATH = path.join(OVERRIDES_DIR, 'path');
 
 export function getTerminalEnvVars(
     proxyPort: number,
     httpsConfig: HttpsPathOptions,
+    // Either a set of current env vars for our current world (windows or posix or otherwise),
+    // or we generate values that read from an unknown POSIX runtime environment later.
     currentEnv: { [key: string]: string | undefined } | 'runtime-inherit'
 ): { [key: string]: string } {
+    // With runtime inherit, we're always POSIX, and we expect the runtime env to set
+    // the root dir via HTTPTOOLKIT_OVERRIDE_DIR. This is for git bash/etc, which need
+    // PATHs in different path formats, and need detecting at runtime.
+    const overrideDir = currentEnv === 'runtime-inherit'
+        ? path.posix.join.bind(null, "$HTTPTOOLKIT_OVERRIDE_DIR")
+        : path.join.bind(null, OVERRIDES_DIR);
+
+    const binPathOverride = overrideDir('path');
+    const rubygemsOverride = overrideDir('gems');
+    const pythonpathOverride = overrideDir('pythonpath');
+
     return {
         'http_proxy': `http://127.0.0.1:${proxyPort}`,
         'HTTP_PROXY': `http://127.0.0.1:${proxyPort}`,
@@ -50,22 +59,24 @@ export function getTerminalEnvVars(
         'HTTP_TOOLKIT_ACTIVE': 'true',
 
         // Prepend our bin overrides into $PATH
-        'PATH': `${OVERRIDE_BIN_PATH}${PATH_VAR_SEPARATOR}${
-            currentEnv == 'runtime-inherit' ? '$PATH' : currentEnv.PATH
+        'PATH': `${binPathOverride}${
+            currentEnv == 'runtime-inherit'
+                ? ':$PATH'
+                : (PATH_VAR_SEPARATOR + currentEnv.PATH)
         }`,
 
         // Prepend our Ruby gem overrides into $LOAD_PATH
         'RUBYLIB': currentEnv === 'runtime-inherit'
-                ? `${OVERRIDE_RUBYGEMS_PATH}:$RUBYLIB`
+                ? `${rubygemsOverride}:$RUBYLIB`
             : !!currentEnv.RUBYLIB
-                ? `${OVERRIDE_RUBYGEMS_PATH}:${currentEnv.RUBYLIB}`
-            : OVERRIDE_RUBYGEMS_PATH,
+                ? `${rubygemsOverride}:${currentEnv.RUBYLIB}`
+            : rubygemsOverride,
 
         // Prepend our Python package overrides into $PYTHONPATH
         'PYTHONPATH': currentEnv === 'runtime-inherit'
-                ? `${OVERRIDE_PYTHONPATH}:$PYTHONPATH`
+                ? `${pythonpathOverride}:$PYTHONPATH`
             : currentEnv.PYTHONPATH
-                ? `${OVERRIDE_PYTHONPATH}:${currentEnv.PYTHONPATH}`
-            : OVERRIDE_PYTHONPATH
+                ? `${pythonpathOverride}:${currentEnv.PYTHONPATH}`
+            : pythonpathOverride
     };
 }
