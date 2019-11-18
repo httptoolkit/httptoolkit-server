@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as envPaths from 'env-paths';
 import { getStandalone, generateCACertificate } from 'mockttp';
+import * as forge from 'node-forge';
 import { Mutex } from 'async-mutex';
 
 import updateCommand from '@oclif/plugin-update/lib/commands/update';
@@ -15,6 +16,7 @@ import { registerShutdownHandler } from './shutdown';
 
 const canAccess = util.promisify(fs.access);
 const mkDir = util.promisify(fs.mkdir);
+const readFile = util.promisify(fs.readFile);
 const writeFile = util.promisify(fs.writeFile);
 
 const ensureDirectoryExists = (path: string) =>
@@ -26,8 +28,10 @@ async function generateHTTPSConfig(configPath: string) {
 
     await Promise.all([
         canAccess(keyPath, fs.constants.R_OK),
-        canAccess(certPath, fs.constants.R_OK)
+        readFile(certPath, 'utf8').then(checkCertExpiry)
     ]).catch(async () => {
+        // Cert doesn't exist, or is too close/past expiry. Generate a new one:
+
         const newCertPair = await generateCACertificate({
             commonName: 'HTTP Toolkit CA'
         });
@@ -43,6 +47,17 @@ async function generateHTTPSConfig(configPath: string) {
         certPath,
         keyLength: 2048 // Reasonably secure keys please
     };
+}
+
+function checkCertExpiry(contents: string): void {
+    const cert = forge.pki.certificateFromPem(contents);
+    const expiry = cert.validity.notAfter.valueOf();
+    const remainingLifetime = expiry - Date.now();
+
+    if (remainingLifetime < 1000 * 60 * 60 * 48) { // Next two days
+        console.warn('Certificate expires soon - it must be regenerated');
+        throw new Error('Certificate regeneration required');
+    }
 }
 
 export async function runHTK(options: {
