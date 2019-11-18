@@ -43,6 +43,10 @@ export async function checkBrowserConfig(configPath: string) {
 
         console.warn('Failed to read browser config on startup', error);
         return deleteFile(browserConfig).catch((err) => {
+            // We can have a race if the file was invalid AND old, which case we can get a parse error
+            // and have deleted the file already. Regardless: it's now gone, so we're all good.
+            if (err.code === 'ENOENT') return;
+
             console.error('Failed to clear broken config file:', err);
             reportError(err);
         });
