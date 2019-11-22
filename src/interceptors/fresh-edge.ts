@@ -18,18 +18,18 @@ const deleteFolder = promisify(rimraf);
 
 let browsers: _.Dictionary<BrowserInstance> = {};
 
-// Which Chrome variant should we launch, and do we have one available at all?
-const getChromeBrowserDetails = async (config: HtkConfig): Promise<Browser | undefined> => {
+// Which Edge variant should we launch, and do we have one available at all?
+const getEdgeBrowserDetails = async (config: HtkConfig): Promise<Browser | undefined> => {
     const browsers = await getAvailableBrowsers(config.configPath);
 
     // Get the details for the first of these browsers that is installed.
-    return ['chrome', 'chromium', 'chrome-beta', 'chrome-canary']
-        .map((chromeName) => _.find(browsers, b => b.name === chromeName))
+    return ['msedge', 'msedge-beta', 'msedge-canary']
+        .map((browserName) => _.find(browsers, b => b.name === browserName))
         .filter(Boolean)[0] as Browser;
 };
 
-export class FreshChrome implements Interceptor {
-    id = 'fresh-chrome';
+export class FreshEdge implements Interceptor {
+    id = 'fresh-edge';
     version = '1.0.0';
 
     constructor(private config: HtkConfig) { }
@@ -39,7 +39,7 @@ export class FreshChrome implements Interceptor {
     }
 
     async isActivable() {
-        return !!(await getChromeBrowserDetails(this.config));
+        return !!(await getEdgeBrowserDetails(this.config));
     }
 
     async activate(proxyPort: number) {
@@ -51,12 +51,12 @@ export class FreshChrome implements Interceptor {
         const hideWarningServer = new HideWarningServer();
         await hideWarningServer.start('https://amiusing.httptoolkit.tech');
 
-        const chromeDetails = await getChromeBrowserDetails(this.config);
+        const edgeDetails = await getEdgeBrowserDetails(this.config);
 
         const browser = await launchBrowser(hideWarningServer.hideWarningUrl, {
-            // Try to launch Chrome if we're not sure - it'll trigger a config update,
+            // Try to launch plain msedge if we're not sure - it'll trigger a config update,
             // and might find a new install.
-            browser: chromeDetails ? chromeDetails.name : 'chrome',
+            browser: edgeDetails ? edgeDetails.name : 'msedge',
             proxy: `https://127.0.0.1:${proxyPort}`,
             noProxy: [
                 // Force even localhost requests to go through the proxy
@@ -82,20 +82,20 @@ export class FreshChrome implements Interceptor {
         browser.process.once('close', () => {
             delete browsers[proxyPort];
 
-            if (Object.keys(browsers).length === 0 && chromeDetails && _.isString(chromeDetails.profile)) {
+            if (Object.keys(browsers).length === 0 && edgeDetails && _.isString(edgeDetails.profile)) {
                 // If we were the last browser, and we have a profile path, and it's in our config
                 // (just in case something's gone wrong) -> delete the profile to reset everything.
 
-                const profilePath = chromeDetails.profile;
+                const profilePath = edgeDetails.profile;
                 if (!profilePath.startsWith(this.config.configPath)) {
-                    reportError(`Unexpected Chrome profile location, not deleting: ${profilePath}`);
+                    reportError(`Unexpected Edge profile location, not deleting: ${profilePath}`);
                 } else {
-                    deleteFolder(chromeDetails.profile).catch(reportError);
+                    deleteFolder(edgeDetails.profile).catch(reportError);
                 }
             }
         });
 
-        // Delay the approx amount of time it normally takes Chrome to really open
+        // Delay the approx amount of time it normally takes Edge to really open
         await delay(500);
     }
 

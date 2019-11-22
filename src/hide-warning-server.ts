@@ -1,10 +1,10 @@
 import { getLocal, Mockttp } from 'mockttp';
 
-// The first tab that opens opens with a Chrome warning about dangerous flags
+// The first tab that opens in a new Chrome/Edge window warns about dangerous flags.
 // Closing it and immediately opening a new one is a bit cheeky, but
 // is completely gets rid that, more or less invisibly:
 
-export class HideChromeWarningServer {
+export class HideWarningServer {
 
     private server: Mockttp = getLocal();
 
@@ -12,7 +12,7 @@ export class HideChromeWarningServer {
     // request for the warning-hiding page.
     public completedPromise = new Promise<void>((resolve) => {
         this.server.on('request', (req) => {
-            if (req.url.includes('hide-chrome-warning')) {
+            if (req.url.includes('hide-warning')) {
                 resolve();
             }
         });
@@ -21,9 +21,9 @@ export class HideChromeWarningServer {
     async start(targetUrl: string) {
         await this.server.start();
 
-        await this.server.get('/hide-chrome-warning').thenReply(200, `
+        await this.server.get('/hide-warning').thenReply(200, `
             <html>
-                <title>HTTP Toolkit Chrome Warning Fix</title>
+                <title>HTTP Toolkit Warning Fix</title>
                 <meta charset="UTF-8" />
                 <style>
                     body { background-color: #d8e2e6; }
@@ -47,7 +47,7 @@ export class HideChromeWarningServer {
     }
 
     get hideWarningUrl(): string {
-        return this.server.url.replace(/\/?$/, '/hide-chrome-warning');
+        return this.server.url.replace(/\/?$/, '/hide-warning');
     }
 
     async stop() {
