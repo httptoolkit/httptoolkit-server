@@ -87,8 +87,8 @@ export class ElectronInterceptor implements Interceptor {
         // Inside the Electron process, load our electron-intercepting JS.
         const injectionResult = await debugClient.Debugger.evaluateOnCallFrame({
             expression: `require("${
-                // Inside the Electron process, load our electron-intercepting JS
-                require.resolve('../../overrides/js/prepend-electron.js')
+                // Need to escape slashes to ensure this works on Windows (where all paths have backslashes)
+                require.resolve('../../overrides/js/prepend-electron.js').replace(/\\/g, '\\\\')
             }")({
                 newlineEncodedCertData: "${(await this.certData).replace(/\r\n|\r|\n/g, '\\n')}",
                 spkiFingerprint: "${generateSPKIFingerprint(await this.certData)}"
