@@ -5,8 +5,7 @@ import { spawn, ChildProcess, SpawnOptions } from 'child_process';
 import * as GSettings from 'node-gsettings-wrapper';
 import * as ensureCommandExists from 'command-exists';
 
-import findOsxExecutableCb = require('@httptoolkit/osx-find-executable');
-const findOsxExecutable = util.promisify(findOsxExecutableCb);
+import { findExecutableById } from '@httptoolkit/osx-find-executable';
 
 import { Interceptor } from '..';
 import { HtkConfig } from '../../config';
@@ -84,7 +83,7 @@ const getOSXTerminalCommand = async (): Promise<SpawnArgs | null> => {
             'com.googlecode.iterm',
             'com.apple.Terminal'
         ].map(
-            (bundleId) => findOsxExecutable(bundleId).catch(() => null)
+            (bundleId) => findExecutableById(bundleId).catch(() => null)
         )
     )).filter((executablePath) => !!executablePath);
 

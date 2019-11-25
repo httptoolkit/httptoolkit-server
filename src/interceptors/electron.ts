@@ -13,8 +13,14 @@ import { HtkConfig } from '../config';
 import { delay } from '../util';
 import { getTerminalEnvVars } from './terminal/terminal-env-overrides';
 import { reportError, addBreadcrumb } from '../error-tracking';
+import { findExecutableInApp } from '@httptoolkit/osx-find-executable';
 
 const readFile = util.promisify(fs.readFile);
+
+const isAppBundle = (path: string) => {
+    return process.platform === "darwin" &&
+        path.endsWith(".app");
+};
 
 export class ElectronInterceptor implements Interceptor {
     readonly id = 'electron';
@@ -41,8 +47,13 @@ export class ElectronInterceptor implements Interceptor {
         pathToApplication: string
     }): Promise<void | {}> {
         const debugPort = await getPort({ port: proxyPort });
+        const { pathToApplication } = options;
 
-        spawn(options.pathToApplication, [`--inspect-brk=${debugPort}`], {
+        const cmd = isAppBundle(pathToApplication)
+            ? await findExecutableInApp(pathToApplication)
+            : pathToApplication;
+
+        spawn(cmd, [`--inspect-brk=${debugPort}`], {
             stdio: 'inherit',
             env: Object.assign({},
                 process.env,
