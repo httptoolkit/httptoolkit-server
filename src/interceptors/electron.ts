@@ -12,6 +12,7 @@ import { Interceptor } from '.';
 import { HtkConfig } from '../config';
 import { delay } from '../util';
 import { getTerminalEnvVars } from './terminal/terminal-env-overrides';
+import { reportError, addBreadcrumb } from '../error-tracking';
 
 const readFile = util.promisify(fs.readFile);
 
@@ -67,6 +68,9 @@ export class ElectronInterceptor implements Interceptor {
 
         this.debugClients[proxyPort] = this.debugClients[proxyPort] || [];
         this.debugClients[proxyPort].push(debugClient);
+        debugClient.once('disconnect', () => {
+            _.remove(this.debugClients[proxyPort], c => c === debugClient);
+        });
 
         const callFramePromise = new Promise<string>((resolve) => {
             debugClient!.Debugger.paused((stack) => {
@@ -80,8 +84,8 @@ export class ElectronInterceptor implements Interceptor {
 
         const callFrameId = await callFramePromise;
 
-        // Patch in our various module overrides:
-        await debugClient.Debugger.evaluateOnCallFrame({
+        // Inside the Electron process, load our electron-intercepting JS.
+        const injectionResult = await debugClient.Debugger.evaluateOnCallFrame({
             expression: `require("${
                 // Inside the Electron process, load our electron-intercepting JS
                 require.resolve('../../overrides/js/prepend-electron.js')
@@ -92,10 +96,18 @@ export class ElectronInterceptor implements Interceptor {
             callFrameId
         });
 
+        if (injectionResult.exceptionDetails) {
+            const exception = injectionResult.exceptionDetails as any;
+
+            addBreadcrumb("Evaluate error", {
+                message: exception && exception.description,
+                data: injectionResult.exceptionDetails
+            });
+
+            throw new Error("Failed to inject into Electron app");
+        }
+
         debugClient.Debugger.resume();
-        debugClient.once('disconnect', () => {
-            _.remove(this.debugClients[proxyPort], c => c === debugClient);
-        });
     }
 
     async deactivate(proxyPort: number | string): Promise<void> {
