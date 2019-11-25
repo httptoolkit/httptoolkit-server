@@ -39,6 +39,12 @@ async function setupServerPath() {
     return path.join(tmpDir, 'httptoolkit-server', 'bin', 'run');
 }
 
+const buildGraphql = (url: string) => getGraphQL(url, {
+    asJSON: true,
+    // Pretend to be a browser on the real site:
+    headers: { 'origin': 'https://app.httptoolkit.tech' }
+});
+
 describe('Integration test', function () {
     // Timeout needs to be long, as first test runs (e.g. in CI) generate
     // fresh certificates, which can take a little while.
@@ -98,7 +104,7 @@ describe('Integration test', function () {
     });
 
     it('exposes the version over HTTP', async () => {
-        const graphql = getGraphQL('http://localhost:45457/', { asJSON: true });
+        const graphql = buildGraphql('http://localhost:45457/');
 
         const response = await graphql(`
             query getVersion {
@@ -110,7 +116,7 @@ describe('Integration test', function () {
     });
 
     it('exposes interceptors over HTTP', async () => {
-        const graphql = getGraphQL('http://localhost:45457/', { asJSON: true });
+        const graphql = buildGraphql('http://localhost:45457/');
 
         const response = await graphql(`
             query getInterceptors($proxyPort: Int!) {

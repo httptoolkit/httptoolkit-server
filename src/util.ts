@@ -9,8 +9,7 @@ export const ALLOWED_ORIGINS = IS_PROD_BUILD
         // Prod builds only allow HTTPS app.httptoolkit.tech usage. This
         // ensures that no other sites/apps can communicate with your server
         // whilst you have the app open. If they could (requires an HTTP mitm),
-        // they would be able to start proxies & interceptors. It's not remote
-        // execution, but it's definitely not desirable.
+        // they would be able to start proxies & interceptors.
         /^https:\/\/app\.httptoolkit\.tech$/
     ]
     : [
