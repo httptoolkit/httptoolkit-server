@@ -7,6 +7,7 @@ import { FreshFirefox } from './fresh-firefox';
 import { FreshTerminalInterceptor } from './terminal/fresh-terminal-interceptor';
 import { ExistingTerminalInterceptor } from './terminal/existing-terminal-interceptor';
 import { addShutdownHandler } from '../shutdown';
+import { ElectronInterceptor } from './electron';
 
 export interface Interceptor {
     id: string;
@@ -25,7 +26,8 @@ export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> 
         new FreshChrome(config),
         new FreshFirefox(config),
         new FreshTerminalInterceptor(config),
-        new ExistingTerminalInterceptor(config)
+        new ExistingTerminalInterceptor(config),
+        new ElectronInterceptor(config)
     ];
 
     // When the server exits, try to shut down the interceptors too
