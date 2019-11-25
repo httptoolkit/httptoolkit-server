@@ -50,7 +50,7 @@ describe('Fresh terminal interceptor', function () {
             // Spawn node, as if it was run inside an intercepted terminal
             const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env);
             const nodeScript = fork(require.resolve('./terminal-js-test-script'), [], {
-                execArgv: ['-r', require.resolve('../../overrides/path/prepend.js')],
+                execArgv: ['-r', require.resolve('../../overrides/js/prepend-node.js')],
                 env: Object.assign({}, process.env, terminalEnvOverrides)
             });
             await new Promise((resolve, reject) => {
