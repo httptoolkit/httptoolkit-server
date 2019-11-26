@@ -86,6 +86,7 @@ export async function runHTK(options: {
             https: httpsConfig
         },
         corsOptions: {
+            strict: true,
             origin: ALLOWED_ORIGINS,
             maxAge: 86400 // Cache this result for as long as possible
         }

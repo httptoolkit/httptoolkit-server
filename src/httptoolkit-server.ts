@@ -3,7 +3,6 @@ import * as os from 'os';
 import * as events from 'events';
 import corsGate = require('cors-gate');
 import { GraphQLServer } from 'graphql-yoga';
-import * as Express from 'express';
 import { GraphQLScalarType } from 'graphql';
 
 import { HtkConfig } from './config';

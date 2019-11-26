@@ -92,7 +92,12 @@ describe('Integration test', function () {
     });
 
     it('starts a Mockttp server', async () => {
-        const mockttp = getRemote();
+        const mockttp = getRemote({
+            client: {
+                // Pretend to be a browser on the real site:
+                headers: { origin: 'https://app.httptoolkit.tech' }
+            }
+        });
         await mockttp.start();
         await mockttp.get('https://google.com').thenReply(200, 'Mock response');
 
