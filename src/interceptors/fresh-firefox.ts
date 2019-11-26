@@ -8,7 +8,7 @@ import { HtkConfig } from '../config';
 
 import { getAvailableBrowsers, launchBrowser, BrowserInstance } from '../browsers';
 import { CertCheckServer } from '../cert-check-server';
-import { delay } from '../util';
+import { delay, windowsKill } from '../util';
 import { Interceptor } from '.';
 import { reportError } from '../error-tracking';
 
@@ -50,7 +50,9 @@ export class FreshFirefox implements Interceptor {
         proxyPort?: number,
         existingPrefs = {}
     ) {
-        const browser = await launchBrowser(certCheckServer.checkCertUrl, {
+        const initialUrl = certCheckServer.checkCertUrl;
+
+        const browser = await launchBrowser(initialUrl, {
             browser: 'firefox',
             profile: this.firefoxProfilePath,
             proxy: proxyPort ? `127.0.0.1:${proxyPort}` : undefined,
@@ -120,6 +122,17 @@ export class FreshFirefox implements Interceptor {
         if (browser.process.stdout) browser.process.stdout.pipe(process.stdout);
         if (browser.process.stderr) browser.process.stderr.pipe(process.stderr);
 
+        const normalStop = browser.stop.bind(browser);
+        browser.stop = async function () {
+            if (process.platform === "win32") {
+                // Firefox spawns a child process on Windows, and doesn't let us kill it at all.
+                // To fix this, we kill all firefox instances that were started with this exact same URL.
+                await windowsKill(`CommandLine Like '%\\\\firefox.exe%${initialUrl}'`);
+            } else {
+                normalStop();
+            }
+        };
+
         return browser;
     }
 
@@ -160,14 +173,11 @@ export class FreshFirefox implements Interceptor {
 
         let existingPrefs: _.Dictionary<any> = {};
 
-        if (await canAccess(firefoxPrefsFile) === false && process.platform !== 'win32') {
+        if (await canAccess(firefoxPrefsFile) === false) {
             /*
             First time, we do a separate pre-usage startup & stop, without the proxy, for certificate setup.
             This helps avoid initial Firefox profile setup request noise, and tidies up some awkward UX where
             firefox likes to open extra welcome windows/tabs on first run.
-
-            Unfortunately, Windows doesn't seem to play nicely with this (because it spawns separate child
-            processes that we can't reliable kill), so we have to fall back to normal behaviour in that case.
             */
             await this.setupFirefoxProfile();
         }
@@ -215,8 +225,8 @@ export class FreshFirefox implements Interceptor {
     async deactivate(proxyPort: number | string) {
         if (this.isActive(proxyPort)) {
             const browser = browsers[proxyPort];
-            const closePromise = new Promise((resolve) => browser!.process.once('close', resolve));
-            browser!.stop();
+            const closePromise = new Promise((resolve) => browser.process.once('close', resolve));
+            browser.stop();
             await closePromise;
         }
     }

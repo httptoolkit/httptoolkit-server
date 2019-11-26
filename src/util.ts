@@ -1,3 +1,5 @@
+import { spawn } from 'child_process';
+
 export function delay(durationMs: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, durationMs));
 }
@@ -21,3 +23,13 @@ export const ALLOWED_ORIGINS = IS_PROD_BUILD
         /^http:\/\/local\.httptoolkit\.tech(:\d+)?$/,
         /^https:\/\/app\.httptoolkit\.tech$/
     ]
+
+export async function windowsKill(processMatcher: string) {
+    await spawn('wmic', [
+        'Path', 'win32_process',
+        'Where', processMatcher,
+        'Call', 'Terminate'
+    ], {
+        stdio: 'inherit'
+    });
+}
