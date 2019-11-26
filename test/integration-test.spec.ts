@@ -148,6 +148,12 @@ describe('Integration test', function () {
                 "version": "1.0.0"
             },
             {
+                "id": "fresh-edge",
+                "isActivable": false, // TODO: Install Edge in Travis, to make this true
+                "isActive": false,
+                "version": "1.0.0"
+            },
+            {
                 "id": "fresh-terminal",
                 "isActivable": true,
                 "isActive": false,

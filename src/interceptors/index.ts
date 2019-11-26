@@ -4,6 +4,7 @@ import { HtkConfig } from '../config';
 
 import { FreshChrome } from './fresh-chrome';
 import { FreshFirefox } from './fresh-firefox';
+import { FreshEdge } from './fresh-edge';
 import { FreshTerminalInterceptor } from './terminal/fresh-terminal-interceptor';
 import { ExistingTerminalInterceptor } from './terminal/existing-terminal-interceptor';
 import { addShutdownHandler } from '../shutdown';
@@ -25,6 +26,7 @@ export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> 
     const interceptors = [
         new FreshChrome(config),
         new FreshFirefox(config),
+        new FreshEdge(config),
         new FreshTerminalInterceptor(config),
         new ExistingTerminalInterceptor(config),
         new ElectronInterceptor(config)
