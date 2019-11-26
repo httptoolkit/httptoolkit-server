@@ -133,6 +133,7 @@ export class FreshFirefox implements Interceptor {
         certInstallBrowser.process.once('close', () => {
             certCheckServer.stop();
             certInstallBrowser = undefined;
+
             if (certInstalled !== true) {
                 reportError('Firefox certificate setup failed');
                 deleteFolder(this.firefoxProfilePath).catch(console.warn);
@@ -142,8 +143,14 @@ export class FreshFirefox implements Interceptor {
         await certInstalled;
         certInstalled = true;
 
-        await delay(100); // Tiny delay, so firefox can do initial setup tasks
+        await delay(200); // Tiny delay, so firefox can do initial setup tasks
+
+        // Tell firefox to shutdown, and wait until it does.
         certInstallBrowser.stop();
+        return new Promise((resolve) => {
+            if (!certInstallBrowser) return resolve();
+            else certInstallBrowser.process.once('close', resolve);
+        });
     }
 
     async activate(proxyPort: number) {
@@ -153,14 +160,14 @@ export class FreshFirefox implements Interceptor {
 
         let existingPrefs: _.Dictionary<any> = {};
 
-        if (await canAccess(firefoxPrefsFile) === false && process.platform !== 'darwin') {
+        if (await canAccess(firefoxPrefsFile) === false && process.platform !== 'win32') {
             /*
             First time, we do a separate pre-usage startup & stop, without the proxy, for certificate setup.
             This helps avoid initial Firefox profile setup request noise, and tidies up some awkward UX where
             firefox likes to open extra welcome windows/tabs on first run.
 
-            Unfortunately, OSX doesn't seem to play nicely with this, so we have to fall back to normal
-            behaviour in that case.
+            Unfortunately, Windows doesn't seem to play nicely with this (because it spawns separate child
+            processes that we can't reliable kill), so we have to fall back to normal behaviour in that case.
             */
             await this.setupFirefoxProfile();
         }
