@@ -112,7 +112,7 @@ export class ElectronInterceptor implements Interceptor {
 
             addBreadcrumb("Evaluate error", {
                 message: exception && exception.description,
-                data: injectionResult.exceptionDetails
+                data: injectionResult.exceptionDetails as { [key: string]: any }
             });
 
             throw new Error("Failed to inject into Electron app");

@@ -22,7 +22,15 @@ export function initErrorTracking() {
             integrations: [
                 new RewriteFrames({
                     // We're one dir down: either /bundle, or /src
-                    root: path.join(__dirname, '..')
+                    root: process.platform === 'win32'
+                        // Root must always be POSIX format, so we transform it on Windows:
+                        ? path.posix.join(
+                            __dirname
+                                .replace(/^[A-Z]:/, '') // remove Windows-style prefix
+                                .replace(/\\/g, '/'), // replace all `\\` instances with `/`
+                            '..'
+                        )
+                        :  path.join(__dirname, '..')
                 })
             ],
             beforeBreadcrumb(breadcrumb, hint) {
