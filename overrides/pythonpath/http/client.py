@@ -1,13 +1,13 @@
 from httptoolkit_intercept import preload_real_module
 
-preload_real_module('httplib')
+preload_real_module('http', 'http.client')
 
-import httplib, os, functools
+import http.client, os, functools
 
 # Re-export all public fields
-from httplib import *
+from http.client import *
 # Load a few extra notable private fields, for max compatibility
-from httplib import __file__, __doc__
+from http.client import __file__, __doc__
 
 _httpProxy = os.environ['HTTP_PROXY']
 [_proxyHost, _proxyPort] = _httpProxy.split('://')[1].split(':')
