@@ -82,7 +82,7 @@ describe('Existing terminal interceptor', function () {
 
         const scriptOutput = await execAsync(`
             . <(curl -sS http://localhost:${result.port}/setup);
-            node "${require.resolve('./terminal-js-test-script')}"
+            node "${require.resolve('./terminal-scripts/js-test-script')}"
         `, {
             shell: '/bin/bash'
         });
