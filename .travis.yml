@@ -9,6 +9,8 @@ before_install:
 - sudo apt-get install p7zip-full xterm
 install:
 - npm ci
+- pip install --user -r ./test/interceptors/terminal-scripts/python-test-requirements.txt
+- pip3 install --user -r ./test/interceptors/terminal-scripts/python-test-requirements.txt
 services:
 - xvfb
 before_script:
@@ -27,6 +29,8 @@ addons:
     packages:
       - python2.7
       - python3
+      - python3-pip
+      - python3-setuptools
 
 jobs:
   include:
