@@ -15,11 +15,18 @@ before_script:
 - sudo chown root /opt/google/chrome/chrome-sandbox
 - sudo chmod 4755 /opt/google/chrome/chrome-sandbox
 script:
+- python --version
+- python3 --version
+- python2 --version
 - npm test
 - npm run build:src
 addons:
   chrome: stable
   firefox: latest
+  apt:
+    packages:
+      - python2.7
+      - python3
 
 jobs:
   include:
