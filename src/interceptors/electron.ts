@@ -1,6 +1,7 @@
 import * as _ from 'lodash';
 import { spawn } from 'child_process';
 import * as util from 'util';
+import * as path from 'path';
 import * as fs from 'fs';
 
 import { getPortPromise as getPort } from 'portfinder';
@@ -11,7 +12,7 @@ import { Interceptor } from '.';
 
 import { HtkConfig } from '../config';
 import { delay } from '../util';
-import { getTerminalEnvVars } from './terminal/terminal-env-overrides';
+import { getTerminalEnvVars, OVERRIDES_DIR } from './terminal/terminal-env-overrides';
 import { reportError, addBreadcrumb } from '../error-tracking';
 import { findExecutableInApp } from '@httptoolkit/osx-find-executable';
 
@@ -24,7 +25,7 @@ const isAppBundle = (path: string) => {
 
 export class ElectronInterceptor implements Interceptor {
     readonly id = 'electron';
-    readonly version = '1.0.0';
+    readonly version = '1.0.1';
 
     private debugClients: {
         [port: string]: Array<ChromeRemoteInterface.CdpClient>
@@ -98,8 +99,7 @@ export class ElectronInterceptor implements Interceptor {
         // Inside the Electron process, load our electron-intercepting JS.
         const injectionResult = await debugClient.Debugger.evaluateOnCallFrame({
             expression: `require("${
-                // Need to escape slashes to ensure this works on Windows (where all paths have backslashes)
-                require.resolve('../../overrides/js/prepend-electron.js').replace(/\\/g, '\\\\')
+                path.join(OVERRIDES_DIR, 'js', 'prepend-electron.js')
             }")({
                 newlineEncodedCertData: "${(await this.certData).replace(/\r\n|\r|\n/g, '\\n')}",
                 spkiFingerprint: "${generateSPKIFingerprint(await this.certData)}"

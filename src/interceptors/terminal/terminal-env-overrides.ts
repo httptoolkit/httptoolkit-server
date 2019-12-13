@@ -4,7 +4,7 @@ import { HttpsPathOptions } from 'mockttp/dist/util/tls';
 
 const PATH_VAR_SEPARATOR = process.platform === 'win32' ? ';' : ':';
 
-const OVERRIDES_DIR = path.join(
+export const OVERRIDES_DIR = path.join(
     process.env.HTK_IS_BUNDLED
         ? path.join(__dirname, '..')
         : path.join(__dirname, '..', '..', '..'),
