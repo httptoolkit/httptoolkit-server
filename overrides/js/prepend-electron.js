@@ -19,7 +19,6 @@ module.exports = function reconfigureElectron(params) {
 
         electronWrapped = true;
 
-        console.log('wrapping');
         const app = loadedModule.app;
 
         app.commandLine.appendSwitch('proxy-server', process.env.HTTP_PROXY);
@@ -28,6 +27,19 @@ module.exports = function reconfigureElectron(params) {
         app.commandLine.appendSwitch(
             'ignore-certificate-errors-spki-list', params.spkiFingerprint
         );
+
+        app.on('quit', () => {
+            // This means the user has exited the app while HTTP Toolkit is still running. That's fine,
+            // but it normally won't exit, since we still have a debugger attached. If we can, we use
+            // the experimental node 8+ inspector API to disconnect it. If not, we just kill the process
+            // after a brief delay to allow any other cleanup
+            try {
+                require('inspector').close();
+            } catch (e) {
+                console.log('Could not disconnect app via inspector, killing manually', e);
+                setTimeout(() => process.exit(0), 1000);
+            }
+        });
 
         app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
             if (
