@@ -82,7 +82,7 @@ describe('Existing terminal interceptor', function () {
 
         const scriptOutput = await execAsync(`
             . <(curl -sS http://localhost:${result.port}/setup);
-            node "${require.resolve('./terminal-scripts/js-test-script')}"
+            node "${require.resolve('./terminal-scripts/js-test-script')}";
         `, {
             shell: '/bin/bash'
         });
@@ -117,6 +117,56 @@ describe('Existing terminal interceptor', function () {
 
         // Special case modules that need manual handling:
         expect(seenRequests).to.include('https://api.stripe.com/v1/customers');
+    });
+
+    ['python2', 'python3'].forEach((python) => {
+        it.only(`should intercept all popular Python libraries with ${python}`, async function () {
+            this.timeout(10000);
+
+            const hasPython = await execAsync(`${python} --version`).then(() => true).catch(e => false);
+            if (!hasPython) return this.skip();
+
+            const { interceptor, server } = await interceptorSetup;
+            const result = await interceptor.activate(server.port) as { port: number };
+
+            const mainRule = await server.get(/https?:\/\/example.com\/python\/.*/).thenReply(200);
+            const stripeRule = await server.get('https://api.stripe.com/v1/customers').thenJson(200, {});
+            const botoRule = await server.get('http://169.254.169.254/latest/api/token').thenJson(200, {});
+
+            const scriptOutput = await execAsync(`
+                . <(curl -sS http://localhost:${result.port}/setup);
+                ${python} "${require.resolve('./terminal-scripts/python-test-script.py')}";
+            `, {
+                shell: '/bin/bash'
+            });
+
+            expect(scriptOutput.stdout).to.contain("HTTP Toolkit interception enabled");
+
+            const seenRequests = _.concat(...await Promise.all([
+                mainRule.getSeenRequests(),
+                stripeRule.getSeenRequests(),
+                botoRule.getSeenRequests()
+            ])).map(r => r.url.replace(':443', '').replace(':80', ''));
+
+            // http & https with lots of popular libraries
+            ['http', 'https'].forEach((protocol) =>
+                [
+                    'grequests',
+                    'httplib2',
+                    python === 'python3' ? 'httpx' : '',
+                    'requests',
+                    'urlfetch',
+                    'urllib3',
+                    python === 'python3' ? 'urllib.request' : 'urllib2'
+                ].filter(Boolean).forEach((library) =>
+                    expect(seenRequests).to.include(`${protocol}://example.com/python/${library}`)
+                )
+            );
+
+            // Special case modules that need manual handling:
+            expect(seenRequests).to.include('https://api.stripe.com/v1/customers');
+            expect(seenRequests).to.include('http://169.254.169.254/latest/api/token');
+        });
     });
 
 });
