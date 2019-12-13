@@ -17,7 +17,7 @@ _certPath = os.environ['SSL_CERT_FILE']
 _http_connection_init = HTTPConnection.__init__
 @functools.wraps(_http_connection_init)
 def _new_http_connection_init(self, host, port=80, *k, **kw):
-    _http_connection_init(self, _proxyHost, _proxyPort, *k, **kw)
+    _http_connection_init(self, _proxyHost, int(_proxyPort), *k, **kw)
     self.set_tunnel(host, port)
 HTTPConnection.__init__ = _new_http_connection_init
 
@@ -43,6 +43,6 @@ def _new_https_connection_init(self, host, port=443, *k, **kw):
 
     context.load_verify_locations(_certPath)
 
-    _https_connection_init(self, _proxyHost, _proxyPort, *k, **kw)
+    _https_connection_init(self, _proxyHost, int(_proxyPort), *k, **kw)
     self.set_tunnel(host, port)
 HTTPSConnection.__init__ = _new_https_connection_init
