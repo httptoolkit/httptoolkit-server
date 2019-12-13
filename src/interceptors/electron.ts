@@ -54,7 +54,7 @@ export class ElectronInterceptor implements Interceptor {
             ? await findExecutableInApp(pathToApplication)
             : pathToApplication;
 
-        spawn(cmd, [`--inspect-brk=${debugPort}`], {
+        const appProcess = spawn(cmd, [`--inspect-brk=${debugPort}`], {
             stdio: 'inherit',
             env: Object.assign({},
                 process.env,
@@ -64,6 +64,21 @@ export class ElectronInterceptor implements Interceptor {
 
         let debugClient: ChromeRemoteInterface.CdpClient | undefined;
         let retries = 10;
+
+        appProcess.on('error', async (e) => {
+            reportError(e);
+
+            if (debugClient) {
+                // Try to close the debug connection if open, but very carefully
+                try {
+                    await debugClient.close();
+                } catch (e) { }
+            }
+
+            // If we're still in the process of debugging the app, give up.
+            retries = -1;
+        });
+
         while (!debugClient && retries >= 0) {
             try {
                 debugClient = await ChromeRemoteInterface({ port: debugPort });
