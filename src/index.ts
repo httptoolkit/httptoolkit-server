@@ -26,9 +26,12 @@ async function generateHTTPSConfig(configPath: string) {
     const keyPath = path.join(configPath, 'ca.key');
     const certPath = path.join(configPath, 'ca.pem');
 
-    await Promise.all([
+    const [ certContent ] = await Promise.all([
+        readFile(certPath, 'utf8').then((certContent) => {
+            checkCertExpiry(certContent);
+            return certContent;
+        }),
         canAccess(keyPath, fs.constants.R_OK),
-        readFile(certPath, 'utf8').then(checkCertExpiry)
     ]).catch(async () => {
         // Cert doesn't exist, or is too close/past expiry. Generate a new one:
 
@@ -37,14 +40,15 @@ async function generateHTTPSConfig(configPath: string) {
         });
 
         return Promise.all([
-            writeFile(keyPath, newCertPair.key),
-            writeFile(certPath, newCertPair.cert)
+            writeFile(certPath, newCertPair.cert).then(() => newCertPair.cert),
+            writeFile(keyPath, newCertPair.key)
         ]);
     });
 
     return {
         keyPath,
         certPath,
+        certContent,
         keyLength: 2048 // Reasonably secure keys please
     };
 }

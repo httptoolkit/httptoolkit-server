@@ -1,6 +1,9 @@
-import { HttpsPathOptions } from "mockttp/dist/util/tls";
-
 export interface HtkConfig {
     configPath: string;
-    https: HttpsPathOptions
+    https: {
+        keyPath: string;
+        certPath: string;
+        certContent: string;
+        keyLength: number;
+    }
 }

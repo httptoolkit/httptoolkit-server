@@ -18,7 +18,7 @@ const getCertificateDetails = _.memoize(async (configPath: string) => {
     fs.writeFileSync(keyPath, newCertPair.key);
     fs.writeFileSync(certPath, newCertPair.cert);
 
-    return { certPath, keyPath };
+    return { certPath, keyPath, certContent: newCertPair.cert, keyLength: 2048};
 });
 
 type InterceptorSetup = Promise<{

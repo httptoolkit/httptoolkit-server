@@ -35,6 +35,7 @@ const typeDefs = `
 
     type InterceptionConfig {
         certificatePath: String!
+        certificateContent: String!
     }
 
     type Interceptor {
@@ -60,7 +61,8 @@ const buildResolvers = (
             version: () => packageJson.version,
             interceptors: () => _.values(interceptors),
             config: () => ({
-                certificatePath: config.https.certPath
+                certificatePath: config.https.certPath,
+                certificateContent: config.https.certContent
             }),
             networkInterfaces: () => os.networkInterfaces()
         },
