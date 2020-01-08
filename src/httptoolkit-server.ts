@@ -4,6 +4,7 @@ import * as events from 'events';
 import corsGate = require('cors-gate');
 import { GraphQLServer } from 'graphql-yoga';
 import { GraphQLScalarType } from 'graphql';
+import { generateSPKIFingerprint } from 'mockttp';
 
 import { HtkConfig } from './config';
 import { reportError, addBreadcrumb } from './error-tracking';
@@ -36,6 +37,7 @@ const typeDefs = `
     type InterceptionConfig {
         certificatePath: String!
         certificateContent: String!
+        certificateFingerprint: String!
     }
 
     type Interceptor {
@@ -62,7 +64,11 @@ const buildResolvers = (
             interceptors: () => _.values(interceptors),
             config: () => ({
                 certificatePath: config.https.certPath,
-                certificateContent: config.https.certContent
+                certificateContent: config.https.certContent,
+                // We could calculate this client side, but it normally requires node-forge or
+                // some other heavyweight crypto lib, and we already have that here, so it's
+                // convenient to do it up front.
+                certificateFingerprint: generateSPKIFingerprint(config.https.certContent)
             }),
             networkInterfaces: () => os.networkInterfaces()
         },
