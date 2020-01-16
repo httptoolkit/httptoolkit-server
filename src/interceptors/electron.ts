@@ -113,9 +113,10 @@ export class ElectronInterceptor implements Interceptor {
 
         // Inside the Electron process, load our electron-intercepting JS.
         const injectionResult = await debugClient.Debugger.evaluateOnCallFrame({
-            expression: `require("${
-                path.join(OVERRIDES_DIR, 'js', 'prepend-electron.js')
-            }")({
+            expression: `require(${
+                // Need to stringify to handle chars that need escaping (e.g. windows backslashes)
+                JSON.stringify(path.join(OVERRIDES_DIR, 'js', 'prepend-electron.js'))
+            })({
                 newlineEncodedCertData: "${(await this.certData).replace(/\r\n|\r|\n/g, '\\n')}",
                 spkiFingerprint: "${generateSPKIFingerprint(await this.certData)}"
             })`,
