@@ -66,6 +66,7 @@ function checkCertExpiry(contents: string): void {
 
 export async function runHTK(options: {
     configPath?: string
+    authToken?: string
 } = {}) {
     const startTime = Date.now();
     registerShutdownHandler();
@@ -83,7 +84,7 @@ export async function runHTK(options: {
     const certSetupTime = Date.now();
     console.log('Certificates setup in', certSetupTime - configCheckTime, 'ms');
 
-    // Start a standalone server
+    // Start a Mockttp standalone server
     const standalone = getStandalone({
         serverDefaults: {
             cors: false,
@@ -103,6 +104,7 @@ export async function runHTK(options: {
     // Start a HTK server
     const htkServer = new HttpToolkitServer({
         configPath,
+        authToken: options.authToken,
         https: httpsConfig
     });
 

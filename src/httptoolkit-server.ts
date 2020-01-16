@@ -5,6 +5,7 @@ import corsGate = require('cors-gate');
 import { GraphQLServer } from 'graphql-yoga';
 import { GraphQLScalarType } from 'graphql';
 import { generateSPKIFingerprint } from 'mockttp';
+import { Request, Response } from 'express';
 
 import { HtkConfig } from './config';
 import { reportError, addBreadcrumb } from './error-tracking';
@@ -184,6 +185,23 @@ export class HttpToolkitServer extends events.EventEmitter {
             allowSafe: false, // Even for HEAD/GET requests (should be none anyway)
             origin: '' // No origin - we accept *no* same-origin requests
         }));
+
+        if (config.authToken) {
+            // Optional auth token. This allows us to lock down UI/server communication further
+            // when started together. The desktop generates a token every run and passes it to both.
+            this.graphql.use((req: Request, res: Response, next: () => void) => {
+                const authHeader = req.headers['authorization'] || '';
+
+                const tokenMatch = authHeader.match(/Bearer (\S+)/) || [];
+                const token = tokenMatch[1];
+
+                if (token !== config.authToken) {
+                    res.status(403).send('Valid token required');
+                } else {
+                    next();
+                }
+            });
+        }
     }
 
     async start() {

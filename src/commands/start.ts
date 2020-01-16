@@ -33,13 +33,17 @@ class HttpToolkitServer extends Command {
         version: flags.version({char: 'v'}),
         help: flags.help({char: 'h'}),
 
-        config: flags.string({char: 'c', description: 'path in which to store config files'}),
+        config: flags.string({char: 'c', description: 'optional path in which to store config files'}),
+        token: flags.string({char: 't', description: 'optional token to authenticate local server access'}),
     }
 
     async run() {
         const { flags } = this.parse(HttpToolkitServer);
 
-        await runHTK({ configPath: flags.config }).catch(async (error) => {
+        await runHTK({
+            configPath: flags.config,
+            authToken: flags.token
+        }).catch(async (error) => {
             await reportError(error);
             throw error;
         });
