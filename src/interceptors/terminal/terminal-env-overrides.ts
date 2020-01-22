@@ -20,20 +20,24 @@ export function getTerminalEnvVars(
     httpsConfig: HttpsPathOptions,
     currentEnv: { [key: string]: string | undefined } | 'runtime-inherit'
 ): { [key: string]: string } {
+    const proxyUrl = `http://127.0.0.1:${proxyPort}`;
+
     return {
-        'http_proxy': `http://127.0.0.1:${proxyPort}`,
-        'HTTP_PROXY': `http://127.0.0.1:${proxyPort}`,
-        'https_proxy': `http://127.0.0.1:${proxyPort}`,
-        'HTTPS_PROXY': `http://127.0.0.1:${proxyPort}`,
+        'http_proxy': proxyUrl,
+        'HTTP_PROXY': proxyUrl,
+        'https_proxy': proxyUrl,
+        'HTTPS_PROXY': proxyUrl,
         // Used by global-agent to configure node.js HTTP(S) defaults
-        'GLOBAL_AGENT_HTTP_PROXY': `http://127.0.0.1:${proxyPort}`,
+        'GLOBAL_AGENT_HTTP_PROXY': proxyUrl,
         // Used by some CGI engines to avoid 'httpoxy' vulnerability
-        'CGI_HTTP_PROXY': `http://127.0.0.1:${proxyPort}`,
+        'CGI_HTTP_PROXY': proxyUrl,
         // Used by npm, for versions that don't support HTTP_PROXY etc
-        'npm_config_proxy': `http://127.0.0.1:${proxyPort}`,
-        'npm_config_https_proxy': `http://127.0.0.1:${proxyPort}`,
+        'npm_config_proxy': proxyUrl,
+        'npm_config_https_proxy': proxyUrl,
         // Stop npm warning about having a different 'node' in $PATH
         'npm_config_scripts_prepend_node_path': 'false',
+        // Proxy used by the Go CLI
+        'GOPROXY': proxyUrl,
 
         // Trust cert when using OpenSSL with default settings
         'SSL_CERT_FILE': httpsConfig.certPath,
