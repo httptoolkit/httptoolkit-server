@@ -57,3 +57,4 @@ __pycache__
 
 bundle/
 build/
+*.tsbuildinfo
