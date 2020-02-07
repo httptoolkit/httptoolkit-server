@@ -44,6 +44,7 @@ const typeDefs = `
     type Interceptor {
         id: ID!
         version: String!
+        metadata: Json
 
         isActivable: Boolean!
         isActive(proxyPort: Int!): Boolean!
@@ -166,7 +167,7 @@ const buildResolvers = (
     }
 };
 
-export class HttpToolkitServer extends events.EventEmitter {
+export class HttpToolkitServerApi extends events.EventEmitter {
 
     private graphql: GraphQLServer;
 

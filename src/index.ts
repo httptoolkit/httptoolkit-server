@@ -8,7 +8,7 @@ import { Mutex } from 'async-mutex';
 
 import updateCommand from '@oclif/plugin-update/lib/commands/update';
 
-import { HttpToolkitServer } from './httptoolkit-server';
+import { HttpToolkitServerApi } from './api-server';
 import { checkBrowserConfig } from './browsers';
 import { reportError } from './error-tracking';
 import { delay, ALLOWED_ORIGINS } from './util';
@@ -101,15 +101,15 @@ export async function runHTK(options: {
         host: '127.0.0.1'
     });
 
-    // Start a HTK server
-    const htkServer = new HttpToolkitServer({
+    // Start the HTK server API
+    const apiServer = new HttpToolkitServerApi({
         configPath,
         authToken: options.authToken,
         https: httpsConfig
     });
 
     const updateMutex = new Mutex();
-    htkServer.on('update-requested', () => {
+    apiServer.on('update-requested', () => {
         updateMutex.runExclusive(() =>
             (<Promise<void>> updateCommand.run(['stable']))
             .catch((error) => {
@@ -129,7 +129,7 @@ export async function runHTK(options: {
         );
     });
 
-    await htkServer.start();
+    await apiServer.start();
 
     console.log('Server started in', Date.now() - certSetupTime, 'ms');
     console.log('Total startup took', Date.now() - startTime, 'ms');
