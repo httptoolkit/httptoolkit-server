@@ -59,6 +59,8 @@ module.exports = {
         new webpack.IgnorePlugin(/^utf-8-validate$/),
         // Optimistically required in headless, falls back to child_process
         new webpack.IgnorePlugin(/^child-killer$/),
+        // Dev-only require format, used in various adbkit modules
+        new webpack.IgnorePlugin(/^\.\/src\/(adb|logcat|monkey)$/, /adbkit/),
         // Copy Mockttp's schema (read with readFile) into the output directory
         new CopyWebpackPlugin([
             { from: path.join('node_modules', 'mockttp', 'dist', 'standalone', 'schema.gql') }

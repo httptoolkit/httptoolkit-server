@@ -7,6 +7,7 @@ import { FreshFirefox } from './fresh-firefox';
 import { FreshEdge } from './fresh-edge';
 import { FreshTerminalInterceptor } from './terminal/fresh-terminal-interceptor';
 import { ExistingTerminalInterceptor } from './terminal/existing-terminal-interceptor';
+import { AndroidAdbInterceptor } from './android/android-adb-interceptor';
 import { addShutdownHandler } from '../shutdown';
 import { ElectronInterceptor } from './electron';
 
@@ -21,7 +22,7 @@ export interface Interceptor {
 
     activate(proxyPort: number, options?: any): Promise<void | {}>;
     deactivate(proxyPort: number, options?: any): Promise<void | {}>;
-    deactivateAll(): Promise<void>;
+    deactivateAll(): Promise<void | {}>;
 }
 
 export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> {
@@ -31,7 +32,8 @@ export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> 
         new FreshEdge(config),
         new FreshTerminalInterceptor(config),
         new ExistingTerminalInterceptor(config),
-        new ElectronInterceptor(config)
+        new ElectronInterceptor(config),
+        new AndroidAdbInterceptor(config)
     ];
 
     // When the server exits, try to shut down the interceptors too

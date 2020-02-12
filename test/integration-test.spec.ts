@@ -170,6 +170,12 @@ describe('Integration test', function () {
                 "isActivable": true,
                 "isActive": false,
                 "version": "1.0.1"
+            },
+            {
+                "id": "android-adb",
+                "isActivable": false,
+                "isActive": false,
+                "version": "1.0.0"
             }
         ]);
     });
