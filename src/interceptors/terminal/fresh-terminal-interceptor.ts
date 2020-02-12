@@ -10,6 +10,8 @@ import { findExecutableById } from '@httptoolkit/osx-find-executable';
 import { Interceptor } from '..';
 import { HtkConfig } from '../../config';
 import { reportError, addBreadcrumb } from '../../error-tracking';
+import { spawnToResult } from '../../util';
+
 import { getTerminalEnvVars } from './terminal-env-overrides';
 import { editShellStartupScripts, resetShellStartupScripts } from './terminal-scripts';
 
@@ -26,28 +28,6 @@ interface SpawnArgs {
     options?: SpawnOptions;
     skipStartupScripts?: true;
 }
-
-// Spawn a command, and resolve with all stdout & stderr output as strings when it terminates
-const spawnAndCollectOutput = (command: string, args: string[] = []): Promise<{ stdout: string, stderr: string }> => {
-    return new Promise((resolve, reject) => {
-        const childProc = spawn(command, args, { stdio: 'pipe' });
-        const { stdout, stderr } = childProc;
-
-        const stdoutData: Buffer[] = [];
-        stdout.on('data', (d) => stdoutData.push(d));
-        const stderrData: Buffer[] = [];
-        stderr.on('data', (d) => stderrData.push(d));
-
-        childProc.once('error', reject);
-        childProc.once('close', () => {
-            // Note that we do _not_ check the error code
-            resolve({
-                stdout: Buffer.concat(stdoutData).toString(),
-                stderr: Buffer.concat(stderrData).toString()
-            });
-        });
-    });
-};
 
 const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
     let result: Promise<SpawnArgs | null>;
@@ -138,7 +118,7 @@ const getXTerminalCommand = async (command = 'x-terminal-emulator'): Promise<Spa
     try {
         // Run the command with -h to get some output we can use to infer the terminal itself.
         // --version would be nice, but the debian wrapper ignores it. --help isn't supported by xterm.
-        const { stdout } = await spawnAndCollectOutput(command, ['-h']);
+        const { stdout } = await spawnToResult(command, ['-h']);
         const helpOutput = stdout.toLowerCase().replace(/[^\w\d]+/g, ' ');
 
         if (helpOutput.includes('gnome terminal') && await commandExists('gnome-terminal')) {
@@ -164,7 +144,7 @@ const getXTerminalCommand = async (command = 'x-terminal-emulator'): Promise<Spa
 const getKonsoleTerminalCommand = async (command = 'konsole'): Promise<SpawnArgs> => {
     let extraArgs: string[] = [];
 
-    const { stdout } = await spawnAndCollectOutput(command, ['--help']);
+    const { stdout } = await spawnToResult(command, ['--help']);
 
     // Forces Konsole to run in the foreground, with no separate process
     // Seems to be well supported for a long time, but check just in case
@@ -178,7 +158,7 @@ const getKonsoleTerminalCommand = async (command = 'konsole'): Promise<SpawnArgs
 const getGnomeTerminalCommand = async (command = 'gnome-terminal'): Promise<SpawnArgs> => {
     let extraArgs: string[] = [];
 
-    const { stdout } = await spawnAndCollectOutput(command, ['--help-all']);
+    const { stdout } = await spawnToResult(command, ['--help-all']);
 
     // Officially supported option, but only supported in v3.28+
     if (stdout.includes('--wait')) {
@@ -200,7 +180,7 @@ const getGnomeTerminalCommand = async (command = 'gnome-terminal'): Promise<Spaw
 const getXfceTerminalCommand = async (command = 'xfce4-terminal'): Promise<SpawnArgs> => {
     let extraArgs: string[] = [];
 
-    const { stdout } = await spawnAndCollectOutput(command, ['--help']);
+    const { stdout } = await spawnToResult(command, ['--help']);
 
     // Disables the XFCE terminal server for this terminal, so it runs in the foreground.
     // Seems to be well supported for a long time, but check just in case

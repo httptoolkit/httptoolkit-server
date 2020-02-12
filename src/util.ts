@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, SpawnOptions } from 'child_process';
 
 export function delay(durationMs: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, durationMs));
@@ -33,3 +33,35 @@ export async function windowsKill(processMatcher: string) {
         stdio: 'inherit'
     });
 }
+
+// Spawn a command, and resolve with all output as strings when it terminates
+export function spawnToResult(command: string, args: string[] = [], inheritOutput = false): Promise<{
+    exitCode?: number,
+    stdout: string,
+    stderr: string
+}> {
+    return new Promise((resolve, reject) => {
+        const childProc = spawn(command, args, { stdio: 'pipe' });
+        const { stdout, stderr } = childProc;
+
+        const stdoutData: Buffer[] = [];
+        stdout.on('data', (d) => stdoutData.push(d));
+        const stderrData: Buffer[] = [];
+        stderr.on('data', (d) => stderrData.push(d));
+
+        if (inheritOutput) {
+            stdout.pipe(process.stdout);
+            stderr.pipe(process.stderr);
+        }
+
+        childProc.once('error', reject);
+        childProc.once('close', (code?: number) => {
+            // Note that we do _not_ check the error code, we just return it
+            resolve({
+                exitCode: code,
+                stdout: Buffer.concat(stdoutData).toString(),
+                stderr: Buffer.concat(stderrData).toString()
+            });
+        });
+    });
+};
