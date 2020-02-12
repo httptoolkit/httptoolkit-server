@@ -127,6 +127,11 @@ const buildResolvers = (
                     reportError(e);
                     return false;
                 }
+            },
+            metadata: (interceptor: Interceptor) => {
+                return interceptor.getMetadata
+                    ? interceptor.getMetadata()
+                    : undefined;
             }
         },
 
