@@ -2,6 +2,8 @@ import * as stream from 'stream';
 import * as path from 'path';
 import * as adb from 'adbkit';
 
+import { reportError } from '../../error-tracking';
+
 export const ANDROID_TEMP = '/data/local/tmp';
 export const SYSTEM_CA_PATH = '/system/etc/security/cacerts';
 
@@ -15,10 +17,18 @@ export function createAdbClient() {
 }
 
 export async function getConnectedDevices(adbClient: adb.AdbClient) {
-    const devices = await adbClient.listDevices();
-    return devices
-        .filter(d => d.type !== 'offline')
-        .map(d => d.id);
+    try {
+        const devices = await adbClient.listDevices();
+        return devices
+            .filter(d => d.type !== 'offline')
+            .map(d => d.id);
+    } catch (e) {
+        if (e.code === 'ENOENT') return [];
+        else {
+            reportError(e);
+            throw e;
+        }
+    }
 }
 
 export function stringAsStream(input: string) {
