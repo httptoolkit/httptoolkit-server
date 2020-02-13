@@ -4,7 +4,7 @@ import * as stream from 'stream';
 import * as semver from 'semver';
 import fetch from 'node-fetch';
 
-import { readDir, createTmp, renameFile, deleteFile } from '../../util';
+import { readDir, createTmp, moveFile, deleteFile } from '../../util';
 import { HtkConfig } from '../../config';
 import { reportError } from '../../error-tracking';
 
@@ -85,7 +85,7 @@ async function updateLocalApk(
 
     console.log(`Local APK written to ${tmpApk}`);
 
-    await renameFile(tmpApk, path.join(config.configPath, `httptoolkit-${version}.apk`));
+    await moveFile(tmpApk, path.join(config.configPath, `httptoolkit-${version}.apk`));
     console.log(`Local APK moved to ${path.join(config.configPath, `httptoolkit-${version}.apk`)}`);
     await cleanupOldApks(config);
 }
@@ -123,7 +123,7 @@ export async function streamLatestApk(config: HtkConfig): Promise<stream.Readabl
         } else {
             console.log('Streaming remote APK directly');
             const apkStream = (await fetch(latestApkRelease.url)).body;
-            updateLocalApk(latestApkRelease.version, apkStream, config);
+            updateLocalApk(latestApkRelease.version, apkStream, config).catch(reportError);
             return apkStream as stream.Readable;
         }
     }
@@ -138,7 +138,7 @@ export async function streamLatestApk(config: HtkConfig): Promise<stream.Readabl
     // Try to update it async, and use the local APK in the meantime.
     fetch(latestApkRelease.url).then((apkResponse) => {
         const apkStream = apkResponse.body;
-        updateLocalApk(latestApkRelease.version, apkStream, config);
+        return updateLocalApk(latestApkRelease.version, apkStream, config);
     }).catch(reportError);
 
     console.log('Streaming local APK, and updating it async');

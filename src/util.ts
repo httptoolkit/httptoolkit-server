@@ -58,6 +58,7 @@ export const checkAccess = promisify(fs.access);
 export const mkDir = promisify(fs.mkdir);
 export const writeFile = promisify(fs.writeFile);
 export const renameFile = promisify(fs.rename);
+export const copyFile = promisify(fs.copyFile);
 
 export const canAccess = (path: string) => checkAccess(path).then(() => true).catch(() => false);
 
@@ -76,3 +77,16 @@ export const createTmp = (options: tmp.Options = {}) => new Promise<{
         resolve({ path, fd, cleanupCallback });
     });
 });
+
+export const moveFile = async (oldPath: string, newPath: string) => {
+    try {
+        await renameFile(oldPath, newPath);
+    } catch (e) {
+        if (e.code === 'EXDEV') {
+            // Cross-device - can't rename files across partions etc.
+            // In that case, we fallback to copy then delete:
+            await copyFile(oldPath, newPath);
+            await deleteFile(oldPath);
+        }
+    }
+};
