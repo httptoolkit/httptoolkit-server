@@ -66,12 +66,12 @@ export const deleteFolder = promisify(rimraf);
 export const ensureDirectoryExists = (path: string) =>
     checkAccess(path).catch(() => mkDir(path, { recursive: true }));
 
-export const createTmp = () => new Promise<{
+export const createTmp = (options: tmp.Options = {}) => new Promise<{
     path: string,
     fd: number,
     cleanupCallback: () => void
 }>((resolve, reject) => {
-    tmp.file((err, path, fd, cleanupCallback) => {
+    tmp.file(options, (err, path, fd, cleanupCallback) => {
         if (err) return reject(err);
         resolve({ path, fd, cleanupCallback });
     });

@@ -94,11 +94,12 @@ async function updateLocalApk(
     config: HtkConfig
 ) {
     console.log(`Updating local APK to version ${version}`);
+
     const {
         path: tmpApk,
         fd: tmpApkFd,
         cleanupCallback
-    } = await createTmp();
+    } = await createTmp({ keep: true });
 
     const tmpApkStream = fs.createWriteStream(tmpApk, {
         fd: tmpApkFd,
@@ -123,11 +124,11 @@ async function updateLocalApk(
 
     await renameFile(tmpApk, path.join(config.configPath, `httptoolkit-${version}.apk`));
     console.log(`Local APK moved to ${path.join(config.configPath, `httptoolkit-${version}.apk`)}`);
-    await cleanupLocalApks(config);
+    await cleanupOldApks(config);
 }
 
 // Delete all but the most recent APK version in the config directory.
-async function cleanupLocalApks(config: HtkConfig) {
+async function cleanupOldApks(config: HtkConfig) {
     const apks = (await readDir(config.configPath))
         .map(filename => filename.match(/^httptoolkit-(.*).apk$/))
         .filter((match): match is RegExpMatchArray => !!match)
