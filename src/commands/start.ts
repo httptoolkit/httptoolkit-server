@@ -2,7 +2,7 @@
 type ErrorTrackingModule = typeof import('../error-tracking');
 type IndexTypeModule = typeof import('../index');
 
-import { IS_PROD_BUILD } from '../util';
+import { IS_PROD_BUILD } from '../constants';
 
 function maybeBundleImport<T>(moduleName: string): T {
     if (IS_PROD_BUILD || process.env.OCLIF_TS_NODE === '0') {

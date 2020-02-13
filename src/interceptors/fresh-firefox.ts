@@ -1,23 +1,13 @@
-import { promisify } from 'util';
-import * as fs from 'fs';
 import * as _ from 'lodash';
-import * as rimraf from 'rimraf';
 import * as path from 'path';
 
 import { HtkConfig } from '../config';
 
 import { getAvailableBrowsers, launchBrowser, BrowserInstance } from '../browsers';
 import { CertCheckServer } from '../cert-check-server';
-import { delay, windowsKill } from '../util';
+import { delay, windowsKill, readFile, canAccess, deleteFolder } from '../util';
 import { Interceptor } from '.';
 import { reportError } from '../error-tracking';
-
-const deleteFolder = promisify(rimraf);
-const readFile = promisify(fs.readFile);
-const canAccess = (path: string) =>
-    new Promise((resolve) => {
-        fs.access(path, (error: Error | null) => resolve(!error));
-    });
 
 const FIREFOX_PREF_REGEX = /\w+_pref\("([^"]+)", (.*)\);/
 

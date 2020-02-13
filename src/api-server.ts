@@ -10,7 +10,8 @@ import { Request, Response } from 'express';
 import { HtkConfig } from './config';
 import { reportError, addBreadcrumb } from './error-tracking';
 import { buildInterceptors, Interceptor } from './interceptors';
-import { ALLOWED_ORIGINS, delay } from './util';
+import { ALLOWED_ORIGINS } from './constants';
+import { delay } from './util';
 
 const packageJson = require('../package.json');
 

@@ -1,8 +1,6 @@
 import * as _ from 'lodash';
 import { spawn } from 'child_process';
-import * as util from 'util';
 import * as path from 'path';
-import * as fs from 'fs';
 
 import { getPortPromise as getPort } from 'portfinder';
 import { generateSPKIFingerprint } from 'mockttp';
@@ -11,12 +9,10 @@ import ChromeRemoteInterface = require('chrome-remote-interface');
 import { Interceptor } from '.';
 
 import { HtkConfig } from '../config';
-import { delay } from '../util';
+import { delay, readFile } from '../util';
 import { getTerminalEnvVars, OVERRIDES_DIR } from './terminal/terminal-env-overrides';
 import { reportError, addBreadcrumb } from '../error-tracking';
 import { findExecutableInApp } from '@httptoolkit/osx-find-executable';
-
-const readFile = util.promisify(fs.readFile);
 
 const isAppBundle = (path: string) => {
     return process.platform === "darwin" &&

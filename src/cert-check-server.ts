@@ -1,11 +1,7 @@
-import { promisify } from 'util';
-import * as fs from 'fs';
-
 import { getLocal, Mockttp } from 'mockttp';
 
 import { HttpsPathOptions } from 'mockttp/dist/util/tls';
-
-const readFile = promisify(fs.readFile);
+import { readFile } from './util';
 
 export class CertCheckServer {
 

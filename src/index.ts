@@ -11,16 +11,9 @@ import updateCommand from '@oclif/plugin-update/lib/commands/update';
 import { HttpToolkitServerApi } from './api-server';
 import { checkBrowserConfig } from './browsers';
 import { reportError } from './error-tracking';
-import { delay, ALLOWED_ORIGINS } from './util';
+import { ALLOWED_ORIGINS } from './constants';
+import { delay, readFile, checkAccess, writeFile, ensureDirectoryExists } from './util';
 import { registerShutdownHandler } from './shutdown';
-
-const canAccess = util.promisify(fs.access);
-const mkDir = util.promisify(fs.mkdir);
-const readFile = util.promisify(fs.readFile);
-const writeFile = util.promisify(fs.writeFile);
-
-const ensureDirectoryExists = (path: string) =>
-    canAccess(path).catch(() => mkDir(path, { recursive: true }));
 
 async function generateHTTPSConfig(configPath: string) {
     const keyPath = path.join(configPath, 'ca.key');
@@ -31,7 +24,7 @@ async function generateHTTPSConfig(configPath: string) {
             checkCertExpiry(certContent);
             return certContent;
         }),
-        canAccess(keyPath, fs.constants.R_OK),
+        checkAccess(keyPath, fs.constants.R_OK),
     ]).catch(async () => {
         // Cert doesn't exist, or is too close/past expiry. Generate a new one:
 

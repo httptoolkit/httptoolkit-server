@@ -7,10 +7,8 @@ import * as getBrowserLauncherCb from '@httptoolkit/browser-launcher';
 import { LaunchOptions, BrowserInstance, Browser } from '@httptoolkit/browser-launcher';
 
 import { reportError } from './error-tracking';
+import { readFile, statFile, deleteFile } from './util';
 
-const statFile = promisify(fs.stat);
-const readFile = promisify(fs.readFile);
-const deleteFile = promisify(fs.unlink);
 const getBrowserLauncher = promisify(getBrowserLauncherCb);
 
 const browserConfigPath = (configPath: string) => path.join(configPath, 'browsers.json');

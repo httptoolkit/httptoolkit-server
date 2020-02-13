@@ -4,11 +4,9 @@ import * as util from 'util';
 import * as os from 'os';
 import * as path from 'path';
 
+import { canAccess, writeFile, renameFile, readFile } from '../../util';
 import { reportError } from '../../error-tracking';
 import { OVERRIDE_BIN_PATH } from './terminal-env-overrides';
-
-const checkAccess = util.promisify(fs.access);
-const canAccess = (path: string) => checkAccess(path).then(() => true).catch(() => false);
 
 // Generate POSIX paths for git-bash on Windows (or use the normal path everywhere else)
 const POSIX_OVERRIDE_BIN_PATH = process.platform === 'win32'
@@ -139,9 +137,6 @@ export const editShellStartupScripts = async () => {
     ).catch(reportError);
 };
 
-const readFile = util.promisify(fs.readFile);
-const writeFile = util.promisify(fs.writeFile);
-const renameFile = util.promisify(fs.rename);
 const removeConfigSectionsFromFile = async (path: string) => {
     let fileLines: string[];
 

@@ -1,6 +1,4 @@
 import * as _ from 'lodash';
-import * as fs from 'fs';
-import * as util from 'util';
 import { spawn, ChildProcess, SpawnOptions } from 'child_process';
 import * as GSettings from 'node-gsettings-wrapper';
 import * as ensureCommandExists from 'command-exists';
@@ -10,13 +8,10 @@ import { findExecutableById } from '@httptoolkit/osx-find-executable';
 import { Interceptor } from '..';
 import { HtkConfig } from '../../config';
 import { reportError, addBreadcrumb } from '../../error-tracking';
-import { spawnToResult } from '../../util';
+import { spawnToResult, canAccess } from '../../util';
 
 import { getTerminalEnvVars } from './terminal-env-overrides';
 import { editShellStartupScripts, resetShellStartupScripts } from './terminal-scripts';
-
-const checkAccess = util.promisify(fs.access);
-const canAccess = (path: string) => checkAccess(path).then(() => true).catch(() => false);
 
 const commandExists = (path: string): Promise<boolean> => ensureCommandExists(path).then(() => true).catch(() => false);
 

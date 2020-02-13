@@ -1,28 +1,11 @@
-import { spawn, SpawnOptions } from 'child_process';
+import { promisify } from 'util';
+import * as fs from 'fs';
+import * as rimraf from 'rimraf';
+import { spawn } from 'child_process';
 
 export function delay(durationMs: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, durationMs));
 }
-
-export const IS_PROD_BUILD = !!process.env.HTTPTOOLKIT_SERVER_BINPATH;
-
-export const ALLOWED_ORIGINS = IS_PROD_BUILD
-    ? [
-        // Prod builds only allow HTTPS app.httptoolkit.tech usage. This
-        // ensures that no other sites/apps can communicate with your server
-        // whilst you have the app open. If they could (requires an HTTP mitm),
-        // they would be able to start proxies & interceptors.
-        /^https:\/\/app\.httptoolkit\.tech$/
-    ]
-    : [
-        // Dev builds can use the main site, or local sites, even if those
-        // use HTTP. Note that HTTP here could technically open you to the risk
-        // above, but it'd require a DNS MitM too (to stop local.httptoolkit.tech
-        // resolving to localhost and never hitting the network).
-        /^https?:\/\/localhost(:\d+)?$/,
-        /^http:\/\/local\.httptoolkit\.tech(:\d+)?$/,
-        /^https:\/\/app\.httptoolkit\.tech$/
-    ]
 
 export async function windowsKill(processMatcher: string) {
     await spawn('wmic', [
@@ -65,3 +48,19 @@ export function spawnToResult(command: string, args: string[] = [], inheritOutpu
         });
     });
 };
+
+export const statFile = promisify(fs.stat);
+export const readFile = promisify(fs.readFile);
+export const readDir = promisify(fs.readdir);
+export const deleteFile = promisify(fs.unlink);
+export const checkAccess = promisify(fs.access);
+export const mkDir = promisify(fs.mkdir);
+export const writeFile = promisify(fs.writeFile);
+export const renameFile = promisify(fs.rename);
+
+export const canAccess = (path: string) => checkAccess(path).then(() => true).catch(() => false);
+
+export const deleteFolder = promisify(rimraf);
+
+export const ensureDirectoryExists = (path: string) =>
+    checkAccess(path).catch(() => mkDir(path, { recursive: true }));

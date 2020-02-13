@@ -1,20 +1,13 @@
-import { promisify } from 'util';
-import * as fs from 'fs';
-import * as rimraf from 'rimraf';
-
 import * as _ from 'lodash';
 import { generateSPKIFingerprint } from 'mockttp';
 
 import { HtkConfig } from '../config';
 
 import { getAvailableBrowsers, launchBrowser, BrowserInstance, Browser } from '../browsers';
-import { delay } from '../util';
+import { delay, deleteFolder, readFile } from '../util';
 import { HideWarningServer } from '../hide-warning-server';
 import { Interceptor } from '.';
 import { reportError } from '../error-tracking';
-
-const readFile = promisify(fs.readFile);
-const deleteFolder = promisify(rimraf);
 
 let browsers: _.Dictionary<BrowserInstance> = {};
 
