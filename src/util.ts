@@ -1,5 +1,6 @@
 import { promisify } from 'util';
 import * as fs from 'fs';
+import * as tmp from 'tmp';
 import * as rimraf from 'rimraf';
 import { spawn } from 'child_process';
 
@@ -64,3 +65,14 @@ export const deleteFolder = promisify(rimraf);
 
 export const ensureDirectoryExists = (path: string) =>
     checkAccess(path).catch(() => mkDir(path, { recursive: true }));
+
+export const createTmp = () => new Promise<{
+    path: string,
+    fd: number,
+    cleanupCallback: () => void
+}>((resolve, reject) => {
+    tmp.file((err, path, fd, cleanupCallback) => {
+        if (err) return reject(err);
+        resolve({ path, fd, cleanupCallback });
+    });
+});
