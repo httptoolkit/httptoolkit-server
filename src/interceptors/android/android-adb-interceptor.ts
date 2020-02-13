@@ -150,7 +150,7 @@ export class AndroidAdbInterceptor implements Interceptor {
                 deviceId,
                 stringAsStream(certContent.replace('\r\n', '\n')),
                 certPath,
-                0o644
+                0o444
             );
 
             await injectSystemCertificate(this.adbClient, deviceId, rootCmd, certPath);
