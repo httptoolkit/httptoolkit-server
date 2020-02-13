@@ -21,7 +21,7 @@ import {
     stringAsStream
 } from './adb-commands';
 import { reportError } from '../../error-tracking';
-import { readDir, createTmp, renameFile } from '../../util';
+import { readDir, createTmp, renameFile, deleteFile } from '../../util';
 
 function urlSafeBase64(content: string) {
     return Buffer.from(content, 'utf8').toString('base64')
@@ -123,6 +123,28 @@ async function updateLocalApk(
 
     await renameFile(tmpApk, path.join(config.configPath, `httptoolkit-${version}.apk`));
     console.log(`Local APK moved to ${path.join(config.configPath, `httptoolkit-${version}.apk`)}`);
+    await cleanupLocalApks(config);
+}
+
+// Delete all but the most recent APK version in the config directory.
+async function cleanupLocalApks(config: HtkConfig) {
+    const apks = (await readDir(config.configPath))
+        .map(filename => filename.match(/^httptoolkit-(.*).apk$/))
+        .filter((match): match is RegExpMatchArray => !!match)
+        .map((match) => ({
+            path: path.join(config.configPath, match[0]),
+            version: match[1]
+        }));
+
+    apks.sort((apk1, apk2) => {
+        return -1 * semver.compare(apk1.version, apk2.version);
+    });
+
+    console.log(`Deleting old APKs: ${apks.slice(1).map(apk => apk.path).join(', ')}`);
+
+    return Promise.all(
+        apks.slice(1).map(apk => deleteFile(apk.path))
+    );
 }
 
 async function streamLatestApk(config: HtkConfig): Promise<stream.Readable> {
