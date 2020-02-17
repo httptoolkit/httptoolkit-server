@@ -15,12 +15,13 @@ async function getLatestRelease(): Promise<{ version: string, url: string } | un
         );
         const release = await response.json();
         const apkAsset = release.assets.filter((a: any) => a.name === "httptoolkit.apk")[0];
+        const releaseName = release.name || release.tag_name;
 
         // Ignore non-semver releases
-        if (!semver.valid(release.name)) return;
+        if (!semver.valid(releaseName)) return;
 
         return {
-            version: release.name,
+            version: releaseName,
             url: apkAsset.browser_download_url
         };
     } catch (e) {

@@ -1,4 +1,3 @@
-import * as util from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as envPaths from 'env-paths';
