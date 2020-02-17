@@ -65,10 +65,7 @@ async function updateLocalApk(
         cleanupCallback
     } = await createTmp({ keep: true });
 
-    const tmpApkStream = fs.createWriteStream(tmpApk, {
-        fd: tmpApkFd,
-        encoding: 'binary'
-    });
+    const tmpApkStream = fs.createWriteStream(tmpApk, { fd: tmpApkFd });
     apkStream.pipe(tmpApkStream);
 
     await new Promise((resolve, reject) => {
@@ -124,15 +121,24 @@ export async function streamLatestApk(config: HtkConfig): Promise<stream.Readabl
         } else {
             console.log('Streaming remote APK directly');
             const apkStream = (await fetch(latestApkRelease.url)).body;
-            updateLocalApk(latestApkRelease.version, apkStream, config).catch(reportError);
-            return apkStream as stream.Readable;
+
+            // We buffer output into two passthrough streams, so both file & install
+            // stream usage can be set up async independently. Buffers are 10MB, to
+            // avoid issues buffering the whole APK even in super weird cases.
+            const apkFileStream = new stream.PassThrough({ highWaterMark: 10485760 });
+            apkStream.pipe(apkFileStream);
+            const apkOutputStream = new stream.PassThrough({ highWaterMark: 10485760 });
+            apkStream.pipe(apkOutputStream);
+
+            updateLocalApk(latestApkRelease.version, apkFileStream, config).catch(reportError);
+            return apkOutputStream;
         }
     }
 
     if (!latestApkRelease || semver.gte(localApk.version, latestApkRelease.version, true)) {
         console.log('Streaming local APK');
         // If we have an APK locally and it's up to date, or we can't tell, just use it
-        return fs.createReadStream(localApk.path, { encoding: 'binary' });
+        return fs.createReadStream(localApk.path);
     }
 
     // We have a local APK & a remote APK, and the remote is newer.
@@ -143,5 +149,5 @@ export async function streamLatestApk(config: HtkConfig): Promise<stream.Readabl
     }).catch(reportError);
 
     console.log('Streaming local APK, and updating it async');
-    return fs.createReadStream(localApk.path, { encoding: 'binary' });
+    return fs.createReadStream(localApk.path);
 }
