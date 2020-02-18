@@ -15,7 +15,8 @@ import {
     getRootCommand,
     pushFile,
     injectSystemCertificate,
-    stringAsStream
+    stringAsStream,
+    hasCertInstalled
 } from './adb-commands';
 import { streamLatestApk } from './fetch-apk';
 
@@ -141,8 +142,14 @@ export class AndroidAdbInterceptor implements Interceptor {
         const cert = forge.pki.certificateFromPem(certContent);
 
         try {
-            const certName = getCertificateHash(cert);
-            const certPath = `${ANDROID_TEMP}/${certName}.0`;
+            const certHash = getCertificateHash(cert);
+
+            if (await hasCertInstalled(this.adbClient, deviceId, certHash)) {
+                console.log("Cert already installed, nothing to do");
+                return;
+            }
+
+            const certPath = `${ANDROID_TEMP}/${certHash}.0`;
             console.log(`Adding cert file as ${certPath}`);
 
             await pushFile(

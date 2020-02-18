@@ -7,6 +7,10 @@ declare module 'adbkit' {
         type: string;
     }
 
+    export interface File {
+        name: string;
+    }
+
     export interface AdbClient {
         listDevices(): Promise<Device[]>;
         isInstalled(id: string, pkg: string): Promise<boolean>;
@@ -20,12 +24,17 @@ declare module 'adbkit' {
                 data?: string;
             }
         ): Promise<true>;
+        readdir(id: string, path: string): Promise<Array<File>>;
         push(
             id: string,
             contents: string | stream.Readable,
             path: string,
             mode?: number
-        ): Promise<events.EventEmitter>
+        ): Promise<events.EventEmitter>;
+        pull(
+            id: string,
+            path: string
+        ): Promise<events.EventEmitter & { cancel: () => void }>
         shell(id: string, cmd: string | string[]): Promise<stream.Readable>;
         root(id: string): Promise<true>;
     }

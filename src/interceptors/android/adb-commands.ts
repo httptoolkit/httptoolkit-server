@@ -82,6 +82,31 @@ export async function getRootCommand(adbClient: adb.AdbClient, deviceId: string)
     return validRootCommands[0];
 }
 
+export async function hasCertInstalled(
+    adbClient: adb.AdbClient,
+    deviceId: string,
+    certHash: string
+) {
+    try {
+        const certPath = `/system/etc/security/cacerts/${certHash}.0`;
+        const certStream = await adbClient.pull(deviceId, certPath);
+
+        // Wait until it's clear that the read is successful
+        await new Promise((resolve, reject) => {
+            certStream.on('progress', resolve);
+            certStream.on('end', resolve);
+
+            certStream.on('error', reject);
+        });
+
+        certStream.cancel();
+        return true;
+    } catch (e) {
+        // If we fail to read the cert somehow, it's probably not there
+        return false;
+    }
+}
+
 export async function injectSystemCertificate(
     adbClient: adb.AdbClient,
     deviceId: string,
