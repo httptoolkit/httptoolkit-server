@@ -1,11 +1,3 @@
-try:
-    import importlib
-    if not hasattr(importlib, 'reload'):
-        raise Exception('wrong importlib')
-except:
-    import imp
-    importlib = imp
-
 def preload_real_module(*module_names):
     # Re-importing the real module at the top level of an override fails after deleting it from
     # sys.modules['httplib'] in Python 2. Some interesting issues there ofc, but doing this
