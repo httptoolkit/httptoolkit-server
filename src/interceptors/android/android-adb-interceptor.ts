@@ -75,7 +75,7 @@ export class AndroidAdbInterceptor implements Interceptor {
     }): Promise<void | {}> {
         await this.injectSystemCertIfPossible(options.deviceId, this.config.https.certContent);
 
-        if (!(await this.adbClient.isInstalled(options.deviceId, 'tech.httptoolkit.android'))) {
+        if (!(await this.adbClient.isInstalled(options.deviceId, 'tech.httptoolkit.android.v1'))) {
             console.log("App not installed, installing...");
             let stream = await streamLatestApk(this.config);
             await this.adbClient.install(options.deviceId, stream);
