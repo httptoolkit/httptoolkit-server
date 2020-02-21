@@ -69,7 +69,7 @@ export async function getRootCommand(adbClient: adb.AdbClient, deviceId: string)
     // Run whoami with each of the possible root commands
     const rootCheckResults = await Promise.all(
         runAsRootCommands.map((cmd) =>
-            run(adbClient, deviceId, cmd.concat('whoami')).catch(() => {})
+            run(adbClient, deviceId, cmd.concat('whoami')).catch(console.log)
             .then((whoami) => ({ cmd, whoami }))
         )
     )
@@ -79,7 +79,17 @@ export async function getRootCommand(adbClient: adb.AdbClient, deviceId: string)
         .filter((result) => (result.whoami || '').trim() === 'root')
         .map((result) => result.cmd);
 
-    return validRootCommands[0];
+    if (validRootCommands.length >= 1) return validRootCommands[0];
+
+    // If no explicit root commands are available, try to restart adb in root
+    // mode instead. If this works, *all* commands will run as root.
+    // We prefer explicit "su" calls if possible, to limit access & side effects.
+    await adbClient.root(deviceId).catch(() => console.log);
+    const whoami = await run(adbClient, deviceId, ['whoami']).catch(console.log);
+
+    return (whoami || '').trim() === 'root'
+        ? [] // all commands now run as root, so no prefix required.
+        : undefined; // Still not root, no luck.
 }
 
 export async function hasCertInstalled(
