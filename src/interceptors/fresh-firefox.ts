@@ -133,12 +133,12 @@ export class FreshFirefox implements Interceptor {
         let certInstalled: Promise<void> | true = certCheckServer.waitForSuccess().catch(reportError);
 
         certInstallBrowser = await this.startFirefox(certCheckServer);
-        certInstallBrowser.process.once('close', () => {
+        certInstallBrowser.process.once('close', (exitCode) => {
             certCheckServer.stop();
             certInstallBrowser = undefined;
 
             if (certInstalled !== true) {
-                reportError('Firefox certificate setup failed');
+                reportError(`Firefox certificate profile setup failed with code ${exitCode}`);
                 deleteFolder(this.firefoxProfilePath).catch(console.warn);
             }
         });
@@ -199,11 +199,11 @@ export class FreshFirefox implements Interceptor {
         }).catch(reportError);
 
         browsers[proxyPort] = browser;
-        browser.process.once('close', () => {
+        browser.process.once('close', (exitCode) => {
             certCheckServer.stop();
             delete browsers[proxyPort];
             if (!success) {
-                reportError('Firefox certificate check failed');
+                reportError(`Firefox certificate check failed with code ${exitCode}`);
                 deleteFolder(this.firefoxProfilePath).catch(console.warn);
             }
         });
