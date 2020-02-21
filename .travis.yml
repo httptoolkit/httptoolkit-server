@@ -3,6 +3,7 @@ sudo: required
 language: node_js
 node_js:
 - node
+- '12'
 - '10.15.3'
 - '8'
 before_install:
