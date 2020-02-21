@@ -29,20 +29,25 @@ async function getLatestRelease(): Promise<{ version: string, url: string } | un
     }
 }
 
-async function getLocalApk(config: HtkConfig) {
+async function getAllLocalApks(config: HtkConfig) {
+    const apks = (await readDir(config.configPath))
+        .map(filename => filename.match(/^httptoolkit-(.*).apk$/))
+        .filter((match): match is RegExpMatchArray => !!match)
+        .map((match) => ({
+            path: path.join(config.configPath, match[0]),
+            version: semver.valid(match[1]) || '0.0.0'
+        }));
+
+    apks.sort((apk1, apk2) => {
+        return -1 * semver.compare(apk1.version, apk2.version);
+    });
+
+    return apks;
+}
+
+async function getLatestLocalApk(config: HtkConfig) {
     try {
-        const apks = (await readDir(config.configPath))
-            .map(filename => filename.match(/^httptoolkit-(.*).apk$/))
-            .filter((match): match is RegExpMatchArray => !!match)
-            .map((match) => ({
-                path: path.join(config.configPath, match[0]),
-                version: match[1]
-            }));
-
-        apks.sort((apk1, apk2) => {
-            return -1 * semver.compare(apk1.version, apk2.version);
-        });
-
+        const apks = await getAllLocalApks(config);
         const latestLocalApk = apks[0];
         if (!latestLocalApk) return;
         else return latestLocalApk;
@@ -90,17 +95,7 @@ async function updateLocalApk(
 
 // Delete all but the most recent APK version in the config directory.
 async function cleanupOldApks(config: HtkConfig) {
-    const apks = (await readDir(config.configPath))
-        .map(filename => filename.match(/^httptoolkit-(.*).apk$/))
-        .filter((match): match is RegExpMatchArray => !!match)
-        .map((match) => ({
-            path: path.join(config.configPath, match[0]),
-            version: match[1]
-        }));
-
-    apks.sort((apk1, apk2) => {
-        return -1 * semver.compare(apk1.version, apk2.version);
-    });
+    const apks = await getAllLocalApks(config);
 
     console.log(`Deleting old APKs: ${apks.slice(1).map(apk => apk.path).join(', ')}`);
 
@@ -112,7 +107,7 @@ async function cleanupOldApks(config: HtkConfig) {
 export async function streamLatestApk(config: HtkConfig): Promise<stream.Readable> {
     const [latestApkRelease, localApk] = await Promise.all([
         await getLatestRelease(),
-        await getLocalApk(config)
+        await getLatestLocalApk(config)
     ]);
 
     if (!localApk) {
