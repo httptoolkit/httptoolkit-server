@@ -85,12 +85,14 @@ const buildResolvers = (
                 const interceptor = interceptors[id];
                 if (!interceptor) throw new Error(`Unknown interceptor ${id}`);
 
-                const result = await Promise.race([
-                    // Activate, and either return metadata, or some error
-                    interceptor.activate(proxyPort, options).catch((e) => e),
-                    // After 30s, we don't stop activating, but we do return an error
-                    delay(30000).then(() => new Error(`Timeout activating ${id}`))
-                ]);
+                // After 30s, don't stop activating, but report an error if we're not done yet
+                let activationDone = false;
+                delay(30000).then(() => {
+                    if (!activationDone) reportError(`Timeout activating ${id}`)
+                });
+
+                const result = await interceptor.activate(proxyPort, options).catch((e) => e);
+                activationDone = true;
 
                 if (_.isError(result)) {
                     reportError(result);
