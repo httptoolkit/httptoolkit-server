@@ -23,8 +23,13 @@ export async function getConnectedDevices(adbClient: adb.AdbClient) {
             .filter(d => d.type !== 'offline')
             .map(d => d.id);
     } catch (e) {
-        if (e.code === 'ENOENT') return [];
-        else {
+        if (
+            e.code === 'ENOENT' || // No ADB available
+            e.code === 'EACCES' || // ADB available, but we aren't allowed to run it
+            (e.cmd && e.code)      // ADB available, but "adb start-server" failed
+        ) {
+            return [];
+        } else {
             reportError(e);
             throw e;
         }
