@@ -64,7 +64,7 @@ export class AndroidAdbInterceptor implements Interceptor {
         return false;
     }
 
-    async getMetadata() {
+    async getMetadata(): Promise<{ deviceIds: string[] }> {
         return {
             deviceIds: await getConnectedDevices(this.adbClient)
         };

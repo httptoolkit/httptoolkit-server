@@ -131,10 +131,15 @@ const buildResolvers = (
                     return false;
                 }
             },
-            metadata: (interceptor: Interceptor) => {
-                return interceptor.getMetadata
-                    ? interceptor.getMetadata()
-                    : undefined;
+            metadata: async (interceptor: Interceptor) => {
+                try {
+                    return interceptor.getMetadata
+                        ? await interceptor.getMetadata()
+                        : undefined;
+                } catch (e) {
+                    reportError(e);
+                    return undefined;
+                }
             }
         },
 
