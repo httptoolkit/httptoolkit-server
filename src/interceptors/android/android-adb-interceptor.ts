@@ -16,7 +16,8 @@ import {
     pushFile,
     injectSystemCertificate,
     stringAsStream,
-    hasCertInstalled
+    hasCertInstalled,
+    bringToFront
 } from './adb-commands';
 import { streamLatestApk } from './fetch-apk';
 
@@ -81,6 +82,14 @@ export class AndroidAdbInterceptor implements Interceptor {
             await this.adbClient.install(options.deviceId, stream);
             console.log("App installed successfully");
         }
+
+        // Now that the app is installed, bring it to the front (avoids issues with starting a
+        // service for the VPN when in the foreground).
+        await bringToFront(
+            this.adbClient,
+            options.deviceId,
+            'tech.httptoolkit.android.v1/tech.httptoolkit.android.MainActivity'
+        ).catch(reportError); // Not that important, so we continue if this fails somehow
 
         // Build a trigger URL to activate the proxy on the device:
         const setupParams = {

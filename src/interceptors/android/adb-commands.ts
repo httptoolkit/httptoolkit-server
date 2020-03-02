@@ -177,3 +177,12 @@ export async function injectSystemCertificate(
     await run(adbClient, deviceId, rootCmd.concat('sh', injectionScriptPath));
 }
 
+export function bringToFront(
+    adbClient: adb.AdbClient,
+    deviceId: string,
+    activityName: string // Of the form: com.package/com.package.YourActivity
+) {
+    return adbClient.shell(deviceId, [
+        "am", "start", "--activity-single-top", activityName
+    ]);
+}
