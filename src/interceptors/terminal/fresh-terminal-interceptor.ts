@@ -7,7 +7,7 @@ import { findExecutableById } from '@httptoolkit/osx-find-executable';
 import { Interceptor } from '..';
 import { HtkConfig } from '../../config';
 import { reportError, addBreadcrumb } from '../../error-tracking';
-import { spawnToResult, canAccess, commandExists } from '../../util';
+import { run, canAccess, commandExists } from '../../util';
 
 import { getTerminalEnvVars } from './terminal-env-overrides';
 import { editShellStartupScripts, resetShellStartupScripts } from './terminal-scripts';
@@ -110,7 +110,7 @@ const getXTerminalCommand = async (command = 'x-terminal-emulator'): Promise<Spa
     try {
         // Run the command with -h to get some output we can use to infer the terminal itself.
         // --version would be nice, but the debian wrapper ignores it. --help isn't supported by xterm.
-        const { stdout } = await spawnToResult(command, ['-h']);
+        const { stdout } = await run(command, ['-h']);
         const helpOutput = stdout.toLowerCase().replace(/[^\w\d]+/g, ' ');
 
         if (helpOutput.includes('gnome terminal') && await commandExists('gnome-terminal')) {
@@ -136,7 +136,7 @@ const getXTerminalCommand = async (command = 'x-terminal-emulator'): Promise<Spa
 const getKonsoleTerminalCommand = async (command = 'konsole'): Promise<SpawnArgs> => {
     let extraArgs: string[] = [];
 
-    const { stdout } = await spawnToResult(command, ['--help']);
+    const { stdout } = await run(command, ['--help']);
 
     // Forces Konsole to run in the foreground, with no separate process
     // Seems to be well supported for a long time, but check just in case
@@ -150,7 +150,7 @@ const getKonsoleTerminalCommand = async (command = 'konsole'): Promise<SpawnArgs
 const getGnomeTerminalCommand = async (command = 'gnome-terminal'): Promise<SpawnArgs> => {
     let extraArgs: string[] = [];
 
-    const { stdout } = await spawnToResult(command, ['--help-all']);
+    const { stdout } = await run(command, ['--help-all']);
 
     // Officially supported option, but only supported in v3.28+
     if (stdout.includes('--wait')) {
@@ -172,7 +172,7 @@ const getGnomeTerminalCommand = async (command = 'gnome-terminal'): Promise<Spaw
 const getXfceTerminalCommand = async (command = 'xfce4-terminal'): Promise<SpawnArgs> => {
     let extraArgs: string[] = [];
 
-    const { stdout } = await spawnToResult(command, ['--help']);
+    const { stdout } = await run(command, ['--help']);
 
     // Disables the XFCE terminal server for this terminal, so it runs in the foreground.
     // Seems to be well supported for a long time, but check just in case

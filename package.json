@@ -55,6 +55,7 @@
     "portfinder": "^1.0.25",
     "registry-js": "^1.4.0",
     "rimraf": "^2.6.2",
+    "sudo-prompt": "^9.1.1",
     "tmp": "0.0.33",
     "tslib": "^1.9.3",
     "win-version-info": "^3.0.1"

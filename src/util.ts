@@ -5,6 +5,8 @@ import * as rimraf from 'rimraf';
 import { spawn } from 'child_process';
 import * as ensureCommandExists from 'command-exists';
 
+import * as sudoPrompt from 'sudo-prompt';
+
 export function delay(durationMs: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, durationMs));
 }
@@ -30,17 +32,31 @@ export function getDeferred<T = void>(): Deferred<T> {
 }
 
 export async function windowsKill(processMatcher: string) {
-    await spawn('wmic', [
+    const proc = spawn('wmic', [
         'Path', 'win32_process',
         'Where', processMatcher,
         'Call', 'Terminate'
     ], {
         stdio: 'inherit'
     });
+
+    return new Promise((resolve, reject) => {
+        proc.once('error', reject);
+        proc.once('exit', resolve);
+    });
 }
 
+export const sudo = (cmd: string, options: { name?: string, icns?: string } = {}) => {
+    return new Promise<{ stdout: string, stderr: string }>((resolve, reject) => {
+        sudoPrompt.exec(cmd, options, (error, stdout, stderr) => {
+            if (error) reject(error);
+            else resolve({ stdout, stderr });
+        });
+    });
+};
+
 // Spawn a command, and resolve with all output as strings when it terminates
-export function spawnToResult(command: string, args: string[] = [], options = {}, inheritOutput = false): Promise<{
+export function run(command: string, args: string[] = [], options = {}, inheritOutput = false): Promise<{
     exitCode?: number,
     stdout: string,
     stderr: string

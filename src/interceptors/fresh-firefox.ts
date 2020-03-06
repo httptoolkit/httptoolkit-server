@@ -7,7 +7,7 @@ import { HtkConfig } from '../config';
 import { reportError } from '../error-tracking';
 
 import { getAvailableBrowsers, launchBrowser, BrowserInstance } from '../browsers';
-import { delay, windowsKill, readFile, canAccess, deleteFolder, spawnToResult } from '../util';
+import { delay, windowsKill, readFile, canAccess, deleteFolder, run } from '../util';
 import { MessageServer } from '../message-server';
 import { CertCheckServer } from '../cert-check-server';
 import { Interceptor } from '.';
@@ -20,7 +20,7 @@ let browsers: _.Dictionary<BrowserInstance> = {};
 export const NSS_DIR = path.join(APP_ROOT, 'nss');
 
 const testCertutil = (command: string, options?: SpawnOptions) => {
-    return spawnToResult(command, ['-h'], options)
+    return run(command, ['-h'], options)
         .then((output) =>
             output.exitCode === 1 &&
             output.stderr.includes("Utility to manipulate NSS certificate databases")
@@ -216,7 +216,7 @@ export class FreshFirefox implements Interceptor {
 
         // Once firefox has shut, rewrite the certificate database of the newly created profile:
         const certutil = await getCertutilCommand();
-        const certUtilResult = await spawnToResult(
+        const certUtilResult = await run(
             certutil.command, [
                 '-A',
                 '-d', `sql:${this.firefoxProfilePath}`,
