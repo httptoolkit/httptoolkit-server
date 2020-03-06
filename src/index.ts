@@ -14,6 +14,8 @@ import { ALLOWED_ORIGINS } from './constants';
 import { delay, readFile, checkAccess, writeFile, ensureDirectoryExists } from './util';
 import { registerShutdownHandler } from './shutdown';
 
+const APP_NAME = "HTTP Toolkit";
+
 async function generateHTTPSConfig(configPath: string) {
     const keyPath = path.join(configPath, 'ca.key');
     const certPath = path.join(configPath, 'ca.pem');
@@ -28,7 +30,7 @@ async function generateHTTPSConfig(configPath: string) {
         // Cert doesn't exist, or is too close/past expiry. Generate a new one:
 
         const newCertPair = await generateCACertificate({
-            commonName: 'HTTP Toolkit CA'
+            commonName: APP_NAME + ' CA'
         });
 
         return Promise.all([
@@ -95,6 +97,7 @@ export async function runHTK(options: {
 
     // Start the HTK server API
     const apiServer = new HttpToolkitServerApi({
+        appName: APP_NAME,
         configPath,
         authToken: options.authToken,
         https: httpsConfig

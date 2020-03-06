@@ -1,10 +1,15 @@
 import { getLocal, Mockttp } from 'mockttp';
+import { HtkConfig } from './config';
 
 // The first tab that opens in a new Chrome/Edge window warns about dangerous flags.
 // Closing it and immediately opening a new one is a bit cheeky, but
 // is completely gets rid that, more or less invisibly:
 
 export class HideWarningServer {
+
+    constructor(
+        private config: HtkConfig
+    ) {}
 
     private server: Mockttp = getLocal();
 
@@ -23,7 +28,7 @@ export class HideWarningServer {
 
         await this.server.get('/hide-warning').thenReply(200, `
             <html>
-                <title>HTTP Toolkit Warning Fix</title>
+                <title>${this.config.appName} Warning Fix</title>
                 <meta charset="UTF-8" />
                 <style>
                     body { background-color: #d8e2e6; }

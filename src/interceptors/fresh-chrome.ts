@@ -41,7 +41,7 @@ export class FreshChrome implements Interceptor {
         const certificatePem = await readFile(this.config.https.certPath, 'utf8');
         const spkiFingerprint = generateSPKIFingerprint(certificatePem);
 
-        const hideWarningServer = new HideWarningServer();
+        const hideWarningServer = new HideWarningServer(this.config);
         await hideWarningServer.start('https://amiusing.httptoolkit.tech');
 
         const chromeDetails = await getChromeBrowserDetails(this.config);

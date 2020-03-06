@@ -33,7 +33,7 @@ export async function setupInterceptor(interceptor: string): InterceptorSetup {
     const httpsConfig = await getCertificateDetails(configPath);
 
     const server = getLocal({ https: httpsConfig });
-    const interceptors = buildInterceptors({ configPath, https: httpsConfig });
+    const interceptors = buildInterceptors({ appName: "HTTP Toolkit", configPath, https: httpsConfig });
 
     return { server, interceptor: interceptors[interceptor], httpsConfig };
 }

@@ -1,11 +1,11 @@
 import { getLocal, Mockttp } from 'mockttp';
 
-import { HttpsPathOptions } from 'mockttp/dist/util/tls';
 import { readFile } from './util';
+import { HtkConfig } from './config';
 
 export class CertCheckServer {
 
-    constructor(private config: { https: HttpsPathOptions }) { }
+    constructor(private config: HtkConfig) { }
 
     private server: Mockttp | undefined;
 
@@ -24,7 +24,7 @@ export class CertCheckServer {
             }),
             this.server.get('/check-cert').thenReply(200, `
                 <html>
-                    <title>HTTP Toolkit Certificate Setup</title>
+                    <title>${this.config.appName} Certificate Setup</title>
                     <meta charset="UTF-8" />
                     <link href="http://fonts.googleapis.com/css?family=Lato" rel="stylesheet" />
                     <style>
@@ -112,7 +112,7 @@ export class CertCheckServer {
                         </svg>
 
                         <p>
-                            To intercept HTTPS traffic, you need to trust the HTTP Toolkit certificate.
+                            To intercept HTTPS traffic, you need to trust the ${this.config.appName} certificate.
                             <br/>
                             This will only apply to this standalone Firefox profile, not your normal browser.
                         </p>
@@ -120,7 +120,7 @@ export class CertCheckServer {
                             Select 'Trust this CA to identify web sites' and press 'OK' to continue.
                         </strong></p>
                         <p>
-                            Made a mistake? Quit Firefox and start it again from HTTP Toolkit to retry.
+                            Made a mistake? Quit Firefox and start again to retry.
                         </p>
                     </div>
                     </body>
@@ -128,7 +128,7 @@ export class CertCheckServer {
             `),
             this.server.get('/spinner').thenReply(200, `
                 <html>
-                    <title>HTTP Toolkit Certificate Setup</title>
+                    <title>${this.config.appName} Certificate Setup</title>
                     <meta charset="UTF-8" />
                     <style>
                         body {
