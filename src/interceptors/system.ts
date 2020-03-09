@@ -18,6 +18,8 @@ async function getSystemCommand(name: string) {
     }
 }
 
+const hasSystemCommand = (name: string) => getSystemCommand(name).then(() => true).catch(() => false);
+
 export class SystemInterceptor implements Interceptor {
 
     private activePort: number | undefined = undefined;
@@ -28,7 +30,7 @@ export class SystemInterceptor implements Interceptor {
     constructor(private config: HtkConfig) { }
 
     async isActivable(): Promise<boolean> {
-        return process.platform === 'win32';
+        return process.platform === 'win32' && (await hasSystemCommand('certutil')) && (await hasSystemCommand('reg'));
     }
 
     isActive(proxyPort: number): boolean {
