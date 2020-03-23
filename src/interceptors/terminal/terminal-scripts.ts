@@ -173,6 +173,7 @@ export const resetShellStartupScripts = () => {
         path.join(os.homedir(), '.profile'),
         path.join(os.homedir(), '.bash_profile'),
         path.join(os.homedir(), '.bash_login'),
+        path.join(os.homedir(), '.bashrc'),
         path.join(os.homedir(), '.zshenv'),
         path.join(os.homedir(), '.zshrc'),
         path.join(os.homedir(), '.config', 'fish', 'config.fish'),
