@@ -266,6 +266,7 @@ export class FreshTerminalInterceptor implements Interceptor {
         await Promise.all(
             Object.keys(terminals).map((proxyPort) => this.deactivate(proxyPort))
         );
-    }
 
+        await resetShellStartupScripts();
+    }
 }
