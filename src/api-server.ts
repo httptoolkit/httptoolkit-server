@@ -54,7 +54,19 @@ const typeDefs = `
     scalar Json
     scalar Error
     scalar Void
-`
+`;
+
+// Wait for a promise, falling back to defaultValue on error or timeout
+const withFallback = <R>(p: Promise<R>, timeoutMs: number, defaultValue: R) =>
+    Promise.race([
+        p.catch((error) => {
+            reportError(error);
+            return defaultValue;
+        }),
+        delay(timeoutMs).then(() => defaultValue)
+    ]);
+
+const INTERCEPTOR_TIMEOUT = 1000;
 
 const buildResolvers = (
     config: HtkConfig,
@@ -118,10 +130,11 @@ const buildResolvers = (
 
         Interceptor: {
             isActivable: (interceptor: Interceptor) => {
-                return interceptor.isActivable().catch((e) => {
-                    reportError(e);
-                    return false;
-                });
+                return withFallback(
+                    interceptor.isActivable(),
+                    INTERCEPTOR_TIMEOUT,
+                    false
+                );
             },
             isActive: (interceptor: Interceptor, args: _.Dictionary<any>) => {
                 try {
@@ -132,10 +145,14 @@ const buildResolvers = (
                 }
             },
             metadata: async (interceptor: Interceptor) => {
+                if (!interceptor.getMetadata) return undefined;
+
                 try {
-                    return interceptor.getMetadata
-                        ? await interceptor.getMetadata()
-                        : undefined;
+                    return await withFallback(
+                        interceptor.getMetadata(),
+                        INTERCEPTOR_TIMEOUT,
+                        undefined
+                    );
                 } catch (e) {
                     reportError(e);
                     return undefined;
