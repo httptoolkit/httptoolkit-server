@@ -16,7 +16,31 @@ export function createAdbClient() {
     });
 }
 
-export async function getConnectedDevices(adbClient: adb.AdbClient) {
+// Batch async calls, so that all calls whilst one call is ongoing return the same result.
+// Always uses the arguments from the first call, so this isn't safe for some cases!
+const batchCalls = <A extends any[], R>(
+    fn: (...args: A) => Promise<R>
+) => {
+    let ongoingCall: Promise<R> | undefined = undefined;
+
+    return (...args: A) => {
+        if (!ongoingCall) {
+            ongoingCall = fn(...args)
+                .then((result) => {
+                    ongoingCall = undefined;
+                    return result;
+                })
+                .catch((error) => {
+                    ongoingCall = undefined;
+                    throw error;
+                });
+        }
+
+        return ongoingCall;
+    };
+}
+
+export const getConnectedDevices = batchCalls(async (adbClient: adb.AdbClient) => {
     try {
         const devices = await adbClient.listDevices();
         return devices
@@ -34,7 +58,7 @@ export async function getConnectedDevices(adbClient: adb.AdbClient) {
             throw e;
         }
     }
-}
+});
 
 export function stringAsStream(input: string) {
     const contentStream = new stream.Readable();
