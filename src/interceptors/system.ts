@@ -3,6 +3,7 @@ import * as path from 'path';
 import { Interceptor } from '.';
 import { HtkConfig } from '../config';
 import { canAccess, commandExists, sudo } from '../util';
+import { markProxySettingsChanged } from '../windows';
 
 const SYSTEM_ROOT = process.env.SYSTEMROOT as string; // Always defined *ON WINDOWS*
 const REG_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings";
@@ -53,6 +54,8 @@ export class SystemInterceptor implements Interceptor {
         ].join(" & "), {
             name: this.config.appName
         });
+
+        await markProxySettingsChanged();
     }
 
     async deactivate(): Promise<void> { }
