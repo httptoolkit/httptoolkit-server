@@ -38,17 +38,19 @@ export class SystemInterceptor implements Interceptor {
     }
 
     async activate(proxyPort: number): Promise<void> {
-        const certUtil = await getSystemCommand('certutil');
-        const reg = await getSystemCommand('reg');
+        const [certUtil, reg, netSh] = await Promise.all([
+            'certUtil', 'reg', 'netsh'
+        ].map(getSystemCommand));
 
         // Insert the certificate into the root cert store (this will prompt for admin permissions)
         // Set the proxy address in the registry, drop any proxy-excluded addresses, then activate the proxy
-        await sudo(`
-            ${certUtil} -addstore Root "${this.config.https.certPath}" & \
-            ${reg} add "${REG_KEY}" /v ProxyServer /t REG_SZ /d "127.0.0.1:${proxyPort} /f & \
-            ${reg} delete "${REG_KEY}" /v ProxyOverride /f & \
-            ${reg} add "${REG_KEY}" /v ProxyEnable /t REG_DWORD /d 1 /f
-        `, {
+        await sudo([
+            `${certUtil} -addstore Root "${this.config.https.certPath}"`,
+            `${reg} add "${REG_KEY}" /v ProxyServer /t REG_SZ /d "127.0.0.1:${proxyPort}" /f`,
+            `${reg} delete "${REG_KEY}" /v ProxyOverride /f`,
+            `${reg} add "${REG_KEY}" /v ProxyEnable /t REG_DWORD /d 1 /f`,
+            `${netSh} winhttp import proxy source=ie`
+        ].join(" & "), {
             name: this.config.appName
         });
     }
