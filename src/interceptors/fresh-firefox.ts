@@ -109,6 +109,8 @@ export class FreshFirefox implements Interceptor {
             )
         }, this.config.configPath);
 
+        console.log('Firefox started');
+
         if (browser.process.stdout) browser.process.stdout.pipe(process.stdout);
         if (browser.process.stderr) browser.process.stderr.pipe(process.stderr);
 
@@ -134,6 +136,7 @@ export class FreshFirefox implements Interceptor {
 
         certInstallBrowser = await this.startFirefox(certCheckServer);
         certInstallBrowser.process.once('close', (exitCode) => {
+            console.log("Cert install Firefox closed");
             certCheckServer.stop();
             certInstallBrowser = undefined;
 
@@ -200,6 +203,8 @@ export class FreshFirefox implements Interceptor {
 
         browsers[proxyPort] = browser;
         browser.process.once('close', (exitCode) => {
+            console.log('Firefox closed');
+
             certCheckServer.stop();
             delete browsers[proxyPort];
             if (!success) {
