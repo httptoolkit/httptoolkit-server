@@ -35,7 +35,8 @@ abstract class ChromiumBasedInterceptor implements Interceptor {
     }
 
     async isActivable() {
-        return !!(await getBrowserDetails(this.config, this.variantName));
+        const browserDetails = await getBrowserDetails(this.config, this.variantName)
+        return !!browserDetails;
     }
 
     async activate(proxyPort: number) {
@@ -75,6 +76,9 @@ abstract class ChromiumBasedInterceptor implements Interceptor {
         this.activeBrowsers[proxyPort] = browser;
         browser.process.once('close', () => {
             delete this.activeBrowsers[proxyPort];
+
+            // Opera has a launch proc that exits immediately in Windows, so we can't clear the profile there.
+            if (process.platform === 'win32' && this.variantName === 'opera') return;
 
             if (Object.keys(this.activeBrowsers).length === 0 && browserDetails && _.isString(browserDetails.profile)) {
                 // If we were the last browser, and we have a profile path, and it's in our config
@@ -206,6 +210,28 @@ export class FreshEdgeCanary extends ChromiumBasedInterceptor {
 
     constructor(config: HtkConfig) {
         super(config, 'msedge-canary');
+    }
+
+};
+
+export class FreshBrave extends ChromiumBasedInterceptor {
+
+    id = 'fresh-brave';
+    version = '1.0.0';
+
+    constructor(config: HtkConfig) {
+        super(config, 'brave');
+    }
+
+};
+
+export class FreshOpera extends ChromiumBasedInterceptor {
+
+    id = 'fresh-opera';
+    version = '1.0.0';
+
+    constructor(config: HtkConfig) {
+        super(config, 'opera');
     }
 
 };

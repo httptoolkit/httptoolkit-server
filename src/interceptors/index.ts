@@ -12,7 +12,9 @@ import {
     FreshChromiumDev,
     FreshEdge,
     FreshEdgeBeta,
-    FreshEdgeCanary
+    FreshEdgeCanary,
+    FreshBrave,
+    FreshOpera
 } from './chromium-based-interceptors';
 import { FreshTerminalInterceptor } from './terminal/fresh-terminal-interceptor';
 import { ExistingTerminalInterceptor } from './terminal/existing-terminal-interceptor';
@@ -40,15 +42,23 @@ export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> 
         new FreshChromeBeta(config),
         new FreshChromeDev(config),
         new FreshChromeCanary(config),
+
         new FreshChromium(config),
         new FreshChromiumDev(config),
+
         new FreshEdge(config),
         new FreshEdgeBeta(config),
         new FreshEdgeCanary(config),
+
+        new FreshOpera(config),
+        new FreshBrave(config),
         new FreshFirefox(config),
+
         new FreshTerminalInterceptor(config),
         new ExistingTerminalInterceptor(config),
+
         new ElectronInterceptor(config),
+
         new AndroidAdbInterceptor(config)
     ];
 
