@@ -134,49 +134,35 @@ describe('Integration test', function () {
             }
         `)({ proxyPort: 8000 });
 
+        const activable = (id: string, version = '1.0.0') => ({
+            id,
+            version,
+            "isActivable": true,
+            "isActive": false
+        });
+
+        const inactivable = (id: string, version = '1.0.0') => ({
+            id,
+            version,
+            "isActivable": false,
+            "isActive": false
+        });
+
         expect(response.interceptors).to.deep.equal([
-            {
-                "id": "fresh-chrome",
-                "isActivable": true,
-                "isActive": false,
-                "version": "1.0.0"
-            },
-            {
-                "id": "fresh-firefox",
-                "isActivable": true,
-                "isActive": false,
-                "version": "1.0.0"
-            },
-            {
-                "id": "fresh-edge",
-                "isActivable": false, // TODO: Install Edge in Travis, to make this true
-                "isActive": false,
-                "version": "1.0.0"
-            },
-            {
-                "id": "fresh-terminal",
-                "isActivable": true,
-                "isActive": false,
-                "version": "1.0.0"
-            },
-            {
-                "id": "existing-terminal",
-                "isActivable": true,
-                "isActive": false,
-                "version": "1.0.0"
-            },
-            {
-                "id": "electron",
-                "isActivable": true,
-                "isActive": false,
-                "version": "1.0.1"
-            },
-            {
-                "id": "android-adb",
-                "isActivable": false,
-                "isActive": false,
-                "version": "1.0.0"
-            }
+            activable('fresh-chrome'),
+            inactivable('fresh-chrome-beta'),
+            inactivable('fresh-chrome-dev'),
+            inactivable('fresh-chrome-canary'),
+            inactivable('fresh-chromium'),
+            inactivable('fresh-chromium-dev'),
+            inactivable('fresh-edge'),
+            inactivable('fresh-edge-beta'),
+            inactivable('fresh-edge-canary'),
+            activable('fresh-firefox'),
+            activable('fresh-terminal'),
+            activable('existing-terminal'),
+            activable('electron', '1.0.1'),
+            inactivable('android-adb'),
         ]);
     });
 });

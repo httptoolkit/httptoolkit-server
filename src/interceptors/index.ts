@@ -2,9 +2,18 @@ import * as _ from 'lodash';
 
 import { HtkConfig } from '../config';
 
-import { FreshChrome } from './fresh-chrome';
 import { FreshFirefox } from './fresh-firefox';
-import { FreshEdge } from './fresh-edge';
+import {
+    FreshChrome,
+    FreshChromeBeta,
+    FreshChromeCanary,
+    FreshChromeDev,
+    FreshChromium,
+    FreshChromiumDev,
+    FreshEdge,
+    FreshEdgeBeta,
+    FreshEdgeCanary
+} from './chromium-based-interceptors';
 import { FreshTerminalInterceptor } from './terminal/fresh-terminal-interceptor';
 import { ExistingTerminalInterceptor } from './terminal/existing-terminal-interceptor';
 import { AndroidAdbInterceptor } from './android/android-adb-interceptor';
@@ -28,8 +37,15 @@ export interface Interceptor {
 export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> {
     const interceptors = [
         new FreshChrome(config),
-        new FreshFirefox(config),
+        new FreshChromeBeta(config),
+        new FreshChromeDev(config),
+        new FreshChromeCanary(config),
+        new FreshChromium(config),
+        new FreshChromiumDev(config),
         new FreshEdge(config),
+        new FreshEdgeBeta(config),
+        new FreshEdgeCanary(config),
+        new FreshFirefox(config),
         new FreshTerminalInterceptor(config),
         new ExistingTerminalInterceptor(config),
         new ElectronInterceptor(config),
@@ -39,7 +55,13 @@ export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> 
     // When the server exits, try to shut down the interceptors too
     addShutdownHandler(() => shutdownInterceptors(interceptors));
 
-    return _.keyBy(interceptors, (interceptor) => interceptor.id);
+    const interceptorIndex = _.keyBy(interceptors, (interceptor) => interceptor.id);
+
+    if (Object.keys(interceptorIndex).length !== interceptors.length) {
+        throw new Error('Duplicate interceptor id');
+    }
+
+    return interceptorIndex;
 }
 
 function shutdownInterceptors(interceptors: Interceptor[]) {
