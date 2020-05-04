@@ -1,10 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
-import { Mutex } from 'async-mutex';
 
 import * as getBrowserLauncherCb from '@httptoolkit/browser-launcher';
-import { LaunchOptions, BrowserInstance, Browser } from '@httptoolkit/browser-launcher';
+import { LaunchOptions, Launch, BrowserInstance, Browser } from '@httptoolkit/browser-launcher';
 
 import { reportError } from './error-tracking';
 import { readFile, statFile, deleteFile } from './util';
@@ -51,14 +50,23 @@ export async function checkBrowserConfig(configPath: string) {
     })
 }
 
-// It's not safe to call getBrowserLauncher in parallel, as config files can
-// get corrupted. We use a mutex to serialize it.
-const getLauncherMutex = new Mutex();
+let launcher: Promise<Launch> | undefined;
 
 function getLauncher(configPath: string) {
-    return getLauncherMutex.runExclusive(() =>
-        getBrowserLauncher(browserConfigPath(configPath))
-    );
+    if (!launcher) {
+        const start = Date.now();
+        console.log('Getting launcher...');
+        launcher = getBrowserLauncher(browserConfigPath(configPath));
+        launcher.then(() => console.log(`Got launcher, took ${Date.now() - start}ms`));
+
+        // Reset & retry if this fails somehow:
+        launcher.catch((e) => {
+            reportError(e);
+            launcher = undefined;
+        });
+    }
+
+    return launcher;
 }
 
 export const getAvailableBrowsers = async (configPath: string) => {
