@@ -74,11 +74,12 @@ abstract class ChromiumBasedInterceptor implements Interceptor {
         await hideWarningServer.stop();
 
         this.activeBrowsers[proxyPort] = browser;
-        browser.process.once('close', () => {
+        browser.process.once('close', async () => {
             delete this.activeBrowsers[proxyPort];
 
             // Opera has a launch proc that exits immediately in Windows, so we can't clear the profile there.
             if (process.platform === 'win32' && this.variantName === 'opera') return;
+            await delay(1000); // No hurry, make sure the browser & related processes have all cleaned up
 
             if (Object.keys(this.activeBrowsers).length === 0 && browserDetails && _.isString(browserDetails.profile)) {
                 // If we were the last browser, and we have a profile path, and it's in our config
