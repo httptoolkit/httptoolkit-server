@@ -3,12 +3,19 @@ import * as path from 'path';
 import { promisify } from 'util';
 
 import * as getBrowserLauncherCb from '@httptoolkit/browser-launcher';
-import { LaunchOptions, Launch, BrowserInstance, Browser } from '@httptoolkit/browser-launcher';
+import {
+    LaunchOptions,
+    Launch,
+    BrowserInstance,
+    Browser,
+    update as updateBrowserCacheCb
+} from '@httptoolkit/browser-launcher';
 
 import { reportError } from './error-tracking';
-import { readFile, statFile, deleteFile } from './util';
+import { readFile, deleteFile, delay } from './util';
 
 const getBrowserLauncher = promisify(getBrowserLauncherCb);
+const updateBrowserCache: (configPath: string) => Promise<unknown> = promisify(updateBrowserCacheCb);
 
 const browserConfigPath = (configPath: string) => path.join(configPath, 'browsers.json');
 
@@ -16,48 +23,47 @@ export { BrowserInstance, Browser };
 
 export async function checkBrowserConfig(configPath: string) {
     // It's not clear why, but sometimes the browser config can become corrupted, so it's not valid JSON
-    // If that happens JBL doesn't catch it, so we crash. To avoid that, we check it here on startup.
+    // If that happens browser-launcher can hit issues. To avoid that entirely, we check it here on startup.
 
     const browserConfig = browserConfigPath(configPath);
-    return Promise.all([
-        // Check the file is readable and parseable
-        readFile(browserConfig, 'utf8')
-            .then((contents) => JSON.parse(contents)),
 
-        // Check the file is relatively recent
-        statFile(browserConfig)
-            .then((stats) => {
-                if (Date.now() - stats.mtime.valueOf() > 1000 * 60 * 60 * 24) {
-                    return deleteFile(browserConfig).catch((err) => {
-                        console.error('Failed to clear outdated config file');
-                        reportError(err);
-                    });
-                };
-            })
-    ])
-    .catch((error) => {
+    try {
+        const rawConfig = await readFile(browserConfig, 'utf8');
+        JSON.parse(rawConfig);
+    } catch (error) {
         if (error.code === 'ENOENT') return;
+        console.warn(`Failed to read browser config cache from ${browserConfig}, clearing.`, error);
 
-        console.warn('Failed to read browser config on startup', error);
         return deleteFile(browserConfig).catch((err) => {
-            // We can have a race if the file was invalid AND old, which case we can get a parse error
-            // and have deleted the file already. Regardless: it's now gone, so we're all good.
+            // There may be possible races around here - as long as the file's gone, we're happy
             if (err.code === 'ENOENT') return;
-
             console.error('Failed to clear broken config file:', err);
             reportError(err);
         });
-    })
+    }
 }
 
 let launcher: Promise<Launch> | undefined;
 
 function getLauncher(configPath: string) {
     if (!launcher) {
-        const start = Date.now();
-        console.log('Getting launcher...');
-        launcher = getBrowserLauncher(browserConfigPath(configPath));
-        launcher.then(() => console.log(`Got launcher, took ${Date.now() - start}ms`));
+        const browserConfig = browserConfigPath(configPath);
+        launcher = getBrowserLauncher(browserConfig);
+
+        launcher.then(async () => {
+            // Async after first creating the launcher, we trigger a background cache update.
+            // This can be *synchronously* expensive (spawns 10s of procs, 10+ms sync per
+            // spawn on unix-based OSs) so defer briefly.
+            await delay(2000);
+            try {
+                await updateBrowserCache(browserConfig);
+                console.log('Browser cache updated');
+                // Need to reload the launcher after updating the cache:
+                launcher = getBrowserLauncher(browserConfig);
+            } catch (e) {
+                reportError(e)
+            }
+        });
 
         // Reset & retry if this fails somehow:
         launcher.catch((e) => {
