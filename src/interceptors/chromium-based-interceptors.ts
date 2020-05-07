@@ -229,7 +229,7 @@ export class FreshBrave extends ChromiumBasedInterceptor {
 export class FreshOpera extends ChromiumBasedInterceptor {
 
     id = 'fresh-opera';
-    version = '1.0.0';
+    version = '1.0.1';
 
     constructor(config: HtkConfig) {
         super(config, 'opera');

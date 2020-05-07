@@ -33,6 +33,16 @@ module.exports = {
                 test: /\.mjs$/,
                 include: /node_modules/,
                 type: "javascript/auto",
+            },
+            {
+                test: /node_modules\/@httptoolkit\/browser-launcher\/lib\/run.js$/,
+                loader: 'string-replace-loader',
+                options: {
+                    search: '../res/',
+                    replace: './bl-resources/',
+                    flags: 'g',
+                    strict: true
+                }
             }
         ]
     },
@@ -63,7 +73,8 @@ module.exports = {
         new webpack.IgnorePlugin(/^\.\/src\/(adb|logcat|monkey)$/, /adbkit/),
         // Copy Mockttp's schema (read with readFile) into the output directory
         new CopyWebpackPlugin([
-            { from: path.join('node_modules', 'mockttp', 'dist', 'standalone', 'schema.gql') }
+            { from: path.join('node_modules', 'mockttp', 'dist', 'standalone', 'schema.gql') },
+            { from: path.join('node_modules', '@httptoolkit', 'browser-launcher', 'res'), to: 'bl-resources' }
         ]),
         // If SENTRY_AUTH_TOKEN is set, upload this sourcemap to Sentry
         process.env.SENTRY_AUTH_TOKEN
