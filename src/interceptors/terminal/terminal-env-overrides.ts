@@ -2,14 +2,11 @@ import * as path from 'path';
 
 import { HttpsPathOptions } from 'mockttp/dist/util/tls';
 
+import { APP_ROOT } from '../../constants';
+
 const PATH_VAR_SEPARATOR = process.platform === 'win32' ? ';' : ':';
 
-export const OVERRIDES_DIR = path.join(
-    process.env.HTK_IS_BUNDLED
-        ? path.join(__dirname, '..')
-        : path.join(__dirname, '..', '..', '..'),
-    'overrides'
-);
+export const OVERRIDES_DIR = path.join(APP_ROOT, 'overrides');
 const OVERRIDE_RUBYGEMS_PATH = path.join(OVERRIDES_DIR, 'gems');
 const OVERRIDE_PYTHONPATH = path.join(OVERRIDES_DIR, 'pythonpath');
 

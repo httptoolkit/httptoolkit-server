@@ -1,22 +1,72 @@
 import * as _ from 'lodash';
 import * as path from 'path';
+import { SpawnOptions } from 'child_process';
 
+import { APP_ROOT } from '../constants';
 import { HtkConfig } from '../config';
+import { reportError } from '../error-tracking';
 
 import { getAvailableBrowsers, launchBrowser, BrowserInstance } from '../browsers';
+import { delay, windowsKill, readFile, canAccess, deleteFolder, spawnToResult } from '../util';
+import { MessageServer } from '../message-server';
 import { CertCheckServer } from '../cert-check-server';
-import { delay, windowsKill, readFile, canAccess, deleteFolder } from '../util';
 import { Interceptor } from '.';
-import { reportError } from '../error-tracking';
 
 const FIREFOX_PREF_REGEX = /\w+_pref\("([^"]+)", (.*)\);/
 
-let certInstallBrowser: BrowserInstance | undefined;
+let profileSetupBrowser: BrowserInstance | undefined;
 let browsers: _.Dictionary<BrowserInstance> = {};
+
+export const NSS_DIR = path.join(APP_ROOT, 'nss');
+
+const testCertutil = (command: string, options?: SpawnOptions) => {
+    return spawnToResult(command, ['-h'], options)
+        .then((output) =>
+            output.exitCode === 1 &&
+            output.stderr.includes("Utility to manipulate NSS certificate databases")
+        )
+        .catch((e: any) => {
+            if (e.code !== 'ENOENT') {
+                console.log(`Failed to run ${command}`);
+                console.log(e);
+            }
+            return false;
+        });
+};
+
+const getCertutilCommand = _.memoize(async () => {
+    // If a working certutil is available in our path, we're all good
+    if (await testCertutil('certutil')) return { command: 'certutil' };
+
+    // If not, try to use the relevant bundled version
+    const bundledCertUtil = path.join(NSS_DIR, process.platform, 'certutil');
+    if (process.platform !== 'linux') {
+        if (await testCertutil(bundledCertUtil)) {
+            return { command: bundledCertUtil };
+        } else {
+            throw new Error("No certutil available");
+        }
+    }
+
+    const certutilEnv = {
+        ...process.env,
+        // The linux bundle includes most required libs, but we need to make sure it's
+        // in the search path so they get used, in case they're not installed elsewhere.
+        LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH
+            ? `${path.join(NSS_DIR, process.platform)}:${process.env.LD_LIBRARY_PATH}`
+            : path.join(NSS_DIR, process.platform)
+    };
+
+    if (await testCertutil(bundledCertUtil, { env: certutilEnv })) {
+        return { command: bundledCertUtil, options: { env: certutilEnv } };
+    } else {
+        throw new Error("No certutil available");
+    }
+});
 
 export class FreshFirefox implements Interceptor {
     id = 'fresh-firefox';
-    version = '1.0.0';
+    version = '1.1.0';
 
     constructor(private config: HtkConfig) { }
 
@@ -29,18 +79,19 @@ export class FreshFirefox implements Interceptor {
     async isActivable() {
         const availableBrowsers = await getAvailableBrowsers(this.config.configPath);
 
-        return _(availableBrowsers)
-            .map(b => b.name)
-            .includes('firefox')
+        const firefoxBrowser = _.find(availableBrowsers, { name: 'firefox' });
 
+        return !!firefoxBrowser && // Must have Firefox installed
+            parseInt(firefoxBrowser.version.split('.')[0], 0) >= 58 && // Must use cert9.db
+            getCertutilCommand().then(() => true).catch(() => false) // Must have certutil available
     }
 
     async startFirefox(
-        certCheckServer: CertCheckServer,
+        initialServer: MessageServer | CertCheckServer,
         proxyPort?: number,
         existingPrefs = {}
     ) {
-        const initialUrl = certCheckServer.checkCertUrl;
+        const initialUrl = initialServer.url;
 
         const browser = await launchBrowser(initialUrl, {
             browser: 'firefox',
@@ -58,8 +109,9 @@ export class FreshFirefox implements Interceptor {
                     'network.proxy.http': '"127.0.0.1"',
                     'network.proxy.http_port': proxyPort,
                     // Don't intercept our cert testing requests
-                    'network.proxy.no_proxies_on': "\"" + certCheckServer.host + "\"",
-                    'network.proxy.http.no_proxies_on': "\"" + certCheckServer.host + "\"",
+                    'network.proxy.no_proxies_on': "\"" + initialServer.host + "\"",
+                    'network.proxy.http.no_proxies_on': "\"" + initialServer.host + "\"",
+
 
                     // Send localhost reqs via the proxy too
                     'network.proxy.allow_hijacking_localhost': true,
@@ -129,38 +181,59 @@ export class FreshFirefox implements Interceptor {
     }
 
     async setupFirefoxProfile() {
-        const certCheckServer = new CertCheckServer(this.config);
-        await certCheckServer.start();
+        const messageServer = new MessageServer(
+            this.config,
+            `${this.config.appName} is preparing a Firefox profile, please wait...`
+        );
+        await messageServer.start();
 
-        let certInstalled: Promise<void> | true = certCheckServer.waitForSuccess().catch(reportError);
+        let messageShown: Promise<void> | true = messageServer.waitForSuccess().catch(reportError);
 
-        certInstallBrowser = await this.startFirefox(certCheckServer);
-        certInstallBrowser.process.once('close', (exitCode) => {
-            console.log("Cert install Firefox closed");
-            certCheckServer.stop();
-            certInstallBrowser = undefined;
+        profileSetupBrowser = await this.startFirefox(messageServer);
+        profileSetupBrowser.process.once('close', (exitCode) => {
+            console.log("Profile setup Firefox closed");
+            profileSetupBrowser = undefined;
 
-            if (certInstalled !== true) {
-                reportError(`Firefox certificate profile setup failed with code ${exitCode}`);
+            if (messageShown !== true) {
+                reportError(`Firefox profile setup failed with code ${exitCode}`);
                 deleteFolder(this.firefoxProfilePath).catch(console.warn);
             }
         });
 
-        await certInstalled;
-        certInstalled = true;
+        await messageShown;
+        messageShown = true;
 
         await delay(200); // Tiny delay, so firefox can do initial setup tasks
 
         // Tell firefox to shutdown, and wait until it does.
-        certInstallBrowser.stop();
-        return new Promise((resolve) => {
-            if (!certInstallBrowser) return resolve();
-            else certInstallBrowser.process.once('close', resolve);
+        profileSetupBrowser.stop();
+        await new Promise((resolve) => {
+            if (!profileSetupBrowser) return resolve();
+            else profileSetupBrowser.process.once('close', resolve);
         });
+
+        // Once firefox has shut, rewrite the certificate database of the newly created profile:
+        const certutil = await getCertutilCommand();
+        const certUtilResult = await spawnToResult(
+            certutil.command, [
+                '-A',
+                '-d', `sql:${this.firefoxProfilePath}`,
+                '-t', 'C,,',
+                '-i', this.config.https.certPath,
+                '-n', 'HTTP Toolkit'
+            ],
+            certutil.options || {}
+        );
+
+        if (certUtilResult.exitCode !== 0) {
+            console.log(certUtilResult.stdout);
+            console.log(certUtilResult.stderr);
+            throw new Error(`Certutil firefox profile setup failed with code ${certUtilResult.exitCode}`);
+        }
     }
 
     async activate(proxyPort: number) {
-        if (this.isActive(proxyPort) || !!certInstallBrowser) return;
+        if (this.isActive(proxyPort) || !!profileSetupBrowser) return;
 
         const firefoxPrefsFile = path.join(this.firefoxProfilePath, 'prefs.js');
 
@@ -174,9 +247,6 @@ export class FreshFirefox implements Interceptor {
             */
             await this.setupFirefoxProfile();
         }
-
-        const certCheckServer = new CertCheckServer(this.config);
-        await certCheckServer.start('https://amiusing.httptoolkit.tech');
 
         // We need to preserve & reuse any existing preferences, to avoid issues
         // where on pref setup firefox behaves badly (opening a 2nd window) on OSX.
@@ -194,12 +264,18 @@ export class FreshFirefox implements Interceptor {
                 return prefs
             }, {});
 
+        const certCheckServer = new CertCheckServer(this.config);
+        await certCheckServer.start("https://amiusing.httptoolkit.tech");
+
         const browser = await this.startFirefox(certCheckServer, proxyPort, existingPrefs);
 
-        let success = false;
+        let certCheckSuccessful: boolean | undefined;
         certCheckServer.waitForSuccess().then(() => {
-            success = true;
-        }).catch(reportError);
+            certCheckSuccessful = true;
+        }).catch((e) => {
+            certCheckSuccessful = false;
+            reportError(e)
+        });
 
         browsers[proxyPort] = browser;
         browser.process.once('close', (exitCode) => {
@@ -207,8 +283,12 @@ export class FreshFirefox implements Interceptor {
 
             certCheckServer.stop();
             delete browsers[proxyPort];
-            if (!success) {
-                reportError(`Firefox certificate check failed with code ${exitCode}`);
+            if (!certCheckSuccessful) {
+                reportError(`Firefox certificate check ${
+                    certCheckSuccessful === false
+                        ? "failed"
+                        : "did not complete"
+                } with FF exit code ${exitCode}`);
                 deleteFolder(this.firefoxProfilePath).catch(console.warn);
             }
         });
@@ -230,9 +310,9 @@ export class FreshFirefox implements Interceptor {
         await Promise.all(
             Object.keys(browsers).map((proxyPort) => this.deactivate(proxyPort))
         );
-        if (certInstallBrowser) {
-            certInstallBrowser.stop();
-            return new Promise((resolve) => certInstallBrowser!.process.once('close', resolve));
+        if (profileSetupBrowser) {
+            profileSetupBrowser.stop();
+            return new Promise((resolve) => profileSetupBrowser!.process.once('close', resolve));
         }
     }
 };

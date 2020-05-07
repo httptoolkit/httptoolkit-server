@@ -40,27 +40,35 @@ const packageApp = async () => {
         // Add the fully bundled source (not normally packaged by npm):
         path.join('bundle', 'index.js'),
         path.join('bundle', 'error-tracking.js'),
-        path.join('bundle', 'schema.gql')
+        path.join('bundle', 'schema.gql'),
     ].map((extraFile) =>
         fs.copy(path.join(__dirname, extraFile), path.join(OUTPUT_DIR, extraFile))
     ));
 
     // Edit the package to replace deps with the bundle:
     pjson.files.push('/bundle');
+    pjson.files.push('/nss');
     pjson.dependencies = _.pick(pjson.dependencies, pjson.oclif.dependenciesToPackage);
     delete pjson.scripts.prepack; // We don't want to rebuild
     await fs.writeJson(path.join(OUTPUT_DIR, 'package.json'), pjson);
 
     const buildScript = path.join(OUTPUT_DIR, 'build-release.sh');
 
-    // Run build-release in this folder, for each platform:
+    // Run build-release in this folder, for each platform. For each bundle, we copy in
+    // only the relevant platform-specific NSS files.
     console.log('Building for Linux');
+    await fs.mkdir(path.join(OUTPUT_DIR, 'nss'));
+    await fs.copy(path.join(__dirname, 'nss', 'linux'), path.join(OUTPUT_DIR, 'nss', 'linux'));
     await spawn(buildScript, ['linux'], { cwd: OUTPUT_DIR, stdio: 'inherit' });
 
     console.log('Building for Darwin');
+    await fs.remove(path.join(OUTPUT_DIR, 'nss', 'linux'));
+    await fs.copy(path.join(__dirname, 'nss', 'darwin'), path.join(OUTPUT_DIR, 'nss', 'darwin'));
     await spawn(buildScript, ['darwin'], { cwd: OUTPUT_DIR, stdio: 'inherit' });
 
     console.log('Building for Win32');
+    await fs.remove(path.join(OUTPUT_DIR, 'nss', 'darwin'));
+    await fs.copy(path.join(__dirname, 'nss', 'win32'), path.join(OUTPUT_DIR, 'nss', 'win32'));
     await spawn(buildScript, ['win32'], { cwd: OUTPUT_DIR, stdio: 'inherit' });
 }
 

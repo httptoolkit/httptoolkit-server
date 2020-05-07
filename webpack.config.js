@@ -35,6 +35,8 @@ module.exports = {
                 type: "javascript/auto",
             },
             {
+                // Some browser launchers (Opera) use resource files from within the browser-launcher
+                // module. We need to reroute that to point to the unbundled files:
                 test: /node_modules\/@httptoolkit\/browser-launcher\/lib\/run.js$/,
                 loader: 'string-replace-loader',
                 options: {

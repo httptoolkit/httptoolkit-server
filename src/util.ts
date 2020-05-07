@@ -3,9 +3,30 @@ import * as fs from 'fs';
 import * as tmp from 'tmp';
 import * as rimraf from 'rimraf';
 import { spawn } from 'child_process';
+import * as ensureCommandExists from 'command-exists';
 
 export function delay(durationMs: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, durationMs));
+}
+
+export interface Deferred<T> {
+    resolve: (arg: T) => void,
+    reject: (e?: Error) => void,
+    promise: Promise<T>
+}
+
+export function getDeferred<T = void>(): Deferred<T> {
+    let resolve: undefined | ((arg: T) => void) = undefined;
+    let reject: undefined | ((e?: Error) => void) = undefined;
+
+    let promise = new Promise<T>((resolveCb, rejectCb) => {
+        resolve = resolveCb;
+        reject = rejectCb;
+    });
+
+    // TS thinks we're using these before they're assigned, which is why
+    // we need the undefined types, and the any here.
+    return { resolve, reject, promise } as any;
 }
 
 export async function windowsKill(processMatcher: string) {
@@ -19,13 +40,13 @@ export async function windowsKill(processMatcher: string) {
 }
 
 // Spawn a command, and resolve with all output as strings when it terminates
-export function spawnToResult(command: string, args: string[] = [], inheritOutput = false): Promise<{
+export function spawnToResult(command: string, args: string[] = [], options = {}, inheritOutput = false): Promise<{
     exitCode?: number,
     stdout: string,
     stderr: string
 }> {
     return new Promise((resolve, reject) => {
-        const childProc = spawn(command, args, { stdio: 'pipe' });
+        const childProc = spawn(command, args, Object.assign({ stdio: 'pipe' } as const, options));
         const { stdout, stderr } = childProc;
 
         const stdoutData: Buffer[] = [];
@@ -66,6 +87,9 @@ export const deleteFolder = promisify(rimraf);
 
 export const ensureDirectoryExists = (path: string) =>
     checkAccess(path).catch(() => mkDir(path, { recursive: true }));
+
+export const commandExists = (path: string): Promise<boolean> =>
+    ensureCommandExists(path).then(() => true).catch(() => false);
 
 export const createTmp = (options: tmp.Options = {}) => new Promise<{
     path: string,

@@ -1,19 +1,16 @@
 import * as _ from 'lodash';
 import { spawn, ChildProcess, SpawnOptions } from 'child_process';
 import * as GSettings from 'node-gsettings-wrapper';
-import * as ensureCommandExists from 'command-exists';
 
 import { findExecutableById } from '@httptoolkit/osx-find-executable';
 
 import { Interceptor } from '..';
 import { HtkConfig } from '../../config';
 import { reportError, addBreadcrumb } from '../../error-tracking';
-import { spawnToResult, canAccess } from '../../util';
+import { spawnToResult, canAccess, commandExists } from '../../util';
 
 import { getTerminalEnvVars } from './terminal-env-overrides';
 import { editShellStartupScripts, resetShellStartupScripts } from './terminal-scripts';
-
-const commandExists = (path: string): Promise<boolean> => ensureCommandExists(path).then(() => true).catch(() => false);
 
 const DEFAULT_GIT_BASH_PATH = 'C:/Program Files/git/git-bash.exe';
 
