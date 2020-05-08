@@ -83,7 +83,7 @@ export class FreshFirefox implements Interceptor {
 
         return !!firefoxBrowser && // Must have Firefox installed
             parseInt(firefoxBrowser.version.split('.')[0], 0) >= 58 && // Must use cert9.db
-            getCertutilCommand().then(() => true).catch(() => false) // Must have certutil available
+            await getCertutilCommand().then(() => true).catch(() => false) // Must have certutil available
     }
 
     async startFirefox(
