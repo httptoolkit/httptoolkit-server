@@ -4,7 +4,7 @@ language: node_js
 node_js:
 - node
 - '12'
-- '10.15.3'
+- '10.15.1'
 - '8'
 before_install:
 - sudo apt-get install p7zip-full xterm
@@ -25,7 +25,7 @@ addons:
 jobs:
   include:
     - stage: Build and release binaries
-      node_js: '10.15.3'
+      node_js: '10.15.1'
       echo: 'Building binaries...'
       script:
         - |

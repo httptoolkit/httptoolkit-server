@@ -58,6 +58,8 @@ class HttpToolkitServer extends Command {
 
     // On startup, we want to kill any downloaded servers that are not longer necessary
     async cleanupOldServers() {
+        if (!fs) return; // In node 8, fs.promises doesn't exist, so just skip this
+
         const { dataDir, version: currentVersion } = this.config;
 
         const serverUpdatesPath = process.env.OCLIF_CLIENT_HOME ||
