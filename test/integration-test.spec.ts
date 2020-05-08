@@ -71,6 +71,9 @@ describe('Integration test', function () {
             });
 
             serverProcess.stderr!.on('data', (d) => {
+                // Some nodes warn about fs.promises - ignore it.
+                if (d.toString().includes('ExperimentalWarning: The fs.promises API')) return;
+
                 reject();
                 stderr = stderr + d.toString();
                 console.warn(d.toString());
