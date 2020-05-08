@@ -41,6 +41,8 @@ const packageApp = async () => {
         path.join('bundle', 'index.js'),
         path.join('bundle', 'error-tracking.js'),
         path.join('bundle', 'schema.gql'),
+        // Static resources normally stored in browser-launcher
+        path.join('bundle', 'bl-resources')
     ].map((extraFile) =>
         fs.copy(path.join(__dirname, extraFile), path.join(OUTPUT_DIR, extraFile))
     ));
