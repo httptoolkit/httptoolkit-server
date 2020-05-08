@@ -5,7 +5,6 @@ type IndexTypeModule = typeof import('../index');
 import * as path from 'path';
 import { promises as fs } from 'fs'
 import * as semver from 'semver';
-import * as rimraf from 'rimraf';
 
 import { IS_PROD_BUILD } from '../constants';
 
@@ -99,9 +98,7 @@ class HttpToolkitServer extends Command {
             // a new server standalone (not just from an update), because otherwise the
             // update dir can end up in a broken state. Better to clear it completely.
             console.log("Downloaded server directory is entirely outdated, deleting it");
-            rimraf(serverUpdatesPath, (error) => {
-                if (error) reportError(error);
-            });
+            deleteFolder(serverUpdatesPath).catch(reportError);
         } else {
             // Some of the servers are outdated, but not all (maybe it includes us).
             // Async delete all server versions older than this currently running version.
@@ -110,13 +107,32 @@ class HttpToolkitServer extends Command {
 
                 if (version && semver.lt(version, currentVersion)) {
                     console.log(`Deleting old server ${filename}`);
-                    rimraf(path.join(serverUpdatesPath, filename), (error) => {
-                        if (error) reportError(error);
-                    });
+                    deleteFolder(path.join(serverUpdatesPath, filename)).catch(reportError);
                 }
             });
         }
     }
 }
+
+async function deleteFolder(folder: string) {
+    const contents: string[] = await fs.readdir(folder)
+        .catch((e) => {
+            if (e.code === 'ENOENT') return [];
+            else throw e;
+        });
+
+    await Promise.all(
+        contents.map(async (filename) => {
+            const filePath = path.join(folder, filename);
+            if ((await fs.lstat(filePath)).isDirectory()) {
+                await deleteFolder(filePath);
+            } else {
+                await fs.unlink(filePath);
+            }
+        })
+    );
+
+    await fs.rmdir(folder);
+};
 
 export = HttpToolkitServer;
