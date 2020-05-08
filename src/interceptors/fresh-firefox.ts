@@ -192,6 +192,7 @@ export class FreshFirefox implements Interceptor {
         profileSetupBrowser = await this.startFirefox(messageServer);
         profileSetupBrowser.process.once('close', (exitCode) => {
             console.log("Profile setup Firefox closed");
+            messageServer.stop();
             profileSetupBrowser = undefined;
 
             if (messageShown !== true) {
@@ -274,7 +275,7 @@ export class FreshFirefox implements Interceptor {
             certCheckSuccessful = true;
         }).catch((e) => {
             certCheckSuccessful = false;
-            reportError(e)
+            reportError(e);
         });
 
         browsers[proxyPort] = browser;

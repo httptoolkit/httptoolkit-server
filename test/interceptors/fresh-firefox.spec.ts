@@ -1,14 +1,11 @@
-import * as _ from 'lodash';
-import fetch from 'node-fetch';
 import { CompletedRequest } from 'mockttp';
 import { setupInterceptor, itIsAvailable } from './interceptor-test-utils';
 import { expect } from 'chai';
-import { delay } from '../../src/util';
 
 const interceptorSetup = setupInterceptor('fresh-firefox');
 
 describe('Firefox interceptor', function () {
-    this.timeout(5000);
+    this.timeout(10000);
 
     beforeEach(async () => {
         const { server } = await interceptorSetup;
@@ -25,10 +22,7 @@ describe('Firefox interceptor', function () {
     itIsAvailable(interceptorSetup);
 
     it('successfully makes requests', async function () {
-        this.timeout(10000);
         const { server, interceptor: firefoxInterceptor } = await interceptorSetup;
-
-        await firefoxInterceptor.activate(server.port);
 
         const exampleRequestReceived = new Promise<CompletedRequest>((resolve) =>
             server.on('request', (req) => {
@@ -55,6 +49,5 @@ describe('Firefox interceptor', function () {
 
         await interceptor.deactivateAll();
         expect(interceptor.isActive(server.port)).to.equal(false);
-        await delay(500); // Wait to ensure the profile is cleaned up
     });
 });
