@@ -65,8 +65,8 @@ class HttpToolkitServer extends Command {
             path.join(dataDir, 'client');
 
         // Be careful - if the server path isn't clearly ours somehow, ignore it.
-        if (!serverUpdatesPath.split(path.sep).includes('httptoolkit-server')) {
-            reportError(`Unexpected server path (${serverUpdatesPath}), ignoring`);
+        if (!isOwnedPath(serverUpdatesPath)) {
+            reportError(`Unexpected server updates path (${serverUpdatesPath}), ignoring`);
             return;
         }
 
@@ -114,6 +114,7 @@ class HttpToolkitServer extends Command {
     }
 }
 
+// Delete a folder recursively, with checks to ensure its safe to do so at every stage
 async function deleteFolder(folder: string) {
     const contents: string[] = await fs.readdir(folder)
         .catch((e) => {
@@ -125,14 +126,25 @@ async function deleteFolder(folder: string) {
         contents.map(async (filename) => {
             const filePath = path.join(folder, filename);
             if ((await fs.lstat(filePath)).isDirectory()) {
-                await deleteFolder(filePath);
-            } else {
+                await deleteFolder(filePath); // Recurse
+            } else if (isOwnedPath(filePath)) {
                 await fs.unlink(filePath);
             }
         })
     );
 
-    await fs.rmdir(folder);
+    if (isOwnedPath(folder)) await fs.rmdir(folder);
 };
+
+// Before deleting anything anywhere, we check it's an HTK-related path.
+// Not a perfect check, but good safety against somehow deleting / or similar.
+function isOwnedPath(input: string) {
+    if (input.split(path.sep).includes('httptoolkit-server')) {
+        return true;
+    } else {
+        reportError(`Unexpected unowned path ${input}`);
+        return false;
+    }
+}
 
 export = HttpToolkitServer;
