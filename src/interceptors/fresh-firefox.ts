@@ -180,6 +180,7 @@ export class FreshFirefox implements Interceptor {
         return browser;
     }
 
+    // Create the profile. We need to run FF to do its setup, then close it & edit more ourselves.
     async setupFirefoxProfile() {
         const messageServer = new MessageServer(
             this.config,
@@ -279,11 +280,17 @@ export class FreshFirefox implements Interceptor {
         });
 
         browsers[proxyPort] = browser;
-        browser.process.once('close', (exitCode) => {
+        browser.process.once('close', async (exitCode) => {
             console.log('Firefox closed');
-
-            certCheckServer.stop();
             delete browsers[proxyPort];
+
+            // It seems maybe this can happen when firefox is just updated - it starts and
+            // closes immediately, but loses some settings along the way. In that case, the 2nd
+            // run will still try to load the cert check server. Keep it up for a sec so
+            // that users get a clean error in this case.
+            await delay(2000);
+            certCheckServer.stop();
+
             if (!certCheckSuccessful) {
                 reportError(`Firefox certificate check ${
                     certCheckSuccessful === false
