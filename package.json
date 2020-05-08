@@ -19,7 +19,7 @@
     "build:src": "rm -rf lib && tsc -b --force",
     "build:release": "oclif-dev manifest && webpack && ts-node ./pack.ts",
     "prepack": "npm run build:src && oclif-dev manifest",
-    "test": "TS_NODE_FILES=true mocha -r ts-node/register 'test/**/*.spec.ts'",
+    "test": "TS_NODE_FILES=true mocha --exit -r ts-node/register 'test/**/*.spec.ts'",
     "test:release": "TEST_BUILT_TARBALL=1 npm run test"
   },
   "repository": "httptoolkit/httptoolkit-server",
