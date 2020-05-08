@@ -18,7 +18,7 @@ async function setupServerPath() {
         return path.join(__dirname, '..', 'bin', 'run');
     }
 
-    // If TEST_BUILT_TARBALL is set, test the latest build ready-to-go tarball:
+    // If TEST_BUILT_TARBALL is set, test the latest built ready-to-go tarball:
     const tmpDir = tmp.dirSync({ unsafeCleanup: true }).name;
     const version = require(path.join('..', 'package.json')).version;
     const tarballPath = path.join(
@@ -27,7 +27,7 @@ async function setupServerPath() {
         'build',
         'dist',
         `v${version}`,
-        `httptoolkit-server-v${version}.tar.gz`
+        `httptoolkit-server-v${version}-${process.platform}-${process.arch}.tar.gz`
     );
 
     console.log('Extracting built tarball to', tmpDir);

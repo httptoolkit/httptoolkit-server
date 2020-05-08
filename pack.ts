@@ -70,6 +70,15 @@ const packageApp = async () => {
     await fs.remove(path.join(OUTPUT_DIR, 'nss', 'darwin'));
     await fs.copy(path.join(__dirname, 'nss', 'win32'), path.join(OUTPUT_DIR, 'nss', 'win32'));
     await spawn(buildScript, ['win32'], { cwd: OUTPUT_DIR, stdio: 'inherit' });
+
+    // Oclif builds a nodeless platform-agnostic bundle too (although in our case, nothing is
+    // really platform agnostic). Not necessary, probably won't work - drop it.
+    await fs.remove(path.join(
+        OUTPUT_DIR,
+        'dist',
+        `v${pjson.version}`,
+        `httptoolkit-server-v${pjson.version}.tar.gz`
+    ));
 }
 
 packageApp().catch((error: any) => {
