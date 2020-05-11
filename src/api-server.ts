@@ -13,6 +13,8 @@ import { buildInterceptors, Interceptor } from './interceptors';
 import { ALLOWED_ORIGINS } from './constants';
 import { delay } from './util';
 
+const ENABLE_PLAYGROUND = false;
+
 const packageJson = require('../package.json');
 
 const typeDefs = `
@@ -211,11 +213,13 @@ export class HttpToolkitServerApi extends events.EventEmitter {
             resolvers: buildResolvers(config, interceptors, this)
         });
 
-        this.graphql.use(corsGate({
-            strict: true, // MUST send an allowed origin
-            allowSafe: false, // Even for HEAD/GET requests (should be none anyway)
-            origin: '' // No origin - we accept *no* same-origin requests
-        }));
+        if (!ENABLE_PLAYGROUND) {
+            this.graphql.use(corsGate({
+                strict: true, // MUST send an allowed origin
+                allowSafe: false, // Even for HEAD/GET requests (should be none anyway)
+                origin: '' // No origin - we accept *no* same-origin requests
+            }));
+        }
 
         if (config.authToken) {
             // Optional auth token. This allows us to lock down UI/server communication further
@@ -240,7 +244,7 @@ export class HttpToolkitServerApi extends events.EventEmitter {
             // Hacky solution that lets us limit the server to only localhost,
             // and override the port from 4000 to something less likely to conflict.
             port: { port: 45457, host: '127.0.0.1' },
-            playground: false,
+            playground: ENABLE_PLAYGROUND ? "/" : false,
             cors: {
                 origin: ALLOWED_ORIGINS,
                 maxAge: 86400 // Cache this result for as long as possible
