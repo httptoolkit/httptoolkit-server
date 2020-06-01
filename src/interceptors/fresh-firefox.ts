@@ -301,8 +301,8 @@ export class FreshFirefox implements Interceptor {
             }
         });
 
-        // Delay the approx amount of time it normally takes Firefox to really open
-        await delay(1000);
+        // Wait until the cert check works before reporting success to the UI
+        await certCheckServer.waitForSuccess();
     }
 
     async deactivate(proxyPort: number | string) {
