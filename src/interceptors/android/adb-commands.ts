@@ -9,6 +9,9 @@ export const SYSTEM_CA_PATH = '/system/etc/security/cacerts';
 
 export function createAdbClient() {
     return adb.createClient({
+        port: process.env['ANDROID_ADB_SERVER_PORT']
+            ? parseInt(process.env['ANDROID_ADB_SERVER_PORT'], 10)
+            : 5037,
         // The path used to start adb, if it isn't already running:
         bin: process.env['ANDROID_HOME']
             ? path.join(process.env['ANDROID_HOME'], 'platform-tools', 'adb')
