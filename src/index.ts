@@ -81,13 +81,14 @@ export async function runHTK(options: {
     // Start a Mockttp standalone server
     const standalone = getStandalone({
         serverDefaults: {
-            cors: false,
-            https: httpsConfig
+            cors: false, // Don't add mocked CORS responses to intercepted traffic
+            recordTraffic: false, // Don't persist traffic here (keep it in the UI)
+            https: httpsConfig // Use our HTTPS config for HTTPS MITMs.
         },
         corsOptions: {
-            strict: true,
-            origin: ALLOWED_ORIGINS,
-            maxAge: 86400 // Cache this result for as long as possible
+            strict: true, // For the standalone admin API, require valid CORS headers
+            origin: ALLOWED_ORIGINS, // Only allow requests from our origins, to avoid XSRF
+            maxAge: 86400 // Cache CORS responses for as long as possible
         }
     });
     standalone.start({
