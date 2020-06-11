@@ -81,7 +81,8 @@ class HttpToolkitServer extends Command {
         if (serverPaths.some((filename) =>
             !semver.valid(filename.replace(/\.partial\.\d+$/, '')) &&
             filename !== 'bin' &&
-            filename !== 'current'
+            filename !== 'current' &&
+            filename !== '.DS_Store' // Meaningless Mac folder metadata
         )) {
             console.log(serverPaths);
             reportError(
