@@ -67,6 +67,10 @@ export function getTerminalEnvVars(
                 ? `${OVERRIDE_PYTHONPATH}:$PYTHONPATH`
             : currentEnv.PYTHONPATH
                 ? `${OVERRIDE_PYTHONPATH}:${currentEnv.PYTHONPATH}`
-            : OVERRIDE_PYTHONPATH
+            : OVERRIDE_PYTHONPATH,
+
+        // Clear NODE_OPTIONS - it's meant for _us_, not subprocesses.
+        // Otherwise e.g. --max-http-header-size can break old Node/Electron
+        NODE_OPTIONS: ""
     };
 }
