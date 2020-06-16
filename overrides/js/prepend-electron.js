@@ -41,6 +41,23 @@ module.exports = function reconfigureElectron(params) {
             }
         });
 
+        // Register a cert verifier for the default session, so that electron.net calls
+        // can have their certificates manually verified.
+        app.on('ready', () => {
+            loadedModule.session.defaultSession.setCertificateVerifyProc((req, callback) => {
+                if (
+                    req.certificate &&
+                    req.certificate.issuerCert &&
+                    req.certificate.issuerCert.data === params.newlineEncodedCertData
+                ) {
+                    callback(0); // The cert is good, I promise
+                } else {
+                    callback(-3); // Fallback to Chromium's own opinion
+                }
+            });
+        })
+
+        // Also handle explicitly certificate errors from Electron in the standard way
         app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
             if (
                 certificate.issuerCert &&
