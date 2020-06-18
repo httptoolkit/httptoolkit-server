@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as adb from 'adbkit';
 
 import { reportError } from '../../error-tracking';
+import { delay } from '../../util';
 
 export const ANDROID_TEMP = '/data/local/tmp';
 export const SYSTEM_CA_PATH = '/system/etc/security/cacerts';
@@ -63,6 +64,15 @@ export const getConnectedDevices = batchCalls(async (adbClient: adb.AdbClient) =
     }
 });
 
+async function waitUntilAvailable(adbClient: adb.AdbClient, deviceId: string, tries: number) {
+    while (tries > 0 && !(await getConnectedDevices(adbClient)).includes(deviceId)) {
+        tries = tries - 1;
+        await delay(500);
+    }
+
+    if (tries <= 0) throw new Error(`Device ${deviceId} not available via ADB`);
+}
+
 export function stringAsStream(input: string) {
     const contentStream = new stream.Readable();
     contentStream._read = () => {};
@@ -116,7 +126,12 @@ export async function getRootCommand(adbClient: adb.AdbClient, deviceId: string)
     // If no explicit root commands are available, try to restart adb in root
     // mode instead. If this works, *all* commands will run as root.
     // We prefer explicit "su" calls if possible, to limit access & side effects.
-    await adbClient.root(deviceId).catch(() => console.log);
+    await adbClient.root(deviceId).catch(console.log);
+
+    // Sometimes switching to root can disconnect ADB devices, so double-check
+    // they're still here, and wait a few seconds for them to come back if not.
+    await waitUntilAvailable(adbClient, deviceId, 10);
+
     const whoami = await run(adbClient, deviceId, ['whoami']).catch(console.log);
 
     return (whoami || '').trim() === 'root'
