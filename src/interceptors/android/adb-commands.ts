@@ -54,8 +54,15 @@ export const getConnectedDevices = batchCalls(async (adbClient: adb.AdbClient) =
         if (
             e.code === 'ENOENT' || // No ADB available
             e.code === 'EACCES' || // ADB available, but we aren't allowed to run it
+            e.code === 'ECONNREFUSED' || // Tried to start ADB, but still couldn't connect
             (e.cmd && e.code)      // ADB available, but "adb start-server" failed
         ) {
+            if (e.code !== 'ENOENT') {
+                console.log(`ADB unavailable, ${e.cmd
+                    ? `${e.cmd} exited with ${e.code}`
+                    : `due to ${e.code}`
+                }`);
+            }
             return [];
         } else {
             reportError(e);
