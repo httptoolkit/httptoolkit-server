@@ -93,6 +93,12 @@ async function updateLocalApk(
     await cleanupOldApks(config);
 }
 
+export async function clearAllApks(config: HtkConfig) {
+    const apks = await getAllLocalApks(config);
+    console.log(`Deleting all APKs: ${apks.map(apk => apk.path).join(', ')}`);
+    return Promise.all(apks.map(apk => deleteFile(apk.path)));
+}
+
 // Delete all but the most recent APK version in the config directory.
 async function cleanupOldApks(config: HtkConfig) {
     const apks = await getAllLocalApks(config);

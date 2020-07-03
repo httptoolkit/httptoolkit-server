@@ -19,7 +19,7 @@ import {
     hasCertInstalled,
     bringToFront
 } from './adb-commands';
-import { streamLatestApk } from './fetch-apk';
+import { streamLatestApk, clearAllApks } from './fetch-apk';
 
 function urlSafeBase64(content: string) {
     return Buffer.from(content, 'utf8').toString('base64')
@@ -78,8 +78,15 @@ export class AndroidAdbInterceptor implements Interceptor {
 
         if (!(await this.adbClient.isInstalled(options.deviceId, 'tech.httptoolkit.android.v1'))) {
             console.log("App not installed, installing...");
-            let stream = await streamLatestApk(this.config);
-            await this.adbClient.install(options.deviceId, stream);
+            try {
+                await this.adbClient.install(options.deviceId, await streamLatestApk(this.config));
+            } catch (e) {
+                console.log("Resetting & retrying APK install, after initial failure:", e);
+                // This can fail due to connection issues (with the device or while downloading
+                // the APK) due to a corrupted APK. Reset the APKs and try again, just in case.
+                await clearAllApks(this.config);
+                await this.adbClient.install(options.deviceId, await streamLatestApk(this.config));
+            }
             console.log("App installed successfully");
         }
 
