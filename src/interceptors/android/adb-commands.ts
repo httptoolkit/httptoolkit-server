@@ -48,7 +48,7 @@ export const getConnectedDevices = batchCalls(async (adbClient: adb.AdbClient) =
     try {
         const devices = await adbClient.listDevices();
         return devices
-            .filter(d => d.type !== 'offline')
+            .filter(d => d.type !== 'offline' && d.type !== 'unauthorized')
             .map(d => d.id);
     } catch (e) {
         if (
