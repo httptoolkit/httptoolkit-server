@@ -1,9 +1,9 @@
 import * as stream from 'stream';
 import * as path from 'path';
 import * as adb from 'adbkit';
-
 import { reportError } from '../../error-tracking';
 import { delay } from '../../util';
+import { getCertificateFingerprint, parseCert } from '../../certificates';
 
 export const ANDROID_TEMP = '/data/local/tmp';
 export const SYSTEM_CA_PATH = '/system/etc/security/cacerts';
@@ -149,24 +149,30 @@ export async function getRootCommand(adbClient: adb.AdbClient, deviceId: string)
 export async function hasCertInstalled(
     adbClient: adb.AdbClient,
     deviceId: string,
-    certHash: string
+    certHash: string,
+    certFingerprint: string
 ) {
     try {
         const certPath = `/system/etc/security/cacerts/${certHash}.0`;
         const certStream = await adbClient.pull(deviceId, certPath);
 
         // Wait until it's clear that the read is successful
-        await new Promise((resolve, reject) => {
-            certStream.on('progress', resolve);
-            certStream.on('end', resolve);
+        const data = await new Promise<Buffer>((resolve, reject) => {
+            const data: Buffer[] = [];
+            certStream.on('data', (d: Buffer) => data.push(d));
+            certStream.on('end', () => resolve(Buffer.concat(data)));
 
             certStream.on('error', reject);
         });
 
-        certStream.cancel();
-        return true;
+
+        // The device already has an HTTP Toolkit cert. But is it the right one?
+        const existingCert = parseCert(data.toString('utf8'));
+        const existingFingerprint = getCertificateFingerprint(existingCert);
+        return certFingerprint === existingFingerprint;
     } catch (e) {
-        // If we fail to read the cert somehow, it's probably not there
+        // Couldn't read the cert, or some other error - either way, we probably
+        // don't have a working system cert installed.
         return false;
     }
 }

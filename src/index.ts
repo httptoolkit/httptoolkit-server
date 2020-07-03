@@ -2,7 +2,6 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as envPaths from 'env-paths';
 import { getStandalone, generateCACertificate } from 'mockttp';
-import * as forge from 'node-forge';
 import { Mutex } from 'async-mutex';
 
 import updateCommand from '@oclif/plugin-update/lib/commands/update';
@@ -13,6 +12,7 @@ import { reportError } from './error-tracking';
 import { ALLOWED_ORIGINS } from './constants';
 import { delay, readFile, checkAccess, writeFile, ensureDirectoryExists } from './util';
 import { registerShutdownHandler } from './shutdown';
+import { getTimeToCertExpiry, parseCert } from './certificates';
 
 const APP_NAME = "HTTP Toolkit";
 
@@ -47,11 +47,8 @@ async function generateHTTPSConfig(configPath: string) {
     };
 }
 
-function checkCertExpiry(contents: string): void {
-    const cert = forge.pki.certificateFromPem(contents);
-    const expiry = cert.validity.notAfter.valueOf();
-    const remainingLifetime = expiry - Date.now();
-
+function checkCertExpiry(certContents: string): void {
+    const remainingLifetime = getTimeToCertExpiry(parseCert(certContents));
     if (remainingLifetime < 1000 * 60 * 60 * 48) { // Next two days
         console.warn('Certificate expires soon - it must be regenerated');
         throw new Error('Certificate regeneration required');

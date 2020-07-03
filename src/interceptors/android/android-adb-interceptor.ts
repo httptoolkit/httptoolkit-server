@@ -1,7 +1,5 @@
 import * as _ from 'lodash';
 import * as os from 'os';
-import * as crypto from 'crypto';
-import * as forge from 'node-forge';
 
 import { Interceptor } from '..';
 import { HtkConfig } from '../../config';
@@ -20,27 +18,12 @@ import {
     bringToFront
 } from './adb-commands';
 import { streamLatestApk, clearAllApks } from './fetch-apk';
+import { parseCert, getCertificateFingerprint, getCertificateSubjectHash } from '../../certificates';
 
 function urlSafeBase64(content: string) {
     return Buffer.from(content, 'utf8').toString('base64')
         .replace('+', '-')
         .replace('/', '_');
-}
-
-// A series of magic incantations that matches the behaviour of openssl's
-// -subject_hash_old output, as expected by Android's cert store.
-function getCertificateHash(cert: forge.pki.Certificate) {
-    const derBytes = forge.asn1.toDer(
-        (
-            forge.pki as any
-        ).distinguishedNameToAsn1(cert.subject)
-    ).getBytes();
-
-    return crypto.createHash('md5')
-        .update(derBytes)
-        .digest()
-        .readUInt32LE(0)
-        .toString(16);
 }
 
 export class AndroidAdbInterceptor implements Interceptor {
@@ -155,17 +138,18 @@ export class AndroidAdbInterceptor implements Interceptor {
             return;
         }
 
-        const cert = forge.pki.certificateFromPem(certContent);
+        const cert = parseCert(certContent);
 
         try {
-            const certHash = getCertificateHash(cert);
+            const subjectHash = getCertificateSubjectHash(cert);
+            const fingerprint = getCertificateFingerprint(cert);
 
-            if (await hasCertInstalled(this.adbClient, deviceId, certHash)) {
+            if (await hasCertInstalled(this.adbClient, deviceId, subjectHash, fingerprint)) {
                 console.log("Cert already installed, nothing to do");
                 return;
             }
 
-            const certPath = `${ANDROID_TEMP}/${certHash}.0`;
+            const certPath = `${ANDROID_TEMP}/${subjectHash}.0`;
             console.log(`Adding cert file as ${certPath}`);
 
             await pushFile(
