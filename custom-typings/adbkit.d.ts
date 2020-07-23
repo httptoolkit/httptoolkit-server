@@ -1,4 +1,4 @@
-declare module 'adbkit' {
+declare module '@httptoolkit/adbkit' {
     import * as stream from 'stream';
     import * as events from 'events';
 
@@ -34,9 +34,10 @@ declare module 'adbkit' {
         pull(
             id: string,
             path: string
-        ): Promise<events.EventEmitter & { cancel: () => void }>
+        ): Promise<stream.Readable & { cancel: () => void }>
         shell(id: string, cmd: string | string[]): Promise<stream.Readable>;
         root(id: string): Promise<true>;
+        on(type: 'error', handler: (error: Error) => void): void;
     }
 
     export function createClient(options?: {

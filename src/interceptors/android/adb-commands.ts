@@ -1,6 +1,6 @@
 import * as stream from 'stream';
 import * as path from 'path';
-import * as adb from 'adbkit';
+import * as adb from '@httptoolkit/adbkit';
 import { reportError } from '../../error-tracking';
 import { delay } from '../../util';
 import { getCertificateFingerprint, parseCert } from '../../certificates';
@@ -9,7 +9,7 @@ export const ANDROID_TEMP = '/data/local/tmp';
 export const SYSTEM_CA_PATH = '/system/etc/security/cacerts';
 
 export function createAdbClient() {
-    return adb.createClient({
+    const client = adb.createClient({
         port: process.env['ANDROID_ADB_SERVER_PORT']
             ? parseInt(process.env['ANDROID_ADB_SERVER_PORT'], 10)
             : 5037,
@@ -18,6 +18,12 @@ export function createAdbClient() {
             ? path.join(process.env['ANDROID_HOME'], 'platform-tools', 'adb')
             : 'adb'
     });
+
+    // We listen for errors and report them. This only happens if adbkit completely
+    // fails to handle or listen to a connection error. We'd rather report that than crash.
+    client.on('error', reportError);
+
+    return client;
 }
 
 // Batch async calls, so that all calls whilst one call is ongoing return the same result.
