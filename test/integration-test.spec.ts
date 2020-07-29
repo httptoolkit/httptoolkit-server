@@ -73,6 +73,8 @@ describe('Integration test', function () {
             serverProcess.stderr!.on('data', (d) => {
                 // Some nodes warn about fs.promises - ignore it.
                 if (d.toString().includes('ExperimentalWarning: The fs.promises API')) return;
+                // We use _stream_wrap, in some node versions this is deprecated, for now ignore it
+                if (d.toString().includes('The _stream_wrap module is deprecated')) return;
 
                 reject();
                 stderr = stderr + d.toString();
