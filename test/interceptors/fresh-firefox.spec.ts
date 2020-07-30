@@ -1,6 +1,7 @@
 import { CompletedRequest } from 'mockttp';
 import { setupInterceptor, itIsAvailable } from './interceptor-test-utils';
 import { expect } from 'chai';
+import * as semver from 'semver';
 
 const interceptorSetup = setupInterceptor('fresh-firefox');
 
@@ -15,8 +16,19 @@ describe('Firefox interceptor', function () {
 
     afterEach(async () => {
         const { server, interceptor: firefoxInterceptor } = await interceptorSetup;
-        await firefoxInterceptor.deactivate(server.port);
-        await server.stop();
+
+        if (semver.satisfies(process.version, '>=12')) {
+            // For some reason Node 12+ is very fussy about Firefox shutdown disconnections,
+            // so we work around that by just killing the server first. This is a short-term
+            // fix really, but it does seem to be just a test problem, that doesn't
+            // reproduce in real usage, even using new node releases.
+            const serverPort = server.port;
+            await server.stop();
+            await firefoxInterceptor.deactivate(serverPort);
+        } else {
+            await firefoxInterceptor.deactivate(server.port);
+            await server.stop();
+        }
     });
 
     itIsAvailable(interceptorSetup);
