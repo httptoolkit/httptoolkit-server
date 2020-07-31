@@ -127,3 +127,35 @@ export async function runHTK(options: {
     console.log('Server started in', Date.now() - certSetupTime, 'ms');
     console.log('Total startup took', Date.now() - startTime, 'ms');
 }
+
+import SocketWrapper = require('_stream_wrap');
+
+// Quick monkey-patches to guard against a bug in SocketWrapper that can break
+// some of the Mockttp internals in certain WS-based cases:
+const originalFinishShutdown = (<any>SocketWrapper.prototype).finishShutdown;
+(<any>SocketWrapper.prototype).finishShutdown = function (handle: any) {
+    if (!handle) {
+        // We still run the code anyway (since there are cases where it
+        // might be fine, and we can't check them externally), but we
+        // report issues, so we can work out how widespread this is.
+        try {
+            return originalFinishShutdown.apply(this, arguments);
+        } catch (e) {
+            reportError(e);
+            return;
+        }
+    }
+    else return originalFinishShutdown.apply(this, arguments);
+}
+const originalFinishWrite = (<any>SocketWrapper.prototype).finishWrite;
+(<any>SocketWrapper.prototype).finishWrite = function (handle: any) {
+    if (!handle) {
+        try {
+            return originalFinishWrite.apply(this, arguments);
+        } catch (e) {
+            reportError(e);
+            return;
+        }
+    }
+    else return originalFinishWrite.apply(this, arguments);
+}
