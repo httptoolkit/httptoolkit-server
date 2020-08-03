@@ -35,6 +35,11 @@ jobs:
         - |
           echo "Travis tag was $TRAVIS_TAG"
 
+          if ! [[ $TRAVIS_TAG =~ ^v.*$" ]]; then
+            echo 'Non-version tag, rejecting deploy'
+            exit 1
+          fi
+
           if ! [[ $DEPLOY_STEP ]]; then
             export DEPLOY_STEP=1
             echo 'About to deploy new tag'
