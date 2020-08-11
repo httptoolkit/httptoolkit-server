@@ -3,8 +3,9 @@ sudo: required
 language: node_js
 node_js:
 - node
+- '14.6.0' # Bundled version
 - '12'
-- '10.15.1'
+- '10'
 - '8'
 before_install:
 - sudo apt-get install p7zip-full xterm
@@ -25,7 +26,7 @@ addons:
 jobs:
   include:
     - stage: Build and release binaries
-      node_js: '10.15.1'
+      node_js: '14.6.0'
       echo: 'Building binaries...'
       script:
         - |
