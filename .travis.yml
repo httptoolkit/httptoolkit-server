@@ -35,15 +35,11 @@ jobs:
         - |
           echo "Travis tag was $TRAVIS_TAG"
 
-          if ! [[ $TRAVIS_TAG =~ ^v.*$" ]]; then
-            echo 'Non-version tag, rejecting deploy'
-            exit 1
-          fi
-
           if ! [[ $DEPLOY_STEP ]]; then
             export DEPLOY_STEP=1
             echo 'About to deploy new tag'
-          else
+          elif [[ $TRAVIS_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            # If it's a standard version tag, we subsequently update the latest release:
             # Change TRAVIS_TAG in the 2nd deploy step
             export DEPLOY_STEP=2
             echo 'About to deploy manifest update'
@@ -75,3 +71,4 @@ jobs:
           on:
             repo: httptoolkit/httptoolkit-server
             tags: true
+            condition: $TRAVIS_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$
