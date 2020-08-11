@@ -48,7 +48,7 @@
     "graphql": "^14.0.2",
     "graphql-yoga": "^1.18.1",
     "lodash": "^4.17.19",
-    "mockttp": "^0.21.1",
+    "mockttp": "^0.21.2",
     "node-fetch": "^2.6.0",
     "node-forge": "^0.9.0",
     "node-gsettings-wrapper": "^0.5.0",
