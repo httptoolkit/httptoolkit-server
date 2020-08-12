@@ -78,6 +78,8 @@ export const getConnectedDevices = batchCalls(async (adbClient: adb.AdbClient) =
 });
 
 async function waitUntilAvailable(adbClient: adb.AdbClient, deviceId: string, tries: number) {
+    delay(50);
+
     while (tries > 0 && !(await getConnectedDevices(adbClient)).includes(deviceId)) {
         tries = tries - 1;
         await delay(500);
