@@ -83,6 +83,4 @@ const packageApp = async () => {
     ));
 }
 
-packageApp().catch((error: any) => {
-    console.error(error.message);
-});
+packageApp();
