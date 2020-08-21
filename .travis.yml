@@ -6,7 +6,6 @@ node_js:
 - '14.6.0' # Bundled version
 - '12'
 - '10'
-- '8'
 before_install:
 - sudo apt-get install p7zip-full xterm
 install:
