@@ -1,11 +1,14 @@
 import * as _ from 'lodash';
 import * as os from 'os';
 import * as events from 'events';
+import * as express from 'express';
+import * as cors from 'cors';
 import corsGate = require('cors-gate');
-import { GraphQLServer } from 'graphql-yoga';
+import { makeExecutableSchema } from '@graphql-tools/schema';
 import { GraphQLScalarType } from 'graphql';
+import { graphqlHTTP } from 'express-graphql';
+
 import { generateSPKIFingerprint } from 'mockttp';
-import { Request, Response } from 'express';
 
 import { HtkConfig } from './config';
 import { reportError, addBreadcrumb } from './error-tracking';
@@ -16,6 +19,23 @@ import { delay } from './util';
 const ENABLE_PLAYGROUND = false;
 
 const packageJson = require('../package.json');
+
+/**
+ * This file contains the core server API, used by the UI to query
+ * machine state that isn't easily visible from the web (cert files,
+ * network interfaces), and to launch intercepted applications
+ * directly on this machine.
+ *
+ * This is a very powerful API! It's not far from remote code
+ * execution. Because of that, access is tightly controlled:
+ * - Only listens on 127.0.0.1
+ * - All requests must include an acceptable Origin header, i.e.
+ *   no browsers requests except from a strict whitelist of valid
+ *   origins. In prod, that's just app.httptoolkit.tech.
+ * - Optionally (always set in the HTK app) requires an auth
+ *   token with every request, provided by $HTK_SERVER_TOKEN or
+ *   --token at startup.
+ */
 
 const typeDefs = `
     type Query {
@@ -201,30 +221,55 @@ const buildResolvers = (
 
 export class HttpToolkitServerApi extends events.EventEmitter {
 
-    private graphql: GraphQLServer;
+    private server: express.Application;
 
     constructor(config: HtkConfig) {
         super();
 
         let interceptors = buildInterceptors(config);
 
-        this.graphql = new GraphQLServer({
+        const schema = makeExecutableSchema({
             typeDefs,
             resolvers: buildResolvers(config, interceptors, this)
         });
 
-        if (!ENABLE_PLAYGROUND) {
-            this.graphql.use(corsGate({
+        this.server = express();
+        this.server.disable('x-powered-by');
+
+        this.server.use(cors({
+            origin: ALLOWED_ORIGINS,
+            maxAge: 86400 // Cache this result for as long as possible
+        }));
+
+        this.server.use(corsGate(
+            ENABLE_PLAYGROUND
+            // When the debugging playground is enabled, we're slightly more lax
+            ? {
+                strict: true,
+                allowSafe: true,
+                origin: 'http://localhost:45457'
+            }
+            : {
                 strict: true, // MUST send an allowed origin
                 allowSafe: false, // Even for HEAD/GET requests (should be none anyway)
                 origin: '' // No origin - we accept *no* same-origin requests
-            }));
-        }
+            }
+        ));
+
+        this.server.use((req, res, next) => {
+            if (req.method !== 'POST' && !ENABLE_PLAYGROUND) {
+                // We allow only POST, because that's all we expect for GraphQL queries,
+                // and this helps derisk some (admittedly unlikely) XSRF possibilities.
+                res.status(405).send('Only POST requests are supported');
+            } else {
+                next();
+            }
+        });
 
         if (config.authToken) {
             // Optional auth token. This allows us to lock down UI/server communication further
             // when started together. The desktop generates a token every run and passes it to both.
-            this.graphql.use((req: Request, res: Response, next: () => void) => {
+            this.server.use((req: express.Request, res: express.Response, next: () => void) => {
                 const authHeader = req.headers['authorization'] || '';
 
                 const tokenMatch = authHeader.match(/Bearer (\S+)/) || [];
@@ -237,18 +282,17 @@ export class HttpToolkitServerApi extends events.EventEmitter {
                 }
             });
         }
+
+        this.server.use(graphqlHTTP({
+            schema,
+            graphiql: ENABLE_PLAYGROUND
+        }));
     }
 
-    async start() {
-        await this.graphql.start(<any> {
-            // Hacky solution that lets us limit the server to only localhost,
-            // and override the port from 4000 to something less likely to conflict.
-            port: { port: 45457, host: '127.0.0.1' },
-            playground: ENABLE_PLAYGROUND ? "/" : false,
-            cors: {
-                origin: ALLOWED_ORIGINS,
-                maxAge: 86400 // Cache this result for as long as possible
-            }
+    start() {
+        return new Promise<void>((resolve, reject) => {
+            this.server.listen(45457, '127.0.0.1', resolve); // Localhost only
+            this.server.once('error', reject);
         });
     }
 };
