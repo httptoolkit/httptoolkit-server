@@ -2,6 +2,11 @@
 type ErrorTrackingModule = typeof import('../error-tracking');
 type IndexTypeModule = typeof import('../index');
 
+// We accept auth tokens from the environment, allowing a token to be
+// set without exposing it in the command line arguments.
+const envToken = process.env.HTK_SERVER_TOKEN;
+delete process.env.HTK_SERVER_TOKEN; // Don't let anything else see this
+
 import * as path from 'path';
 import { promises as fs } from 'fs'
 import * as semver from 'semver';
@@ -48,7 +53,7 @@ class HttpToolkitServer extends Command {
 
         await runHTK({
             configPath: flags.config,
-            authToken: flags.token
+            authToken: envToken || flags.token
         }).catch(async (error) => {
             await reportError(error);
             throw error;
