@@ -101,6 +101,7 @@ describe('Integration test', function () {
 
     it('starts a Mockttp server', async () => {
         const mockttp = getRemote({
+            standaloneServerUrl: 'http://localhost:45456',
             client: {
                 // Pretend to be a browser on the real site:
                 headers: { origin: 'https://app.httptoolkit.tech' }
