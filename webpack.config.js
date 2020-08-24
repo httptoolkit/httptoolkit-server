@@ -73,6 +73,8 @@ module.exports = {
         new webpack.IgnorePlugin(/^child-killer$/),
         // Dev-only require format, used in various adbkit modules
         new webpack.IgnorePlugin(/^\.\/src\/(adb|logcat|monkey)$/, /adbkit/),
+        // GraphQL playground - required but never used in production bundles
+        new webpack.NormalModuleReplacementPlugin(/^\.\/renderGraphiQL$/, 'node-noop'),
         // Copy Mockttp's schema (read with readFile) into the output directory
         new CopyWebpackPlugin([
             { from: path.join('node_modules', 'mockttp', 'dist', 'standalone', 'schema.gql') },
