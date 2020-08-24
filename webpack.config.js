@@ -75,6 +75,9 @@ module.exports = {
         new webpack.IgnorePlugin(/^\.\/src\/(adb|logcat|monkey)$/, /adbkit/),
         // GraphQL playground - required but never used in production bundles
         new webpack.NormalModuleReplacementPlugin(/^\.\/renderGraphiQL$/, 'node-noop'),
+        // CDP protocol - not used without local:true (which we never use, we always
+        // get the CDP protocol details from the target Electron app).
+        new webpack.IgnorePlugin(/^\.\/protocol.json$/, /chrome-remote-interface/),
         // Copy Mockttp's schema (read with readFile) into the output directory
         new CopyWebpackPlugin([
             { from: path.join('node_modules', 'mockttp', 'dist', 'standalone', 'schema.gql') },
