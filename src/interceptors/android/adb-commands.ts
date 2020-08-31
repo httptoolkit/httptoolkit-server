@@ -1,6 +1,6 @@
 import * as stream from 'stream';
 import * as path from 'path';
-import * as adb from '@httptoolkit/adbkit';
+import * as adb from '@devicefarmer/adbkit';
 import { reportError } from '../../error-tracking';
 import { delay } from '../../util';
 import { getCertificateFingerprint, parseCert } from '../../certificates';

@@ -1,4 +1,4 @@
-declare module '@httptoolkit/adbkit' {
+declare module '@devicefarmer/adbkit' {
     import * as stream from 'stream';
     import * as events from 'events';
 

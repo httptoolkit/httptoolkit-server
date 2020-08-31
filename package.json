@@ -26,9 +26,9 @@
   "homepage": "https://github.com/httptoolkit/httptoolkit-server",
   "bugs": "https://github.com/httptoolkit/httptoolkit-server/issues",
   "dependencies": {
+    "@devicefarmer/adbkit": "^2.11.2",
     "@graphql-tools/schema": "^6.0.18",
     "@graphql-tools/utils": "^6.0.18",
-    "@httptoolkit/adbkit": "^2.11.2-crashfix-updateforge",
     "@httptoolkit/browser-launcher": "^1.7.3",
     "@httptoolkit/osx-find-executable": "^2.0.0",
     "@oclif/command": "^1.5.4",
