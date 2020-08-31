@@ -141,7 +141,10 @@ export async function getRootCommand(adbClient: adb.AdbClient, deviceId: string)
     // If no explicit root commands are available, try to restart adb in root
     // mode instead. If this works, *all* commands will run as root.
     // We prefer explicit "su" calls if possible, to limit access & side effects.
-    await adbClient.root(deviceId).catch(console.log);
+    await adbClient.root(deviceId).catch((e) => {
+        if (e.message && e.message.includes("adbd is already running as root")) return;
+        else console.log(e);
+    });
 
     // Sometimes switching to root can disconnect ADB devices, so double-check
     // they're still here, and wait a few seconds for them to come back if not.
