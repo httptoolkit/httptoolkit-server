@@ -88,10 +88,13 @@ export async function runHTK(options: {
             maxAge: 86400 // Cache CORS responses for as long as possible
         }
     });
-    standalone.start({
+    await standalone.start({
         port: 45456,
         host: '127.0.0.1'
     });
+
+    const standaloneSetupTime = Date.now();
+    console.log('Standalone server started in', standaloneSetupTime - certSetupTime, 'ms');
 
     // Start the HTK server API
     const apiServer = new HttpToolkitServerApi({
@@ -124,6 +127,6 @@ export async function runHTK(options: {
 
     await apiServer.start();
 
-    console.log('Server started in', Date.now() - certSetupTime, 'ms');
+    console.log('Server started in', Date.now() - standaloneSetupTime, 'ms');
     console.log('Total startup took', Date.now() - startTime, 'ms');
 }
