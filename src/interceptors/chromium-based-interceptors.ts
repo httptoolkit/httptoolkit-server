@@ -91,7 +91,13 @@ abstract class ChromiumBasedInterceptor implements Interceptor {
                         `Unexpected ${this.variantName} profile location, not deleting: ${profilePath}`
                     );
                 } else {
-                    deleteFolder(browserDetails.profile).catch(reportError);
+                    const profileFolder = browserDetails.profile;
+                    deleteFolder(profileFolder)
+                    .catch(async() => {
+                        // After 1 error, wait a little and retry
+                        await delay(1000);
+                        await deleteFolder(profileFolder);
+                    }).catch(console.warn); // If it still fails, just give up, not a big deal
                 }
             }
         });

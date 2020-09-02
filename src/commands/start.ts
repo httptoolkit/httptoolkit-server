@@ -96,6 +96,15 @@ class HttpToolkitServer extends Command {
             return;
         }
 
+        const maybeReportError = (error: Error & { code?: string }) => {
+            if ([
+                'EBUSY',
+                'EPERM'
+            ].includes(error.code!)) return;
+
+            else reportError(error);
+        };
+
         if (serverPaths.every((filename) => {
             const version = semver.valid(filename.replace(/\.partial\.\d+$/, ''));
             return !version || semver.lt(version, currentVersion);
@@ -104,7 +113,7 @@ class HttpToolkitServer extends Command {
             // a new server standalone (not just from an update), because otherwise the
             // update dir can end up in a broken state. Better to clear it completely.
             console.log("Downloaded server directory is entirely outdated, deleting it");
-            deleteFolder(serverUpdatesPath).catch(reportError);
+            deleteFolder(serverUpdatesPath).catch(maybeReportError);
         } else {
             // Some of the servers are outdated, but not all (maybe it includes us).
             // Async delete all server versions older than this currently running version.
@@ -113,7 +122,7 @@ class HttpToolkitServer extends Command {
 
                 if (version && semver.lt(version, currentVersion)) {
                     console.log(`Deleting old server ${filename}`);
-                    deleteFolder(path.join(serverUpdatesPath, filename)).catch(reportError);
+                    deleteFolder(path.join(serverUpdatesPath, filename)).catch(maybeReportError);
                 }
             });
         }
