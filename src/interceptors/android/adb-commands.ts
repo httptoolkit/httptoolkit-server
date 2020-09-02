@@ -2,7 +2,7 @@ import * as stream from 'stream';
 import * as path from 'path';
 import * as adb from '@devicefarmer/adbkit';
 import { reportError } from '../../error-tracking';
-import { delay } from '../../util';
+import { delay, waitUntil } from '../../util';
 import { getCertificateFingerprint, parseCert } from '../../certificates';
 
 export const ANDROID_TEMP = '/data/local/tmp';
@@ -75,18 +75,7 @@ export const getConnectedDevices = batchCalls(async (adbClient: adb.AdbClient) =
             throw e;
         }
     }
-});
-
-async function waitUntilAvailable(adbClient: adb.AdbClient, deviceId: string, tries: number) {
-    delay(200);
-
-    while (tries > 0 && !(await getConnectedDevices(adbClient)).includes(deviceId)) {
-        tries = tries - 1;
-        await delay(500);
-    }
-
-    if (tries <= 0) throw new Error(`Device ${deviceId} not available via ADB`);
-}
+})
 
 export function stringAsStream(input: string) {
     const contentStream = new stream.Readable();
@@ -148,9 +137,11 @@ export async function getRootCommand(adbClient: adb.AdbClient, deviceId: string)
 
     // Sometimes switching to root can disconnect ADB devices, so double-check
     // they're still here, and wait a few seconds for them to come back if not.
-    await waitUntilAvailable(adbClient, deviceId, 10);
 
-    const whoami = await run(adbClient, deviceId, ['whoami']).catch(console.log);
+    await delay(500); // Wait, since they may not disconnect immediately
+    const whoami = await waitUntil(250, 10, (): Promise<string | false> => {
+        return run(adbClient, deviceId, ['whoami']).catch(() => false)
+    }).catch(console.log);
 
     return (whoami || '').trim() === 'root'
         ? [] // all commands now run as root, so no prefix required.
