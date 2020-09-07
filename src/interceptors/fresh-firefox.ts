@@ -171,7 +171,7 @@ export class FreshFirefox implements Interceptor {
             if (process.platform === "win32") {
                 // Firefox spawns a child process on Windows, and doesn't let us kill it at all.
                 // To fix this, we kill all firefox instances that were started with this exact same URL.
-                await windowsKill(`CommandLine Like '%\\\\firefox.exe%${initialUrl}'`);
+                await windowsKill(`CommandLine Like '%\\\\firefox.exe%${initialUrl}'`).catch(console.log);
             } else {
                 normalStop();
             }

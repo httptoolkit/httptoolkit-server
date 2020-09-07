@@ -47,13 +47,11 @@ export function getDeferred<T = void>(): Deferred<T> {
 }
 
 export async function windowsKill(processMatcher: string) {
-    await spawn('wmic', [
+    await spawnToResult('wmic', [
         'Path', 'win32_process',
         'Where', processMatcher,
         'Call', 'Terminate'
-    ], {
-        stdio: 'inherit'
-    });
+    ], { }, true);
 }
 
 // Spawn a command, and resolve with all output as strings when it terminates
