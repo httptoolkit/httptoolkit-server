@@ -57,7 +57,7 @@
     "mime-types": "^2.1.27",
     "mockttp": "^1.0.3",
     "node-fetch": "^2.6.1",
-    "node-forge": "^0.9.1",
+    "node-forge": "^0.10.0",
     "node-gsettings-wrapper": "^0.5.0",
     "portfinder": "^1.0.25",
     "registry-js": "^1.10.0",
