@@ -85,10 +85,28 @@ export function stringAsStream(input: string) {
     return contentStream;
 }
 
-async function run(adbClient: adb.AdbClient, deviceId: string, command: string[]): Promise<string> {
-    return adbClient.shell(deviceId, command)
-    .then(adb.util.readAll)
-    .then(buffer => buffer.toString('utf8'));
+async function run(
+    adbClient: adb.AdbClient,
+    deviceId: string,
+    command: string[],
+    options: {
+        timeout?: number
+    } = {
+        timeout: 10000
+    }
+): Promise<string> {
+    return Promise.race([
+        adbClient.shell(deviceId, command)
+            .then(adb.util.readAll)
+            .then(buffer => buffer.toString('utf8')),
+        ...(options.timeout
+            ? [
+                delay(options.timeout)
+                .then(() => { throw new Error(`Timeout for ADB command ${command}`) })
+            ]
+            : []
+        )
+    ]);
 }
 
 export async function pushFile(
@@ -115,7 +133,7 @@ export async function getRootCommand(adbClient: adb.AdbClient, deviceId: string)
     // Run whoami with each of the possible root commands
     const rootCheckResults = await Promise.all(
         runAsRootCommands.map((cmd) =>
-            run(adbClient, deviceId, cmd.concat('whoami')).catch(console.log)
+            run(adbClient, deviceId, cmd.concat('whoami'), { timeout: 1000 }).catch(console.log)
             .then((whoami) => ({ cmd, whoami }))
         )
     )
