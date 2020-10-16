@@ -32,6 +32,8 @@ export interface Interceptor {
     isActive(proxyPort: number): boolean;
 
     activate(proxyPort: number, options?: any): Promise<void | {}>;
+    activationTimeout?: number;
+
     deactivate(proxyPort: number, options?: any): Promise<void | {}>;
     deactivateAll(): Promise<void | {}>;
 }

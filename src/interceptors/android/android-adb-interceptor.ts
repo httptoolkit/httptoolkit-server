@@ -54,6 +54,8 @@ export class AndroidAdbInterceptor implements Interceptor {
         };
     }
 
+    activationTimeout = 10000; // Increase timeout for this interceptor to 10s, as initial setup takes a while
+
     async activate(proxyPort: number, options: {
         deviceId: string
     }): Promise<void | {}> {

@@ -154,7 +154,7 @@ const buildResolvers = (
             isActivable: (interceptor: Interceptor) => {
                 return withFallback(
                     interceptor.isActivable(),
-                    INTERCEPTOR_TIMEOUT,
+                    interceptor.activationTimeout || INTERCEPTOR_TIMEOUT,
                     false
                 );
             },
