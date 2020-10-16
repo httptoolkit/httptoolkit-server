@@ -32,9 +32,10 @@ To get started:
 * `npm install`
 * `npm start`
 * A [Mockttp](https://npmjs.com/package/mockttp) standalone server will start on port 45456, and a graphql management server on 45457.
-* Either make requests to the servers by hand, or start a UI using it by:
+* Either make requests to the servers by hand, use the production UI by opening `https://app.httptoolkit.tech` in a Chromium-based browser, or start and use a local UI by:
     * Setting up the web UI locally (see [httptoolkit/httptoolkit-ui#contributing](https://github.com/httptoolkit/httptoolkit-ui#contributing)).
     * Running `npm run start:web` there to start the UI without its own server.
+    * Opening `http://local.httptoolkit.tech:8080` in a Chromium-based browser
 
 A few tips:
 
