@@ -210,6 +210,17 @@ export class FreshEdgeBeta extends ChromiumBasedInterceptor {
 
 };
 
+export class FreshEdgeDev extends ChromiumBasedInterceptor {
+
+    id = 'fresh-edge-dev';
+    version = '1.0.0';
+
+    constructor(config: HtkConfig) {
+        super(config, 'msedge-dev');
+    }
+
+};
+
 export class FreshEdgeCanary extends ChromiumBasedInterceptor {
 
     id = 'fresh-edge-canary';

@@ -166,6 +166,7 @@ describe('Integration test', function () {
             inactivable('fresh-chromium-dev'),
             inactivable('fresh-edge'),
             inactivable('fresh-edge-beta'),
+            inactivable('fresh-edge-dev'),
             inactivable('fresh-edge-canary'),
             inactivable('fresh-opera', '1.0.3'),
             inactivable('fresh-brave'),

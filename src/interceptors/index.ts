@@ -12,6 +12,7 @@ import {
     FreshChromiumDev,
     FreshEdge,
     FreshEdgeBeta,
+    FreshEdgeDev,
     FreshEdgeCanary,
     FreshBrave,
     FreshOpera
@@ -50,6 +51,7 @@ export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> 
 
         new FreshEdge(config),
         new FreshEdgeBeta(config),
+        new FreshEdgeDev(config),
         new FreshEdgeCanary(config),
 
         new FreshOpera(config),
