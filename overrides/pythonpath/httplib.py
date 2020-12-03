@@ -16,7 +16,7 @@ _certPath = os.environ['SSL_CERT_FILE']
 # Redirect and then tunnel all plain HTTP connections:
 _http_connection_init = HTTPConnection.__init__
 @functools.wraps(_http_connection_init)
-def _new_http_connection_init(self, host, port=80, *k, **kw):
+def _new_http_connection_init(self, host, port=None, *k, **kw):
     _http_connection_init(self, _proxyHost, _proxyPort, *k, **kw)
     self.set_tunnel(host, port)
 HTTPConnection.__init__ = _new_http_connection_init
@@ -31,7 +31,7 @@ def _build_default_context():
 # Redirect & tunnel HTTPS connections, and inject our CA certificate:
 _https_connection_init = HTTPSConnection.__init__
 @functools.wraps(_https_connection_init)
-def _new_https_connection_init(self, host, port=443, *k, **kw):
+def _new_https_connection_init(self, host, port=None, *k, **kw):
     context = None
     if 'context' in kw:
         context = kw.get('context')
