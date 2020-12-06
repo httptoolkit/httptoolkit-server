@@ -1,6 +1,7 @@
 import * as _ from 'lodash';
 
 import { HtkConfig } from '../config';
+import { addShutdownHandler } from '../shutdown';
 
 import { FreshFirefox } from './fresh-firefox';
 import {
@@ -21,7 +22,7 @@ import {
 import { FreshTerminalInterceptor } from './terminal/fresh-terminal-interceptor';
 import { ExistingTerminalInterceptor } from './terminal/existing-terminal-interceptor';
 import { AndroidAdbInterceptor } from './android/android-adb-interceptor';
-import { addShutdownHandler } from '../shutdown';
+import { DockerInterceptor } from './docker/docker-interceptor';
 import { ElectronInterceptor } from './electron';
 import { JvmInterceptor } from './jvm';
 
@@ -74,7 +75,9 @@ export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> 
 
         new AndroidAdbInterceptor(config),
 
-        new JvmInterceptor(config)
+        new JvmInterceptor(config),
+
+        new DockerInterceptor(config)
     ];
 
     // When the server exits, try to shut down the interceptors too

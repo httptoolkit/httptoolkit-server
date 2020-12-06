@@ -1,37 +1,58 @@
 import * as path from 'path';
 
-import { HttpsPathOptions } from 'mockttp/dist/util/tls';
-
 import { APP_ROOT } from '../../constants';
 
-const PATH_VAR_SEPARATOR = process.platform === 'win32' ? ';' : ':';
+const BIN_OVERRIDE_DIR = 'path';
+const RUBY_OVERRIDE_DIR = 'gems';
+const PYTHON_OVERRIDE_DIR = 'pythonpath';
+const NODE_PREPEND_SCRIPT = ['js', 'prepend-node.js'];
+const JAVA_AGENT_JAR = 'java-agent.jar';
 
 export const OVERRIDES_DIR = path.join(APP_ROOT, 'overrides');
-const OVERRIDE_RUBYGEMS_PATH = path.join(OVERRIDES_DIR, 'gems');
-const OVERRIDE_PYTHONPATH = path.join(OVERRIDES_DIR, 'pythonpath');
 
-export const OVERRIDE_JAVA_AGENT = path.join(OVERRIDES_DIR, 'java-agent.jar');
+// Used in terminal scripts that help to enforce our PATH override elsewhere:
+export const OVERRIDE_BIN_PATH = path.join(OVERRIDES_DIR, BIN_OVERRIDE_DIR);
 
-const OVERRIDE_JS_SCRIPT = path.join(OVERRIDES_DIR, 'js', 'prepend-node.js');
-const NODE_OPTION = `--require ${
-    // Avoid quoting except when necessary, because node 8 doesn't support quotes here
-    OVERRIDE_JS_SCRIPT.includes(' ')
-    ? `"${OVERRIDE_JS_SCRIPT}"`
-    : OVERRIDE_JS_SCRIPT
-}`;
-
-export const OVERRIDE_BIN_PATH = path.join(OVERRIDES_DIR, 'path');
+// Use in attach-jvm to attach externally to a running JVM process:
+export const OVERRIDE_JAVA_AGENT = path.join(OVERRIDES_DIR, JAVA_AGENT_JAR);
 
 export function getTerminalEnvVars(
     proxyPort: number,
-    httpsConfig: HttpsPathOptions,
-    currentEnv: { [key: string]: string | undefined } | 'runtime-inherit'
+    httpsConfig: { certPath: string },
+    currentEnv: { [key: string]: string | undefined } | 'runtime-inherit',
+    targetEnvConfig: {
+        httpToolkitIp?: string,
+        overridePath?: string,
+        targetPlatform?: NodeJS.Platform
+    } = {}
 ): { [key: string]: string } {
-    const proxyUrl = `http://127.0.0.1:${proxyPort}`;
+    const { overridePath, targetPlatform, httpToolkitIp } = {
+        httpToolkitIp: '127.0.0.1',
+        overridePath: OVERRIDES_DIR,
+        targetPlatform: process.platform,
+        ...targetEnvConfig
+    };
+
+    const pathVarSeparator = targetPlatform === 'win32' ? ';' : ':';
+    const joinPath = targetPlatform === 'win32' ? path.win32.join : path.posix.join;
+
+    const proxyUrl = `http://${httpToolkitIp}:${proxyPort}`;
+
+    const rubyGemsPath = joinPath(overridePath, RUBY_OVERRIDE_DIR);
+    const pythonPath = joinPath(overridePath, PYTHON_OVERRIDE_DIR);
+    const nodePrependScript = joinPath(overridePath, ...NODE_PREPEND_SCRIPT);
+    const nodePrependOption = `--require ${
+        // Avoid quoting except when necessary, because node 8 doesn't support quotes here
+        nodePrependScript.includes(' ')
+            ? `"${nodePrependScript}"`
+            : nodePrependScript
+    }`;
 
     const javaAgentOption = `-javaagent:${
-        OVERRIDE_JAVA_AGENT
-    }=127.0.0.1|${proxyPort}|${httpsConfig.certPath}`;
+        joinPath(overridePath, JAVA_AGENT_JAR)
+    }=${httpToolkitIp}|${proxyPort}|${httpsConfig.certPath}`;
+
+    const binPath = joinPath(overridePath, BIN_OVERRIDE_DIR);
 
     return {
         'http_proxy': proxyUrl,
@@ -67,30 +88,30 @@ export function getTerminalEnvVars(
         'HTTP_TOOLKIT_ACTIVE': 'true',
 
         // Prepend our bin overrides into $PATH
-        'PATH': `${OVERRIDE_BIN_PATH}${PATH_VAR_SEPARATOR}${
+        'PATH': `${binPath}${pathVarSeparator}${
             currentEnv == 'runtime-inherit' ? '$PATH' : currentEnv.PATH
         }`,
 
         // Prepend our Ruby gem overrides into $LOAD_PATH
         'RUBYLIB': currentEnv === 'runtime-inherit'
-                ? `${OVERRIDE_RUBYGEMS_PATH}:$RUBYLIB`
+                ? `${rubyGemsPath}:$RUBYLIB`
             : !!currentEnv.RUBYLIB
-                ? `${OVERRIDE_RUBYGEMS_PATH}:${currentEnv.RUBYLIB}`
-            : OVERRIDE_RUBYGEMS_PATH,
+                ? `${rubyGemsPath}:${currentEnv.RUBYLIB}`
+            : rubyGemsPath,
 
         // Prepend our Python package overrides into $PYTHONPATH
         'PYTHONPATH': currentEnv === 'runtime-inherit'
-                ? `${OVERRIDE_PYTHONPATH}:$PYTHONPATH`
+                ? `${pythonPath}:$PYTHONPATH`
             : currentEnv.PYTHONPATH
-                ? `${OVERRIDE_PYTHONPATH}:${currentEnv.PYTHONPATH}`
-            : OVERRIDE_PYTHONPATH,
+                ? `${pythonPath}:${currentEnv.PYTHONPATH}`
+            : pythonPath,
 
         // We use $NODE_OPTIONS to prepend our script into node. Notably this drops existing
         // env values, when using our env, because _our_ NODE_OPTIONS aren't meant for
         // subprocesses. Otherwise e.g. --max-http-header-size breaks old Node/Electron.
         'NODE_OPTIONS': currentEnv === 'runtime-inherit'
-            ? `$NODE_OPTIONS ${NODE_OPTION}`
-            : NODE_OPTION,
+            ? `$NODE_OPTIONS ${nodePrependOption}`
+            : nodePrependOption,
 
         // Attach our Java agent to all launched Java processes:
         'JAVA_TOOL_OPTIONS': currentEnv === 'runtime-inherit'
