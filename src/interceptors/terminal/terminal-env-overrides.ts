@@ -73,6 +73,11 @@ export function getTerminalEnvVars(
         // We use $NODE_OPTIONS to prepend our script into node. Notably this also
         // clears it, which is important, as _our_ NODE_OPTIONS aren't meant for
         // subprocesses. Otherwise e.g. --max-http-header-size breaks old Node/Electron.
-        NODE_OPTIONS: `--require "${OVERRIDE_JS_SCRIPT}"`
+        'NODE_OPTIONS': `--require ${
+            // Avoid quoting except when necessary, because node 8 doesn't support quotes here
+            OVERRIDE_JS_SCRIPT.includes(' ')
+            ? `"${OVERRIDE_JS_SCRIPT}"`
+            : OVERRIDE_JS_SCRIPT
+        }`
     };
 }
