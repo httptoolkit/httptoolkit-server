@@ -47,6 +47,8 @@ export function getTerminalEnvVars(
         'PERL_LWP_SSL_CA_FILE': httpsConfig.certPath,
         // Trust cert for HTTPS requests from Git
         'GIT_SSL_CAINFO': httpsConfig.certPath,
+        // Trust cert in Rust's Cargo:
+        'CARGO_HTTP_CAINFO': httpsConfig.certPath,
 
         // Flag used by subprocesses to check they're running in an intercepted env
         'HTTP_TOOLKIT_ACTIVE': 'true',
