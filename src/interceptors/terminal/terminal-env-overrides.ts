@@ -9,6 +9,7 @@ const PATH_VAR_SEPARATOR = process.platform === 'win32' ? ';' : ':';
 export const OVERRIDES_DIR = path.join(APP_ROOT, 'overrides');
 const OVERRIDE_RUBYGEMS_PATH = path.join(OVERRIDES_DIR, 'gems');
 const OVERRIDE_PYTHONPATH = path.join(OVERRIDES_DIR, 'pythonpath');
+const OVERRIDE_JS_SCRIPT = path.join(OVERRIDES_DIR, 'js', 'prepend-node.js');
 
 export const OVERRIDE_BIN_PATH = path.join(OVERRIDES_DIR, 'path');
 
@@ -69,8 +70,9 @@ export function getTerminalEnvVars(
                 ? `${OVERRIDE_PYTHONPATH}:${currentEnv.PYTHONPATH}`
             : OVERRIDE_PYTHONPATH,
 
-        // Clear NODE_OPTIONS - it's meant for _us_, not subprocesses.
-        // Otherwise e.g. --max-http-header-size can break old Node/Electron
-        NODE_OPTIONS: ""
+        // We use $NODE_OPTIONS to prepend our script into node. Notably this also
+        // clears it, which is important, as _our_ NODE_OPTIONS aren't meant for
+        // subprocesses. Otherwise e.g. --max-http-header-size breaks old Node/Electron.
+        NODE_OPTIONS: `--require "${OVERRIDE_JS_SCRIPT}"`
     };
 }

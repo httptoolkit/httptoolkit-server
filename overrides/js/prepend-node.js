@@ -4,7 +4,7 @@
  * plus tweaks various other HTTP clients that need nudges, so they
  * all correctly pick up the proxy from the environment.
  *
- * Tested against Node 6, 8, 10 and 12.
+ * Tested against Node 6, 8, 10, 12 and 14.
 */
 
 const wrapModule = require('./wrap-require');
