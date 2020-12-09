@@ -1,5 +1,8 @@
 /**
- * --require'd by node before loading any other modules.
+ * --require'd by node before loading any other modules. The --require
+ * option is injected both using NODE_OPTIONS and with a node wrapper in
+ * PATH to handle various potential cases (node dedupes --require anyway).
+ *
  * This file sets up a global agent for the http & https modules,
  * plus tweaks various other HTTP clients that need nudges, so they
  * all correctly pick up the proxy from the environment.

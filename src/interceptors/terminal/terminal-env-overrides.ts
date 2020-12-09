@@ -9,7 +9,14 @@ const PATH_VAR_SEPARATOR = process.platform === 'win32' ? ';' : ':';
 export const OVERRIDES_DIR = path.join(APP_ROOT, 'overrides');
 const OVERRIDE_RUBYGEMS_PATH = path.join(OVERRIDES_DIR, 'gems');
 const OVERRIDE_PYTHONPATH = path.join(OVERRIDES_DIR, 'pythonpath');
+
 const OVERRIDE_JS_SCRIPT = path.join(OVERRIDES_DIR, 'js', 'prepend-node.js');
+const NODE_OPTION = `--require ${
+    // Avoid quoting except when necessary, because node 8 doesn't support quotes here
+    OVERRIDE_JS_SCRIPT.includes(' ')
+    ? `"${OVERRIDE_JS_SCRIPT}"`
+    : OVERRIDE_JS_SCRIPT
+}`;
 
 export const OVERRIDE_BIN_PATH = path.join(OVERRIDES_DIR, 'path');
 
@@ -72,14 +79,11 @@ export function getTerminalEnvVars(
                 ? `${OVERRIDE_PYTHONPATH}:${currentEnv.PYTHONPATH}`
             : OVERRIDE_PYTHONPATH,
 
-        // We use $NODE_OPTIONS to prepend our script into node. Notably this also
-        // clears it, which is important, as _our_ NODE_OPTIONS aren't meant for
+        // We use $NODE_OPTIONS to prepend our script into node. Notably this drops existing
+        // env values, when using our env, because _our_ NODE_OPTIONS aren't meant for
         // subprocesses. Otherwise e.g. --max-http-header-size breaks old Node/Electron.
-        'NODE_OPTIONS': `--require ${
-            // Avoid quoting except when necessary, because node 8 doesn't support quotes here
-            OVERRIDE_JS_SCRIPT.includes(' ')
-            ? `"${OVERRIDE_JS_SCRIPT}"`
-            : OVERRIDE_JS_SCRIPT
-        }`
+        'NODE_OPTIONS': currentEnv === 'runtime-inherit'
+            ? `$NODE_OPTIONS ${NODE_OPTION}`
+            : NODE_OPTION
     };
 }
