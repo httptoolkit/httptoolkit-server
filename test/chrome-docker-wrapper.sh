@@ -13,6 +13,5 @@ WAIT_EXIT_CODE=$?
 # If this script gets killed, kill Chrome with the same signal
 if [[ WAIT_EXIT_CODE -gt 128 ]]
 then
-    echo kill -$(($WAIT_EXIT_CODE - 128)) $CHROME_PID
     kill -$(($WAIT_EXIT_CODE - 128)) $CHROME_PID
 fi
