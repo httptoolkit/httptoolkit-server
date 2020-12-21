@@ -30,6 +30,9 @@ jobs:
           apt-get update
           apt-get install p7zip-full xterm
           cp test/chrome-docker-wrapper.sh /usr/local/bin/google-chrome
+
+          # Fix $HOME perms to make Firefox happy
+          chown $(whoami) $HOME
       - run: npm run build
       - run: xvfb-run npm run test
       - run: xvfb-run npm run test:release
