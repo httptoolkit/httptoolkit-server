@@ -81,10 +81,13 @@ describe('Integration test', function () {
                 // If the config parent folder doesn't exist at all, we'll see an ENOENT, that's ok:
                 if (d.toString().includes('[ENOENT]')) return;
 
-                reject();
                 stderr = stderr + d.toString();
                 console.warn(d.toString());
             });
+
+            // Exit or error before our expected output means startup failed.
+            serverProcess.on('close', reject);
+            serverProcess.on('error', reject);
         });
     });
 
