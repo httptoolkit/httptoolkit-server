@@ -78,6 +78,8 @@ describe('Integration test', function () {
                 if (d.toString().includes('ExperimentalWarning: The fs.promises API')) return;
                 // We use _stream_wrap, in some node versions this is deprecated, for now ignore it
                 if (d.toString().includes('The _stream_wrap module is deprecated')) return;
+                // If the config parent folder doesn't exist at all, we'll see an ENOENT, that's ok:
+                if (d.toString().includes('[ENOENT]')) return;
 
                 reject();
                 stderr = stderr + d.toString();
