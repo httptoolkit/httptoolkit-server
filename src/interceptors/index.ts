@@ -5,6 +5,7 @@ import { HtkConfig } from '../config';
 import { FreshFirefox } from './fresh-firefox';
 import {
     FreshChrome,
+    ExistingChrome,
     FreshChromeBeta,
     FreshChromeCanary,
     FreshChromeDev,
@@ -47,6 +48,7 @@ export interface ActivationError extends Error {
 export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> {
     const interceptors = [
         new FreshChrome(config),
+        new ExistingChrome(config),
         new FreshChromeBeta(config),
         new FreshChromeDev(config),
         new FreshChromeCanary(config),

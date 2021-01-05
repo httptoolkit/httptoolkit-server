@@ -164,6 +164,7 @@ describe('Integration test', function () {
 
         expect(response.interceptors).to.deep.equal([
             activable('fresh-chrome'),
+            activable('existing-chrome'),
             inactivable('fresh-chrome-beta'),
             inactivable('fresh-chrome-dev'),
             inactivable('fresh-chrome-canary'),

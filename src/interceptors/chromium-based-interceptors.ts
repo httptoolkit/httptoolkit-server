@@ -4,7 +4,7 @@ import { generateSPKIFingerprint } from 'mockttp';
 import { HtkConfig } from '../config';
 
 import { getAvailableBrowsers, launchBrowser, BrowserInstance, Browser } from '../browsers';
-import { delay, readFile, deleteFolder } from '../util';
+import { delay, readFile, deleteFolder, listRunningProcesses } from '../util';
 import { HideWarningServer } from '../hide-warning-server';
 import { Interceptor } from '.';
 import { reportError } from '../error-tracking';
@@ -16,7 +16,34 @@ const getBrowserDetails = async (config: HtkConfig, variant: string): Promise<Br
     return _.find(browsers, b => b.name === variant);
 };
 
-abstract class ChromiumBasedInterceptor implements Interceptor {
+const getChromiumLaunchOptions = async (
+    browser: string,
+    config: HtkConfig,
+    proxyPort: number,
+    hideWarningServer: HideWarningServer
+) => {
+    const certificatePem = await readFile(config.https.certPath, 'utf8');
+    const spkiFingerprint = generateSPKIFingerprint(certificatePem);
+
+    return {
+        browser,
+        proxy: `https://127.0.0.1:${proxyPort}`,
+        noProxy: [
+            // Force even localhost requests to go through the proxy
+            // See https://bugs.chromium.org/p/chromium/issues/detail?id=899126#c17
+            '<-loopback>',
+            // Don't intercept our warning hiding requests. Note that this must be
+            // the 2nd rule here, or <-loopback> would override it.
+            hideWarningServer.host
+        ],
+        options: [
+            // Trust our CA certificate's fingerprint:
+            `--ignore-certificate-errors-spki-list=${spkiFingerprint}`
+        ]
+    };
+}
+
+abstract class FreshChromiumBasedInterceptor implements Interceptor {
 
     readonly abstract id: string;
     readonly abstract version: string;
@@ -42,30 +69,19 @@ abstract class ChromiumBasedInterceptor implements Interceptor {
     async activate(proxyPort: number) {
         if (this.isActive(proxyPort)) return;
 
-        const certificatePem = await readFile(this.config.https.certPath, 'utf8');
-        const spkiFingerprint = generateSPKIFingerprint(certificatePem);
-
         const hideWarningServer = new HideWarningServer(this.config);
         await hideWarningServer.start('https://amiusing.httptoolkit.tech');
 
         const browserDetails = await getBrowserDetails(this.config, this.variantName);
 
-        const browser = await launchBrowser(hideWarningServer.hideWarningUrl, {
-            browser: browserDetails ? browserDetails.name : this.variantName,
-            proxy: `https://127.0.0.1:${proxyPort}`,
-            noProxy: [
-                // Force even localhost requests to go through the proxy
-                // See https://bugs.chromium.org/p/chromium/issues/detail?id=899126#c17
-                '<-loopback>',
-                // Don't intercept our warning hiding requests. Note that this must be
-                // the 2nd rule here, or <-loopback> would override it.
-                hideWarningServer.host
-            ],
-            options: [
-                // Trust our CA certificate's fingerprint:
-                `--ignore-certificate-errors-spki-list=${spkiFingerprint}`
-            ]
-        }, this.config.configPath);
+        const browser = await launchBrowser(hideWarningServer.hideWarningUrl,
+            await getChromiumLaunchOptions(
+                browserDetails ? browserDetails.name : this.variantName,
+                this.config,
+                proxyPort,
+                hideWarningServer
+            )
+        , this.config.configPath);
 
         if (browser.process.stdout) browser.process.stdout.pipe(process.stdout);
         if (browser.process.stderr) browser.process.stderr.pipe(process.stderr);
@@ -122,7 +138,144 @@ abstract class ChromiumBasedInterceptor implements Interceptor {
     }
 };
 
-export class FreshChrome extends ChromiumBasedInterceptor {
+abstract class ExistingChromiumBasedInterceptor implements Interceptor {
+
+    readonly abstract id: string;
+    readonly abstract version: string;
+
+    private activeBrowser: { // We can only intercept one instance
+        proxyPort: number,
+        browser: BrowserInstance
+    } | undefined;
+
+    constructor(
+        private config: HtkConfig,
+        private variantName: string
+    ) { }
+
+    async browserDetails() {
+        return getBrowserDetails(this.config, this.variantName);
+    }
+
+    isActive(proxyPort: number | string) {
+        const activeBrowser = this.activeBrowser;
+        return !!activeBrowser &&
+            activeBrowser.proxyPort === proxyPort &&
+            !!activeBrowser.browser.pid;
+    }
+
+    async isActivable() {
+        if (this.activeBrowser) return false;
+        return !!this.browserDetails();
+    }
+
+    async findExistingPid(): Promise<number | undefined> {
+        const processes = await listRunningProcesses();
+
+        const browserDetails = await this.browserDetails();
+        if (!browserDetails) {
+            throw new Error("Can't intercept existing browser without browser details");
+        }
+
+        const browserProcesses = processes.filter((proc) => {
+            if (process.platform === 'darwin') {
+                if (!proc.command.startsWith(browserDetails.command)) return false;
+
+                const appBundlePath = proc.command.substring(browserDetails.command.length);
+
+                // Only *.app/Contents/MacOS/* is the main app process:
+                return appBundlePath.match(/^\/Contents\/MacOS\//);
+            } else {
+                return proc.bin && (
+                    // Find a binary that exactly matches the specific command:
+                    proc.bin === browserDetails.command ||
+                    // Or whose binary who's matches the path for this specific variant:
+                    proc.bin.includes(`${browserDetails.name}/${browserDetails.type}`)
+                );
+            }
+        });
+
+        const rootProcess = browserProcesses.find(({ args }) =>
+            // Find the main process, skipping any renderer/util processes
+            args !== undefined && !args.includes('--type=')
+        );
+
+        return rootProcess && rootProcess.pid;
+    }
+
+    async activate(proxyPort: number, options: { closeConfirmed: boolean } = { closeConfirmed: false }) {
+        if (!this.isActivable()) return;
+
+        const certificatePem = await readFile(this.config.https.certPath, 'utf8');
+        const spkiFingerprint = generateSPKIFingerprint(certificatePem);
+
+        const hideWarningServer = new HideWarningServer(this.config);
+        await hideWarningServer.start('https://amiusing.httptoolkit.tech');
+
+        const existingPid = await this.findExistingPid();
+        if (existingPid) {
+            if (!options.closeConfirmed) {
+                // Fail, with metadata requesting the UI to confirm that Chrome should be killed
+                throw Object.assign(
+                    new Error(`Not killing ${this.variantName}: not confirmed`),
+                    { metadata: { closeConfirmRequired: true }, reportable: false }
+                );
+            }
+
+            process.kill(existingPid);
+            await delay(1000);
+        }
+
+        const browserDetails = await getBrowserDetails(this.config, this.variantName);
+        const launchOptions = await getChromiumLaunchOptions(
+            browserDetails ? browserDetails.name : this.variantName,
+            this.config,
+            proxyPort,
+            hideWarningServer
+        );
+
+        if (existingPid) {
+            // If we killed something, use --restore-last-session to ensure it comes back:
+            launchOptions.options.push('--restore-last-session');
+        }
+
+        const browser = await launchBrowser(hideWarningServer.hideWarningUrl, {
+            ...launchOptions,
+            profile: null // Enforce that we use the default profile
+        }, this.config.configPath);
+
+        if (browser.process.stdout) browser.process.stdout.pipe(process.stdout);
+        if (browser.process.stderr) browser.process.stderr.pipe(process.stderr);
+
+        await hideWarningServer.completedPromise;
+        await hideWarningServer.stop();
+
+        this.activeBrowser = { browser, proxyPort };
+        browser.process.once('close', async () => {
+            delete this.activeBrowser;
+        });
+
+        // Delay the approx amount of time it normally takes the browser to really open, just to be sure
+        await delay(500);
+    }
+
+    async deactivate(proxyPort: number | string) {
+        if (this.isActive(proxyPort)) {
+            const { browser } = this.activeBrowser!;
+            const exitPromise = new Promise((resolve) => browser!.process.once('close', resolve));
+            browser!.stop();
+            await exitPromise;
+        }
+    }
+
+    async deactivateAll(): Promise<void> {
+        if (this.activeBrowser) {
+            await this.deactivate(this.activeBrowser.proxyPort);
+        }
+    }
+};
+
+export class FreshChrome extends FreshChromiumBasedInterceptor {
 
     id = 'fresh-chrome';
     version = '1.0.0';
@@ -133,7 +286,18 @@ export class FreshChrome extends ChromiumBasedInterceptor {
 
 };
 
-export class FreshChromeBeta extends ChromiumBasedInterceptor {
+export class ExistingChrome extends ExistingChromiumBasedInterceptor {
+
+    id = 'existing-chrome';
+    version = '1.0.0';
+
+    constructor(config: HtkConfig) {
+        super(config, 'chrome');
+    }
+
+};
+
+export class FreshChromeBeta extends FreshChromiumBasedInterceptor {
 
     id = 'fresh-chrome-beta';
     version = '1.0.0';
@@ -144,7 +308,7 @@ export class FreshChromeBeta extends ChromiumBasedInterceptor {
 
 };
 
-export class FreshChromeDev extends ChromiumBasedInterceptor {
+export class FreshChromeDev extends FreshChromiumBasedInterceptor {
 
     id = 'fresh-chrome-dev';
     version = '1.0.0';
@@ -155,7 +319,7 @@ export class FreshChromeDev extends ChromiumBasedInterceptor {
 
 };
 
-export class FreshChromeCanary extends ChromiumBasedInterceptor {
+export class FreshChromeCanary extends FreshChromiumBasedInterceptor {
 
     id = 'fresh-chrome-canary';
     version = '1.0.0';
@@ -166,7 +330,7 @@ export class FreshChromeCanary extends ChromiumBasedInterceptor {
 
 };
 
-export class FreshChromium extends ChromiumBasedInterceptor {
+export class FreshChromium extends FreshChromiumBasedInterceptor {
 
     id = 'fresh-chromium';
     version = '1.0.0';
@@ -177,7 +341,7 @@ export class FreshChromium extends ChromiumBasedInterceptor {
 
 };
 
-export class FreshChromiumDev extends ChromiumBasedInterceptor {
+export class FreshChromiumDev extends FreshChromiumBasedInterceptor {
 
     id = 'fresh-chromium-dev';
     version = '1.0.0';
@@ -188,7 +352,7 @@ export class FreshChromiumDev extends ChromiumBasedInterceptor {
 
 };
 
-export class FreshEdge extends ChromiumBasedInterceptor {
+export class FreshEdge extends FreshChromiumBasedInterceptor {
 
     id = 'fresh-edge';
     version = '1.0.0';
@@ -199,7 +363,7 @@ export class FreshEdge extends ChromiumBasedInterceptor {
 
 };
 
-export class FreshEdgeBeta extends ChromiumBasedInterceptor {
+export class FreshEdgeBeta extends FreshChromiumBasedInterceptor {
 
     id = 'fresh-edge-beta';
     version = '1.0.0';
@@ -210,7 +374,7 @@ export class FreshEdgeBeta extends ChromiumBasedInterceptor {
 
 };
 
-export class FreshEdgeDev extends ChromiumBasedInterceptor {
+export class FreshEdgeDev extends FreshChromiumBasedInterceptor {
 
     id = 'fresh-edge-dev';
     version = '1.0.0';
@@ -221,7 +385,7 @@ export class FreshEdgeDev extends ChromiumBasedInterceptor {
 
 };
 
-export class FreshEdgeCanary extends ChromiumBasedInterceptor {
+export class FreshEdgeCanary extends FreshChromiumBasedInterceptor {
 
     id = 'fresh-edge-canary';
     version = '1.0.0';
@@ -232,7 +396,7 @@ export class FreshEdgeCanary extends ChromiumBasedInterceptor {
 
 };
 
-export class FreshBrave extends ChromiumBasedInterceptor {
+export class FreshBrave extends FreshChromiumBasedInterceptor {
 
     id = 'fresh-brave';
     version = '1.0.0';
@@ -243,7 +407,7 @@ export class FreshBrave extends ChromiumBasedInterceptor {
 
 };
 
-export class FreshOpera extends ChromiumBasedInterceptor {
+export class FreshOpera extends FreshChromiumBasedInterceptor {
 
     id = 'fresh-opera';
     version = '1.0.3';
