@@ -39,6 +39,11 @@ export interface Interceptor {
     deactivateAll(): Promise<void | {}>;
 }
 
+export interface ActivationError extends Error {
+    metadata?: any; // Any extra metadata with the failure, e.g. if it could be retried
+    reportable?: boolean; // Set to false to disable reporting this error, it's normal
+}
+
 export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> {
     const interceptors = [
         new FreshChrome(config),

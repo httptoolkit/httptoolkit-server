@@ -12,7 +12,7 @@ import { generateSPKIFingerprint } from 'mockttp';
 
 import { HtkConfig } from './config';
 import { reportError, addBreadcrumb } from './error-tracking';
-import { buildInterceptors, Interceptor } from './interceptors';
+import { buildInterceptors, Interceptor, ActivationError } from './interceptors';
 import { ALLOWED_ORIGINS } from './constants';
 import { delay } from './util';
 
@@ -88,6 +88,8 @@ const withFallback = <R>(p: Promise<R>, timeoutMs: number, defaultValue: R) =>
         delay(timeoutMs).then(() => defaultValue)
     ]);
 
+const isActivationError = (value: any): value is ActivationError => _.isError(value);
+
 const INTERCEPTOR_TIMEOUT = 1000;
 
 const buildResolvers = (
@@ -128,9 +130,9 @@ const buildResolvers = (
                 const result = await interceptor.activate(proxyPort, options).catch((e) => e);
                 activationDone = true;
 
-                if (_.isError(result)) {
-                    reportError(result);
-                    return { success: false };
+                if (isActivationError(result)) {
+                    if (result.reportable !== false) reportError(result);
+                    return { success: false, metadata: result.metadata };
                 } else {
                     addBreadcrumb(`Successfully activated ${id}`, { category: 'interceptor' });
                     return { success: true, metadata: result };
