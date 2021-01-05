@@ -195,19 +195,19 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
             }
         });
 
-        const rootProcess = browserProcesses.find(({ args }) =>
+        const defaultRootProcess = browserProcesses.find(({ args }) =>
+            args !== undefined &&
             // Find the main process, skipping any renderer/util processes
-            args !== undefined && !args.includes('--type=')
+            !args.includes('--type=') &&
+            // Also skip any non-default profile processes (e.g. our own fresh Chromes)
+            !args.includes('--user-data-dir')
         );
 
-        return rootProcess && rootProcess.pid;
+        return defaultRootProcess && defaultRootProcess.pid;
     }
 
     async activate(proxyPort: number, options: { closeConfirmed: boolean } = { closeConfirmed: false }) {
         if (!this.isActivable()) return;
-
-        const certificatePem = await readFile(this.config.https.certPath, 'utf8');
-        const spkiFingerprint = generateSPKIFingerprint(certificatePem);
 
         const hideWarningServer = new HideWarningServer(this.config);
         await hideWarningServer.start('https://amiusing.httptoolkit.tech');
