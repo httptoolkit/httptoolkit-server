@@ -10,7 +10,7 @@ import {
     Browser,
     LaunchOptions
 } from '../browsers';
-import { delay, readFile, deleteFolder, listRunningProcesses } from '../util';
+import { delay, readFile, deleteFolder, listRunningProcesses, windowsClose } from '../util';
 import { HideWarningServer } from '../hide-warning-server';
 import { Interceptor } from '.';
 import { reportError } from '../error-tracking';
@@ -228,7 +228,12 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
                 );
             }
 
-            process.kill(existingPid);
+            if (process.platform === 'win32') {
+                windowsClose(existingPid);
+            } else {
+                process.kill(existingPid);
+            }
+
             await delay(1000);
         }
 

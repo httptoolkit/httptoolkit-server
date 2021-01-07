@@ -167,6 +167,15 @@ export async function listRunningProcesses(): Promise<Array<Proc>> {
     }
 }
 
+// Cleanly close (simulate closing the main window) on a specific windows process
+export async function windowsClose(pid: number) {
+    await spawnToResult('taskkill', [
+        '/pid', pid.toString(),
+    ]);
+}
+
+// Harshly kill a windows process by some WMIC matching string e.g.
+// "processId=..." or "CommandLine Like '%...%'"
 export async function windowsKill(processMatcher: string) {
     await spawnToResult('wmic', [
         'Path', 'win32_process',
