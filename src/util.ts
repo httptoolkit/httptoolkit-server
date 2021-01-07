@@ -134,7 +134,36 @@ export async function listRunningProcesses(): Promise<Array<Proc>> {
 
         return processes;
     } else {
-        throw new Error("Windows not yet supported");
+        const wmicOutput = await spawnToResult('wmic', [
+            'Process', 'Get', 'processid,commandline'
+        ]);
+
+        if (wmicOutput.exitCode !== 0) {
+            throw new Error(`WMIC exited with unexpected error code ${wmicOutput.exitCode}`);
+        }
+
+        return getOutputLines(wmicOutput.stdout)
+            .slice(1) // Skip the header line
+            .filter((line) => line.includes(' ')) // Skip lines where the command line isn't available (just pids)
+            .map((line) => {
+                const pidIndex = line.lastIndexOf(' ') + 1;
+                const pid = parseInt(line.substring(pidIndex), 10);
+
+                const command = line.substring(0, pidIndex).trim();
+                const bin = command[0] === '"'
+                    ? command.substring(1, command.substring(1).indexOf('"') + 1)
+                    : command.substring(0, command.indexOf(' '));
+                const args = command[0] === '"'
+                    ? command.substring(bin.length + 3)
+                    : command.substring(bin.length + 1);
+
+                return {
+                    pid,
+                    command,
+                    bin,
+                    args
+                };
+            });
     }
 }
 
