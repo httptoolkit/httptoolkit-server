@@ -7,7 +7,8 @@ import { findExecutableById } from '@httptoolkit/osx-find-executable';
 import { Interceptor } from '..';
 import { HtkConfig } from '../../config';
 import { reportError, addBreadcrumb } from '../../error-tracking';
-import { spawnToResult, canAccess, commandExists } from '../../util';
+import { canAccess, commandExists } from '../../util';
+import { spawnToResult } from '../../process-management';
 
 import { getTerminalEnvVars } from './terminal-env-overrides';
 import { editShellStartupScripts, resetShellStartupScripts } from './terminal-scripts';

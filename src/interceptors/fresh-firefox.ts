@@ -7,7 +7,8 @@ import { HtkConfig } from '../config';
 import { reportError } from '../error-tracking';
 
 import { getAvailableBrowsers, launchBrowser, BrowserInstance } from '../browsers';
-import { delay, windowsKill, readFile, canAccess, deleteFolder, spawnToResult } from '../util';
+import { delay, readFile, canAccess, deleteFolder } from '../util';
+import { windowsKill, spawnToResult } from '../process-management';
 import { MessageServer } from '../message-server';
 import { CertCheckServer } from '../cert-check-server';
 import { Interceptor } from '.';
