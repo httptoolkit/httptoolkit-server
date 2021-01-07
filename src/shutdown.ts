@@ -1,4 +1,5 @@
 import { reportError } from './error-tracking';
+import { delay } from './util';
 
 type ShutdownHandler = () => Promise<unknown>;
 const shutdownHandlers: Array<ShutdownHandler> = [];
@@ -15,15 +16,20 @@ export function addShutdownHandler(handler: ShutdownHandler) {
 async function shutdown() {
     console.log('Shutting down...');
 
-    await Promise.all(shutdownHandlers.map(
+    const shutdownPromises = Promise.all(shutdownHandlers.map(
         async (handler) => {
             try {
-                handler();
+                await handler();
             } catch (e) {
                 reportError(e);
             }
         }
     ));
+
+    await Promise.race([
+        shutdownPromises,
+        delay(2000) // After 2 seconds, we just close anyway, we're done.
+    ]);
 
     process.exit(0);
 }
