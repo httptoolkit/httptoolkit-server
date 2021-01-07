@@ -283,6 +283,16 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
     async deactivate(proxyPort: number | string) {
         if (this.isActive(proxyPort)) {
             const { browser } = this.activeBrowser!;
+
+            if (process.platform === 'win32') {
+                // Try to cleanly close if we can, rather than killing Chrome directly:
+                try {
+                    await windowsClose(browser!.pid)
+                        .then(() => waitForExit(browser!.pid));
+                    return;
+                } catch (e) {} // If this fails/times out, kill like we do elsewhere:
+            }
+
             const exitPromise = new Promise((resolve) => browser!.process.once('close', resolve));
             browser!.stop();
             await exitPromise;
