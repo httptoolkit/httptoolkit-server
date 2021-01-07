@@ -246,13 +246,15 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
         launchOptions.options.push(
             '--no-default-browser-check',
             '--no-first-run',
-            '--disable-popup-blocking' // Required for hide-warning -> amiusing hop
+            '--disable-popup-blocking', // Required for hide-warning -> amiusing hop
+            // If we killed something, use --restore-last-session to ensure it comes back:
+            ...(existingPid ? ['--restore-last-session'] : []),
+            // Passing the URL here instead of passing it to launchBrowser ensures that it isn't
+            // opened in a separate window when launching on Mac
+            hideWarningServer.hideWarningUrl
         );
 
-        // If we killed something, use --restore-last-session to ensure it comes back:
-        if (existingPid) launchOptions.options.push('--restore-last-session');
-
-        const browser = await launchBrowser(hideWarningServer.hideWarningUrl, {
+        const browser = await launchBrowser("", {
             ...launchOptions,
             skipDefaults: true,
             profile: null // Enforce that we use the default profile
