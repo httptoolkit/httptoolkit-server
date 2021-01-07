@@ -68,5 +68,5 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./distributables/latest-manifest/*
           file_glob: true
-          tag: test-latest-manifest
+          tag: latest-manifest
           overwrite: true
