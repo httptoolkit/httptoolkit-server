@@ -79,6 +79,8 @@ export const getAvailableBrowsers = async (configPath: string) => {
     return (await getLauncher(configPath)).browsers;
 };
 
+export { LaunchOptions };
+
 export const launchBrowser = async (url: string, options: LaunchOptions, configPath: string) => {
     const launcher = await getLauncher(configPath);
     return await promisify(launcher)(url, options);
