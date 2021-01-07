@@ -167,6 +167,27 @@ export async function listRunningProcesses(): Promise<Array<Proc>> {
     }
 }
 
+export async function waitForExit(pid: number, timeout: number = 5000): Promise<void> {
+    const startTime = Date.now();
+
+    while (true) {
+        try {
+            process.kill(pid, 0) as void | boolean;
+
+            // Didn't throw. If we haven't timed out, check again after 250ms:
+            if (Date.now() - startTime > timeout) {
+                throw new Error("Process did not exit before timeout");
+            }
+            await delay(250);
+        } catch (e) {
+            if ((e as Error & { code?: string }).code === 'ESRCH') {
+                return; // Process doesn't exist! We're done.
+            }
+            else throw e;
+        }
+    }
+}
+
 // Cleanly close (simulate closing the main window) on a specific windows process
 export async function windowsClose(pid: number) {
     await spawnToResult('taskkill', [

@@ -10,7 +10,7 @@ import {
     Browser,
     LaunchOptions
 } from '../browsers';
-import { delay, readFile, deleteFolder, listRunningProcesses, windowsClose } from '../util';
+import { delay, readFile, deleteFolder, listRunningProcesses, windowsClose, waitForExit } from '../util';
 import { HideWarningServer } from '../hide-warning-server';
 import { Interceptor } from '.';
 import { reportError } from '../error-tracking';
@@ -234,7 +234,7 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
                 process.kill(existingPid);
             }
 
-            await delay(1000);
+            await waitForExit(existingPid);
         }
 
         const browserDetails = await getBrowserDetails(this.config, this.variantName);
