@@ -7,6 +7,12 @@ const pjson = require('./package.json');
 
 const OUTPUT_DIR = path.resolve(__dirname, 'bundle');
 
+console.log(
+    process.env.SENTRY_AUTH_TOKEN
+    ? "* Webpack will upload source map to Sentry *"
+    : "Sentry source map upload disabled - no token set"
+);
+
 module.exports = {
     entry: {
         index: './src/index.ts',
