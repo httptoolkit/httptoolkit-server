@@ -6,6 +6,7 @@ import { HtkConfig } from '../../config';
 import { generateSPKIFingerprint } from 'mockttp';
 
 import { reportError } from '../../error-tracking';
+import { delay } from '../../util';
 import {
     ANDROID_TEMP,
     createAdbClient,
@@ -100,6 +101,8 @@ export class AndroidAdbInterceptor implements Interceptor {
             certFingerprint: generateSPKIFingerprint(this.config.https.certContent)
         };
         const intentData = urlSafeBase64(JSON.stringify(setupParams));
+
+        await delay(100); // Add a little delay, to ensure intent URL is registered
 
         // Use ADB to launch the app with the proxy details
         await this.adbClient.startActivity(options.deviceId, {
