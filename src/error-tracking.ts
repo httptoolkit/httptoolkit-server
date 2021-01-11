@@ -56,6 +56,23 @@ export function initErrorTracking() {
                     }
                 }
                 return breadcrumb;
+            },
+            beforeSend(event, hint) {
+                if (event.exception && event.exception.values) {
+                    event.exception.values.forEach((value) => {
+                        if (!value.value) return;
+                        value.value = value.value
+                            // Strip any usernames that end up appearing within error values.
+                            // This helps to dedupe error reports, and it's good for privacy too
+                            .replace(/\/home\/[^\/]+\//g, '/home/<username>/')
+                            .replace(/\/Users\/[^\/]+\//g, '/Users/<username>/')
+                            .replace(/(\w):\\Users\\[^\\]+\\/gi, '$1:\\Users\\<username>\\')
+                            // Dedupe temp filenames in errors (from terminal script setup)
+                            .replace(/([a-zA-Z]+)\d{12,}\.temp/g, '$1<number>.temp');
+                    });
+                }
+
+                return event;
             }
         });
 
