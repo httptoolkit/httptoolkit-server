@@ -39,7 +39,6 @@
     "@sentry/node": "^5.29.2",
     "@types/command-exists": "^1.2.0",
     "@types/cors": "^2.8.7",
-    "@types/graphql": "^14.2.3",
     "@types/node-fetch": "^2.5.4",
     "@types/tmp": "0.0.33",
     "async-mutex": "^0.1.3",
