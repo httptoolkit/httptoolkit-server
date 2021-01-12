@@ -101,11 +101,13 @@ export class ElectronInterceptor implements Interceptor {
             });
         });
 
-        debugClient.Runtime.runIfWaitingForDebugger();
+        await debugClient.Runtime.runIfWaitingForDebugger();
         await debugClient.Runtime.enable();
         await debugClient.Debugger.enable();
 
         const callFrameId = await callFramePromise;
+
+        console.log("Injecting interception settings into Electron app...");
 
         // Inside the Electron process, load our electron-intercepting JS.
         const injectionResult = await debugClient.Debugger.evaluateOnCallFrame({
@@ -130,7 +132,9 @@ export class ElectronInterceptor implements Interceptor {
             throw new Error("Failed to inject into Electron app");
         }
 
-        debugClient.Debugger.resume();
+        console.log("App intercepted, resuming...");
+        await debugClient.Debugger.resume();
+        console.log("App resumed, Electron interception complete");
     }
 
     async deactivate(proxyPort: number | string): Promise<void> {

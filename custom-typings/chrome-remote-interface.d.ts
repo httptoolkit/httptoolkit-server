@@ -14,7 +14,7 @@ declare module 'chrome-remote-interface' {
 
         export interface CdpClient {
             Runtime: {
-                runIfWaitingForDebugger(): void;
+                runIfWaitingForDebugger(): Promise<void>;
                 enable(): Promise<void>;
                 evaluate(options: { expression: string }): Promise<{
                     result?: unknown,
@@ -25,7 +25,7 @@ declare module 'chrome-remote-interface' {
             Debugger: {
                 enable(): Promise<void>;
                 paused(callback: (stack: Stack) => void): void;
-                resume(): void;
+                resume(): Promise<void>;
                 evaluateOnCallFrame(options: {
                     callFrameId: string,
                     expression: string
