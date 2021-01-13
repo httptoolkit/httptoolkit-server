@@ -74,6 +74,8 @@ export class AndroidAdbInterceptor implements Interceptor {
                 await this.adbClient.install(options.deviceId, await streamLatestApk(this.config));
             }
             console.log("App installed successfully");
+
+            await delay(200); // Add a little delay, to ensure intent URL is registered before we use it
         }
 
         // Now that the app is installed, bring it to the front (avoids issues with starting a
@@ -101,8 +103,6 @@ export class AndroidAdbInterceptor implements Interceptor {
             certFingerprint: generateSPKIFingerprint(this.config.https.certContent)
         };
         const intentData = urlSafeBase64(JSON.stringify(setupParams));
-
-        await delay(100); // Add a little delay, to ensure intent URL is registered
 
         // Use ADB to launch the app with the proxy details
         await this.adbClient.startActivity(options.deviceId, {
