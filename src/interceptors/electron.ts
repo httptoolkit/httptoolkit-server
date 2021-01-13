@@ -10,6 +10,7 @@ import { Interceptor } from '.';
 
 import { HtkConfig } from '../config';
 import { delay, readFile } from '../util';
+import { windowsClose } from '../process-management';
 import { getTerminalEnvVars, OVERRIDES_DIR } from './terminal/terminal-env-overrides';
 import { reportError, addBreadcrumb } from '../error-tracking';
 import { findExecutableInApp } from '@httptoolkit/osx-find-executable';
@@ -142,21 +143,37 @@ export class ElectronInterceptor implements Interceptor {
 
         await Promise.all(
             this.debugClients[proxyPort].map(async (debugClient) => {
-                // Politely signal self to shutdown cleanly
-                await debugClient.Runtime.evaluate({
-                    expression: 'process.kill(process.pid, "SIGTERM")'
+                let shutdown = false;
+                const disconnectPromise = new Promise((resolve) =>
+                    debugClient.once('disconnect', resolve)
+                ).then(() => {
+                    shutdown = true
                 });
 
-                // Wait up to 1s for a clean shutdown & disconnect
-                const cleanShutdown = await Promise.race([
-                    new Promise((resolve) =>
-                        debugClient.once('disconnect', () => resolve(true))
-                    ),
-                    delay(1000).then(() => false)
-                ]);
+                const pidResult = (
+                    await debugClient.Runtime.evaluate({
+                        expression: 'process.pid'
+                    }).catch(() => ({ result: undefined }))
+                ).result as { type?: string, value?: unknown } | undefined;
 
-                if (!cleanShutdown) {
-                    // Didn't shutdown? Inject a hard exit.
+                const pid = pidResult && pidResult.type === 'number'
+                    ? pidResult.value as number
+                    : undefined;
+
+                // If we can extract the pid, use it to cleanly close the app:
+                if (_.isNumber(pid)) {
+                    if (process.platform === 'win32') {
+                        await windowsClose(pid);
+                    } else {
+                        process.kill(pid, "SIGTERM");
+                    }
+
+                    // Wait up to 1s for a clean shutdown & disconnect
+                    await Promise.race([disconnectPromise, delay(1000)]);
+                }
+
+                if (!shutdown) {
+                    // Didn't shutdown yet? Inject a hard exit.
                     await debugClient.Runtime.evaluate({
                         expression: 'process.exit(0)'
                     }).catch(() => {}) // Ignore errors (there's an inherent race here)
