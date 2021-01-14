@@ -19,8 +19,8 @@
     "build:src": "rm -rf lib && tsc -b --force",
     "build:release": "oclif-dev manifest && webpack && ts-node ./pack.ts",
     "prepack": "npm run build:src && oclif-dev manifest",
-    "test": "TS_NODE_FILES=true mocha --exit -r ts-node/register 'test/**/*.spec.ts'",
-    "test:release": "TEST_BUILT_TARBALL=1 npm run test"
+    "test": "cross-env TS_NODE_FILES=true mocha --exit -r ts-node/register 'test/**/*.spec.ts'",
+    "test:release": "cross-env TEST_BUILT_TARBALL=1 npm run test"
   },
   "repository": "httptoolkit/httptoolkit-server",
   "homepage": "https://github.com/httptoolkit/httptoolkit-server",
@@ -83,6 +83,7 @@
     "bent": "^1.5.13",
     "chai": "^4.2.0",
     "copy-webpack-plugin": "^5.0.4",
+    "cross-env": "^7.0.3",
     "fs-extra": "^8.1.0",
     "got": "^9.6.0",
     "graphql.js": "^0.6.1",
