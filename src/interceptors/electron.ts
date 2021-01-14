@@ -53,10 +53,15 @@ export class ElectronInterceptor implements Interceptor {
 
         const appProcess = spawn(cmd, [`--inspect-brk=${debugPort}`], {
             stdio: 'inherit',
-            env: Object.assign({},
-                process.env,
-                getTerminalEnvVars(proxyPort, this.config.https, process.env)
-            )
+            env: {
+                ...process.env,
+                ...getTerminalEnvVars(proxyPort, this.config.https, process.env),
+                // We have to disable NODE_OPTIONS injection. If set, the Electron
+                // app never fires paused(). I suspect because --require changes the
+                // startup process somehow. Regardless, we don't need it (we're injecting
+                // manually anyway) so we just skip it here.
+                NODE_OPTIONS: ''
+            }
         });
 
         let debugClient: ChromeRemoteInterface.CdpClient | undefined;
@@ -96,15 +101,20 @@ export class ElectronInterceptor implements Interceptor {
             _.remove(this.debugClients[proxyPort], c => c === debugClient);
         });
 
+        // These allow us to use the APIs below
+        await debugClient.Runtime.enable();
+        await debugClient.Debugger.enable();
+
+        // This starts watching for the initial pause event, which gives us the
+        // inside-electron call frame to inject into (i.e. with require() available)
         const callFramePromise = new Promise<string>((resolve) => {
             debugClient!.Debugger.paused((stack) => {
                 resolve(stack.callFrames[0].callFrameId);
             });
         });
 
+        // This confirms we're ready, and triggers pause():
         await debugClient.Runtime.runIfWaitingForDebugger();
-        await debugClient.Runtime.enable();
-        await debugClient.Debugger.enable();
 
         const callFrameId = await callFramePromise;
 
@@ -124,6 +134,7 @@ export class ElectronInterceptor implements Interceptor {
 
         if (injectionResult.exceptionDetails) {
             const exception = injectionResult.exceptionDetails as any;
+            console.log(exception);
 
             addBreadcrumb("Evaluate error", {
                 message: exception && exception.description,
