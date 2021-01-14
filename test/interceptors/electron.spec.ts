@@ -11,13 +11,14 @@ const interceptorSetup = setupInterceptor('electron');
 // We use slack as a test app. Doesn't really matter what it is, but
 // slack is pretty common, easy to kill & restart, and fairly representative.
 const electronAppPath: string | undefined = [
+    '/usr/local/bin/slack', // Wrapper, used in CI to inject --no-sandbox
     '/usr/bin/slack',
     '/Applications/Slack.app/Contents/MacOS/Slack',
     `${os.homedir()}\\AppData\\Local\\slack\\slack.exe`
 ].find((path) => fs.existsSync(path));
 
 describe('Electron interception', function () {
-    this.timeout(5000000);
+    this.timeout(5000);
 
     beforeEach(async () => {
         const { server } = await interceptorSetup;

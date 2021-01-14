@@ -31,7 +31,12 @@ jobs:
         run: |
           apt-get update
           apt-get install p7zip-full xterm
-          cp test/chrome-docker-wrapper.sh /usr/local/bin/google-chrome
+
+          wget https://downloads.slack-edge.com/linux_releases/slack-desktop-4.12.2-amd64.deb
+          apt install ./slack-desktop-4.12.2-amd64.deb
+
+          cp test/no-sandbox-docker-wrapper.sh /usr/local/bin/google-chrome
+          cp test/no-sandbox-docker-wrapper.sh /usr/local/bin/slack
 
           # Fix $HOME perms to make Firefox happy
           chown $(whoami) $HOME
