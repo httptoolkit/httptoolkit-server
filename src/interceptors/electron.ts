@@ -185,9 +185,12 @@ export class ElectronInterceptor implements Interceptor {
 
                 if (!shutdown) {
                     // Didn't shutdown yet? Inject a hard exit.
-                    await debugClient.Runtime.evaluate({
-                        expression: 'process.exit(0)'
-                    }).catch(() => {}) // Ignore errors (there's an inherent race here)
+                    await Promise.race([
+                        debugClient.Runtime.evaluate({
+                            expression: 'process.exit(0)'
+                        }).catch(() => {}), // Ignore errors (there's an inherent race here)
+                        disconnectPromise // If we disconnect, evaluate can time out
+                    ]);
                 };
             })
         );
