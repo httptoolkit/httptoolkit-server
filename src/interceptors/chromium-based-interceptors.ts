@@ -173,7 +173,7 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
 
     async isActivable() {
         if (this.activeBrowser) return false;
-        return !!this.browserDetails();
+        return !!await this.browserDetails();
     }
 
     async findExistingPid(): Promise<number | undefined> {
