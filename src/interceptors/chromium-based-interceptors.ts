@@ -231,11 +231,18 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
 
             if (process.platform === 'win32') {
                 windowsClose(existingPid);
+
+                try {
+                    await waitForExit(existingPid);
+                } catch (e) {
+                    // Try again, but less gently this time:
+                    process.kill(existingPid);
+                    await waitForExit(existingPid);
+                }
             } else {
                 process.kill(existingPid);
+                await waitForExit(existingPid);
             }
-
-            await waitForExit(existingPid);
         }
 
         const browserDetails = await getBrowserDetails(this.config, this.variantName);
