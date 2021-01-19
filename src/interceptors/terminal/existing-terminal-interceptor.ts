@@ -35,6 +35,8 @@ export class ExistingTerminalInterceptor implements Interceptor {
 
     async activate(proxyPort: number): Promise<{ port: number }> {
         if (this.servers[proxyPort]) {
+            // Reset isActive, so we wait again for a new request
+            this.servers[proxyPort].isActive = false;
             return { port: this.servers[proxyPort].server.port };
         }
 
