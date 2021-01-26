@@ -45,7 +45,9 @@ const getChromiumLaunchOptions = async (
         ],
         options: [
             // Trust our CA certificate's fingerprint:
-            `--ignore-certificate-errors-spki-list=${spkiFingerprint}`
+            `--ignore-certificate-errors-spki-list=${spkiFingerprint}`,
+            // Avoid annoying extra network noise:
+            '--disable-background-networking'
         ]
     };
 }
