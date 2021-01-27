@@ -19,6 +19,7 @@ function maybeBundleImport<T>(moduleName: string): T {
         try {
             return require('../../bundle/' + moduleName);
         } catch (e) {
+            console.log(e);
             // Fallback (bundle is included in real package)
             console.log(`Could not load bundle ${moduleName}, loading raw`);
             return require('../' + moduleName);
