@@ -28,6 +28,9 @@ curl %WITH_ORIGIN% %AS_JSON% -v --fail http://127.0.0.1:45457/ -d "{\"query\": \
 REM Can query interceptors
 curl %WITH_ORIGIN% %AS_JSON% -v --fail http://127.0.0.1:45457/ -d "{\"query\": \"query getInterceptors { interceptors { id version, metadata isActivable isActive(proxyPort: 8000) } }\"}" || goto :error
 
+REM Can trigger update (can't test that it actually updates, unfortunately)
+curl %WITH_ORIGIN% %AS_JSON% -v --fail http://127.0.0.1:45457/ -d "{\"query\": \"mutation TriggerUpdate { triggerUpdate }\"}" || goto :error
+
 REM ^ This will fail if they receive anything but a 200 result.
 REM This ensures that the server is startable, and has minimal functionality for launch.
 
