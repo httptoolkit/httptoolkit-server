@@ -55,11 +55,57 @@ jobs:
           name: distributables
           path: build/dist/*
           if-no-files-found: error
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: test-scripts
+          path: test/distributables-test
+          if-no-files-found: error
+
+  test-distributables:
+    needs: build
+    strategy:
+      matrix:
+        include:
+          - platform: Linux
+            os: "ubuntu-20.04"
+            test-script: "./unix.sh linux"
+          - platform: Mac 10.15
+            os: "macos-10.15"
+            test-script: "./unix.sh darwin"
+          - platform: Windows
+            os: "windows-2019"
+            test-script: ".\\windows.bat"
+      fail-fast: false
+    name: Test on ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Get our distributables
+        uses: actions/download-artifact@v2
+        with:
+          name: distributables
+          path: distributables
+
+      - name: Get the test scripts
+        uses: actions/download-artifact@v2
+        with:
+          name: test-scripts
+          path: .
+
+      - name: Make the test script executable
+        if: matrix.platform != 'Windows'
+        run: chmod +x unix.sh
+
+      - name: Test the server build
+        run: ${{ matrix.test-script }}
+
   publish:
     name: Publish a release
     runs-on: "ubuntu-18.04"
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs:
+      - build
+      - test-distributables
     steps:
       - name: Get our distributables
         uses: actions/download-artifact@v2
