@@ -56,7 +56,15 @@ export class DockerInterceptor implements Interceptor {
             const details = await container.inspect();
 
             await container.stop({ t: 1 });
-            await container.remove();
+            await container.remove().catch((e) => {
+                if (e.statusCode === 409 || e.statusCode === 404) {
+                    // Generally this means the container was running with --rm, so
+                    // it's been/being removed automatically already - that's fine!
+                    return;
+                } else {
+                    throw e;
+                }
+            });
 
             const networkDetails = details.NetworkSettings.Networks;
             const networkNames = Object.keys(networkDetails);
