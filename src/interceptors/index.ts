@@ -22,7 +22,7 @@ import {
 import { FreshTerminalInterceptor } from './terminal/fresh-terminal-interceptor';
 import { ExistingTerminalInterceptor } from './terminal/existing-terminal-interceptor';
 import { AndroidAdbInterceptor } from './android/android-adb-interceptor';
-import { DockerInterceptor } from './docker/docker-interceptor';
+import { DockerAllInterceptor, DockerContainerInterceptor } from './docker/docker-interceptor';
 import { ElectronInterceptor } from './electron';
 import { JvmInterceptor } from './jvm';
 
@@ -77,7 +77,8 @@ export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> 
 
         new JvmInterceptor(config),
 
-        new DockerInterceptor(config)
+        new DockerAllInterceptor(config),
+        new DockerContainerInterceptor(config)
     ];
 
     // When the server exits, try to shut down the interceptors too
