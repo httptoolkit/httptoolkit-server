@@ -7,6 +7,7 @@ import {
     getTerminalEnvVars,
     OVERRIDES_DIR
 } from '../terminal/terminal-env-overrides';
+import { APP_ROOT } from '../../constants';
 
 const HTTP_TOOLKIT_INJECTED_PATH = '/http-toolkit-injections';
 
@@ -20,6 +21,53 @@ const envArrayToObject = (envArray: string[]) =>
 
 const envObjectToArray = (envObject: { [key: string]: string }): string[] =>
     Object.keys(envObject).map(k => `${k}=${envObject[k]}`);
+
+function packInterceptionFiles(certContent: string) {
+    return tarFs.pack(OVERRIDES_DIR, {
+        map: (fileHeader) => {
+            fileHeader.name = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, fileHeader.name);
+
+            // Owned by root by default
+            fileHeader.uid = 0;
+            fileHeader.gid = 0;
+
+            // But ensure everything is globally readable & runnable
+            fileHeader.mode = parseInt('555', 8);
+
+            return fileHeader;
+        },
+        finalize: false,
+        finish: (pack) => {
+            pack.entry({
+                name: path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'ca.pem')
+            }, certContent);
+            pack.finalize();
+        }
+    });
+}
+
+function packNodeModules() {
+    return tarFs.pack(path.join(APP_ROOT, 'node_modules'), {
+        map: (fileHeader) => {
+            fileHeader.name = path.posix.join(
+                HTTP_TOOLKIT_INJECTED_PATH, 'node_modules', fileHeader.name
+            );
+
+            // Owned by root by default
+            fileHeader.uid = 0;
+            fileHeader.gid = 0;
+
+            // But ensure everything is globally readable by everybody
+            if (fileHeader.type === "directory") {
+                fileHeader.mode = parseInt('555', 8);
+            } else {
+                fileHeader.mode = parseInt('444', 8);
+            }
+
+            return fileHeader;
+        }
+    })
+}
 
 export async function restartAndInjectContainer(
     docker: Docker,
@@ -88,52 +136,15 @@ export async function restartAndInjectContainer(
         );
     }
 
-    // Then we bundle up all our override files, so we can push them in too
-    const injectionTarball = tarFs.pack(OVERRIDES_DIR, {
-        map: (fileHeader) => {
-            fileHeader.name = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, fileHeader.name);
 
-            // Owned by root by default
-            fileHeader.uid = 0;
-            fileHeader.gid = 0;
+    // Then we actually inject the override files:
+    for (let pack of [
+        packInterceptionFiles(certContent), // The general overide files & MITM cert
+        packNodeModules() // Various modules & their subdeps for JS interception
+    ]) {
+        await newContainer.putArchive(pack, { path: '/' });
+    }
 
-            // But ensure everything is globally readable & runnable
-            fileHeader.mode = parseInt('555', 8);
-
-            return fileHeader;
-        },
-        finalize: false,
-        finish: (pack) => {
-            pack.entry({
-                name: path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'ca.pem')
-            }, certContent);
-            pack.finalize();
-        }
-    });
-
-    // Then we actually inject the override files
-    await newContainer.putArchive(injectionTarball, { path: '/' });
-    await newContainer.putArchive(
-        tarFs.pack(path.join(__dirname, '..', '..', '..', 'node_modules'), {
-            map: (fileHeader) => {
-                fileHeader.name = path.posix.join('node_modules', fileHeader.name);
-
-                // Owned by root by default
-                fileHeader.uid = 0;
-                fileHeader.gid = 0;
-
-                // But ensure everything is globally readable by everybody
-                if (fileHeader.type === "directory") {
-                    fileHeader.mode = parseInt('555', 8);
-                } else {
-                    fileHeader.mode = parseInt('444', 8);
-                }
-
-                return fileHeader;
-            }
-        }),
-        { path: HTTP_TOOLKIT_INJECTED_PATH }
-    );
 
     // Start everything up!
     await newContainer.start();
