@@ -10,6 +10,8 @@ export const OVERRIDES_DIR = path.join(APP_ROOT, 'overrides');
 const OVERRIDE_RUBYGEMS_PATH = path.join(OVERRIDES_DIR, 'gems');
 const OVERRIDE_PYTHONPATH = path.join(OVERRIDES_DIR, 'pythonpath');
 
+export const OVERRIDE_JAVA_AGENT = path.join(OVERRIDES_DIR, 'java-agent.jar');
+
 const OVERRIDE_JS_SCRIPT = path.join(OVERRIDES_DIR, 'js', 'prepend-node.js');
 const NODE_OPTION = `--require ${
     // Avoid quoting except when necessary, because node 8 doesn't support quotes here
@@ -26,6 +28,10 @@ export function getTerminalEnvVars(
     currentEnv: { [key: string]: string | undefined } | 'runtime-inherit'
 ): { [key: string]: string } {
     const proxyUrl = `http://127.0.0.1:${proxyPort}`;
+
+    const javaAgentOption = `-javaagent:${
+        OVERRIDE_JAVA_AGENT
+    }=127.0.0.1|${proxyPort}|${httpsConfig.certPath}`;
 
     return {
         'http_proxy': proxyUrl,
@@ -84,6 +90,13 @@ export function getTerminalEnvVars(
         // subprocesses. Otherwise e.g. --max-http-header-size breaks old Node/Electron.
         'NODE_OPTIONS': currentEnv === 'runtime-inherit'
             ? `$NODE_OPTIONS ${NODE_OPTION}`
-            : NODE_OPTION
+            : NODE_OPTION,
+
+        // Attach our Java agent to all launched Java processes:
+        'JAVA_TOOL_OPTIONS': currentEnv === 'runtime-inherit'
+                ? `$JAVA_TOOL_OPTIONS ${javaAgentOption}`
+            : currentEnv.JAVA_TOOL_OPTIONS
+                ? `${currentEnv.JAVA_TOOL_OPTIONS} ${javaAgentOption}`
+            : javaAgentOption
     };
 }
