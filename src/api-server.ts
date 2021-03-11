@@ -42,6 +42,7 @@ const typeDefs = `
         version: String!
         config: InterceptionConfig!
         interceptors: [Interceptor!]!
+        interceptor(id: ID!): Interceptor!
         networkInterfaces: Json
     }
 
@@ -67,10 +68,15 @@ const typeDefs = `
     type Interceptor {
         id: ID!
         version: String!
-        metadata: Json
+        metadata(type: MetadataType): Json
 
         isActivable: Boolean!
         isActive(proxyPort: Int!): Boolean!
+    }
+
+    enum MetadataType {
+        SUMMARY,
+        DETAILED
     }
 
     scalar Json
@@ -101,6 +107,7 @@ const buildResolvers = (
         Query: {
             version: () => packageJson.version,
             interceptors: () => _.values(interceptors),
+            interceptor: (_: any, { id } : { id: string }) => interceptors[id],
             config: () => ({
                 certificatePath: config.https.certPath,
                 certificateContent: config.https.certContent,
@@ -113,9 +120,11 @@ const buildResolvers = (
         },
 
         Mutation: {
-            activateInterceptor: async (__: void, args: _.Dictionary<any>) => {
-                const { id, proxyPort, options } = args;
-
+            activateInterceptor: async (__: void, { id, proxyPort, options }: {
+                id: string,
+                proxyPort: number,
+                options: unknown
+            }) => {
                 addBreadcrumb(`Activating ${id}`, { category: 'interceptor', data: { id, options } });
 
                 const interceptor = interceptors[id];
@@ -138,9 +147,11 @@ const buildResolvers = (
                     return { success: true, metadata: result };
                 }
             },
-            deactivateInterceptor: async (__: void, args: _.Dictionary<any>) => {
-                const { id, proxyPort, options } = args;
-
+            deactivateInterceptor: async (__: void, { id, proxyPort, options }: {
+                id: string,
+                proxyPort: number,
+                options: unknown
+            }) => {
                 const interceptor = interceptors[id];
                 if (!interceptor) throw new Error(`Unknown interceptor ${id}`);
 
@@ -160,21 +171,29 @@ const buildResolvers = (
                     false
                 );
             },
-            isActive: (interceptor: Interceptor, args: _.Dictionary<any>) => {
+            isActive: (interceptor: Interceptor, { proxyPort }: { proxyPort: number }) => {
                 try {
-                    return interceptor.isActive(args.proxyPort);
+                    return interceptor.isActive(proxyPort);
                 } catch (e) {
                     reportError(e);
                     return false;
                 }
             },
-            metadata: async (interceptor: Interceptor) => {
+            metadata: async function (interceptor: Interceptor, { type }: { type?: 'DETAILED' | 'SUMMARY' }) {
                 if (!interceptor.getMetadata) return undefined;
+
+                const metadataType = type
+                    ? type.toLowerCase() as 'summary' | 'detailed'
+                    : 'summary';
+
+                const timeout = metadataType === 'summary'
+                    ? INTERCEPTOR_TIMEOUT
+                    : INTERCEPTOR_TIMEOUT * 10; // Longer timeout for detailed metadata
 
                 try {
                     return await withFallback(
-                        interceptor.getMetadata(),
-                        INTERCEPTOR_TIMEOUT,
+                        interceptor.getMetadata(metadataType),
+                        timeout,
                         undefined
                     );
                 } catch (e) {

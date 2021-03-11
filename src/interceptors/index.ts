@@ -28,7 +28,7 @@ export interface Interceptor {
     id: string;
     version: string;
 
-    getMetadata?(): any;
+    getMetadata?(type: 'summary' | 'detailed'): any;
 
     isActivable(): Promise<boolean>;
     isActive(proxyPort: number): boolean;
