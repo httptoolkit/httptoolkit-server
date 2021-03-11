@@ -23,6 +23,7 @@ import { ExistingTerminalInterceptor } from './terminal/existing-terminal-interc
 import { AndroidAdbInterceptor } from './android/android-adb-interceptor';
 import { addShutdownHandler } from '../shutdown';
 import { ElectronInterceptor } from './electron';
+import { JvmInterceptor } from './jvm';
 
 export interface Interceptor {
     id: string;
@@ -70,7 +71,9 @@ export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> 
 
         new ElectronInterceptor(config),
 
-        new AndroidAdbInterceptor(config)
+        new AndroidAdbInterceptor(config),
+
+        new JvmInterceptor(config)
     ];
 
     // When the server exits, try to shut down the interceptors too
