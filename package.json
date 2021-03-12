@@ -89,7 +89,7 @@
     "graphql.js": "^0.6.1",
     "mocha": "^8.2.1",
     "needle": "^2.4.0",
-    "node-dev": "^6.2.0",
+    "node-dev": "^6.4.0",
     "node-noop": "^1.0.0",
     "request": "^2.88.0",
     "request-promise-native": "^1.0.5",
