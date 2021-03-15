@@ -82,7 +82,7 @@ export class JvmInterceptor implements Interceptor {
             })
             .filter((target) =>
                 // Exclude our own attacher and/or list-target queries from this list
-                !target.name.includes(`-jar ${OVERRIDE_JAVA_AGENT}`)
+                !target.name.includes(OVERRIDE_JAVA_AGENT)
             );
 
         return {
