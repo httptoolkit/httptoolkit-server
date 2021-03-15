@@ -54,8 +54,11 @@ export const getConnectedDevices = batchCalls(async (adbClient: adb.AdbClient) =
     try {
         const devices = await adbClient.listDevices();
         return devices
-            .filter(d => d.type !== 'offline' && d.type !== 'unauthorized')
-            .map(d => d.id);
+            .filter(d =>
+                d.type !== 'offline' &&
+                d.type !== 'unauthorized' &&
+                !d.type.startsWith("no permissions")
+            ).map(d => d.id);
     } catch (e) {
         if (
             e.code === 'ENOENT' || // No ADB available
