@@ -54,6 +54,22 @@ export class JvmInterceptor implements Interceptor {
         // since it's a bit expensive.
         if (type === 'summary') return {};
 
+        if (!this.targetsPromise) {
+            // We cache the targets lookup whilst it's active, so that concurrent calls
+            // all just run one lookup and return the same result.
+            this.targetsPromise = this.getTargets()
+                .finally(() => { this.targetsPromise = undefined; });
+        }
+        const targets = await this.targetsPromise
+
+        return {
+            jvmTargets: _.keyBy(targets, 'pid')
+        };
+    }
+
+    private targetsPromise: Promise<JvmTarget[]> | undefined;
+
+    private async getTargets(): Promise<JvmTarget[]> {
         const listTargetsOutput = await spawnToResult(
             'java', [
                 '-jar', OVERRIDE_JAVA_AGENT,
@@ -63,10 +79,10 @@ export class JvmInterceptor implements Interceptor {
 
         if (listTargetsOutput.exitCode !== 0) {
             reportError(`JVM target lookup failed with status ${listTargetsOutput.exitCode}`);
-            return { jvmTargets: {} };
+            return [];
         }
 
-        const targets = listTargetsOutput.stdout
+        return listTargetsOutput.stdout
             .split('\n')
             .filter(line => line.includes(':'))
             .map((line) => {
@@ -84,10 +100,6 @@ export class JvmInterceptor implements Interceptor {
                 // Exclude our own attacher and/or list-target queries from this list
                 !target.name.includes(OVERRIDE_JAVA_AGENT)
             );
-
-        return {
-            jvmTargets: _.keyBy(targets, 'pid')
-        };
     }
 
     async activate(proxyPort: number, options: {
