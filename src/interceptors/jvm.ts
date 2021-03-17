@@ -10,19 +10,20 @@ import { commandExists } from '../util';
 
 type JvmTarget = { pid: string, name: string, interceptedByProxy: number | undefined };
 
-// Check that Java is present, and that it's possible to run list-targets
+// Check that Java is present, and that it's compatible with agent attachment:
 const isJavaAvailable = commandExists('java').then(async (isAvailable) => {
     if (!isAvailable) return false;
 
     const result = await spawnToResult(
         'java', [
+            '-Djdk.attach.allowAttachSelf=true', // Required for self-test
             '-jar', OVERRIDE_JAVA_AGENT,
-            'list-targets'
+            'self-test'
         ]
     );
 
-    // If Java is present, but it's working, we report it. Hoping that this will hunt done
-    // some specific incompatibilities that we can better work around/detect.
+    // If Java is present, but it's not working, we report it. Hoping that this will hunt
+    // down some specific incompatibilities that we can better work around/detect.
     if (result.exitCode !== 0) {
         console.log(result.stdout);
         console.log(result.stderr);
