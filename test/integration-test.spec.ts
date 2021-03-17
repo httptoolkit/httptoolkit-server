@@ -181,7 +181,7 @@ describe('Integration test', function () {
             activable('existing-terminal'),
             activable('electron', '1.0.1'),
             inactivable('android-adb'),
-            activable('attach-jvm')
+            activable('attach-jvm', '1.0.1')
         ]);
     });
 });

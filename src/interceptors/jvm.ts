@@ -21,17 +21,25 @@ const isJavaAvailable = commandExists('java').then(async (isAvailable) => {
         ]
     );
 
-    return result.exitCode === 0;
+    // If Java is present, but it's working, we report it. Hoping that this will hunt done
+    // some specific incompatibilities that we can better work around/detect.
+    if (result.exitCode !== 0) {
+        console.log(result.stdout);
+        console.log(result.stderr);
+        throw new Error(`JVM attach not available, exited with ${result.exitCode}`);
+    } else {
+        return true;
+    }
 }).catch((e) => {
-    // This is expected to happen occasionally, e.g. when using Java 8 (which doesn't support
-    // the VM attachment APIs we need).
-    console.log("Error checking for JVM targets", e);
+    // This is expected to happen occasionally, e.g. when using Java 8 (which
+    // doesn't support the VM attachment APIs we need).
+    reportError(e);
     return false;
 });
 
 export class JvmInterceptor implements Interceptor {
     readonly id = 'attach-jvm';
-    readonly version = '1.0.0';
+    readonly version = '1.0.1';
 
     private interceptedProcesses: {
         [pid: string]: number // PID -> proxy port
@@ -113,11 +121,12 @@ export class JvmInterceptor implements Interceptor {
                 proxyPort.toString(),
                 this.config.https.certPath
             ],
-            {},
-            true // Inherit IO, so we can see output easily, if any
+            {}
         );
 
         if (interceptionResult.exitCode !== 0) {
+            console.log(interceptionResult.stdout);
+            console.log(interceptionResult.stderr);
             throw new Error(`Failed to attach to JVM, exit code ${interceptionResult.exitCode}`);
         } else {
             this.interceptedProcesses[options.targetPid] = proxyPort;
