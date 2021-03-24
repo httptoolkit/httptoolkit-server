@@ -88,6 +88,8 @@ export class JvmInterceptor implements Interceptor {
         [pid: string]: number // PID -> proxy port
     } = {};
 
+    activationTimeout = 2000; // Increase the timeout slightly for this
+
     constructor(private config: HtkConfig) { }
 
     async isActivable(): Promise<boolean> {
