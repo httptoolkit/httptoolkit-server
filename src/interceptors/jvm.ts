@@ -1,4 +1,5 @@
 import * as _ from 'lodash';
+import * as path from 'path';
 
 import { Interceptor } from '.';
 
@@ -6,37 +7,71 @@ import { HtkConfig } from '../config';
 import { spawnToResult, waitForExit } from '../process-management';
 import { OVERRIDE_JAVA_AGENT } from './terminal/terminal-env-overrides';
 import { reportError } from '../error-tracking';
-import { commandExists } from '../util';
+import { commandExists, delay } from '../util';
 
 type JvmTarget = { pid: string, name: string, interceptedByProxy: number | undefined };
 
 // Check that Java is present, and that it's compatible with agent attachment:
-const isJavaAvailable = commandExists('java').then(async (isAvailable) => {
-    if (!isAvailable) return false;
+const javaBinPromise: Promise<string | false> = (async () => {
+    const javaBinPaths = [
+        // Check what Java binaries might exist:
+        ...(!!process.env.JAVA_HOME // $JAVA_HOME/bin/java is preferable
+            ? [path.join(process.env.JAVA_HOME!!, 'bin', 'java')]
+            : []
+        ),
+        ...(await commandExists('java') // but any other Java in $PATH will do
+            ? ['java']
+            : []
+        )
+    ];
 
-    const result = await spawnToResult(
-        'java', [
-            '-Djdk.attach.allowAttachSelf=true', // Required for self-test
-            '-jar', OVERRIDE_JAVA_AGENT,
-            'self-test'
-        ]
-    );
+    // Run a self test in parallel with each of them:
+    const javaTestResults = await Promise.all(javaBinPaths.map(async (possibleJavaBin) => ({
+        javaBin: possibleJavaBin,
+        output: await testJavaBin(possibleJavaBin)
+    })))
 
-    // If Java is present, but it's not working, we report it. Hoping that this will hunt
-    // down some specific incompatibilities that we can better work around/detect.
-    if (result.exitCode !== 0) {
-        console.log(result.stdout);
-        console.log(result.stderr);
-        throw new Error(`JVM attach not available, exited with ${result.exitCode}`);
+    // Use the first Java in the list that succeeds:
+    const bestJava = javaTestResults.filter(({ output }) =>
+        output.exitCode === 0
+    )[0];
+
+    if (javaTestResults.length && !bestJava) {
+        // If some Java is present, but none are working, we report the failures. Hoping that this will hunt
+        // down some specific incompatibilities that we can better work around/detect.
+        javaTestResults.forEach((testResult) => {
+            console.log(`Running ${testResult.javaBin}:`);
+            console.log(testResult.output.stdout);
+            console.log(testResult.output.stderr);
+        });
+
+        throw new Error(`JVM attach not available, exited with ${javaTestResults[0].output.exitCode}`);
+    } else if (bestJava) {
+        return bestJava.javaBin;
     } else {
-        return true;
+        // No Java available anywhere - we just give up
+        return false;
     }
-}).catch((e) => {
-    // This is expected to happen occasionally, e.g. when using Java 8 (which
-    // doesn't support the VM attachment APIs we need).
+})().catch((e) => {
     reportError(e);
     return false;
 });
+
+function testJavaBin(possibleJavaBin: string) {
+    return Promise.race([
+        spawnToResult(
+            possibleJavaBin, [
+                '-Djdk.attach.allowAttachSelf=true', // Required for self-test
+                '-jar', OVERRIDE_JAVA_AGENT,
+                'self-test'
+            ]
+        ),
+        // Time out permanently after 30 seconds - this only runs once max anyway
+        delay(30000).then(() => {
+            throw new Error(`Java bin test for ${possibleJavaBin} timed out`);
+        })
+    ]);
+}
 
 export class JvmInterceptor implements Interceptor {
     readonly id = 'attach-jvm';
@@ -49,7 +84,7 @@ export class JvmInterceptor implements Interceptor {
     constructor(private config: HtkConfig) { }
 
     async isActivable(): Promise<boolean> {
-        return await isJavaAvailable;
+        return !!await javaBinPromise;
     }
 
     isActive(proxyPort: number | string) {
@@ -79,8 +114,11 @@ export class JvmInterceptor implements Interceptor {
     private targetsPromise: Promise<JvmTarget[]> | undefined;
 
     private async getTargets(): Promise<JvmTarget[]> {
+        const javaBin = await javaBinPromise;
+        if (!javaBin) throw new Error("Attach activated but no Java available");
+
         const listTargetsOutput = await spawnToResult(
-            'java', [
+            javaBin, [
                 '-jar', OVERRIDE_JAVA_AGENT,
                 'list-targets'
             ]
