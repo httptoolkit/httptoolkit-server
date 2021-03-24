@@ -19,7 +19,7 @@ async function setupServerPath() {
     }
 
     // If TEST_BUILT_TARBALL is set, test the latest built ready-to-go tarball:
-    const tmpDir = tmp.dirSync({ unsafeCleanup: true }).name;
+    const tmpDir = tmp.dirSync({ prefix: 'name with spaces', unsafeCleanup: true }).name;
     const version: string = require(path.join('..', 'package.json')).version;
 
     const channel = (version.split('-')[1] || '').split('.')[0];
