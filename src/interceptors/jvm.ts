@@ -13,17 +13,14 @@ type JvmTarget = { pid: string, name: string, interceptedByProxy: number | undef
 
 // Check that Java is present, and that it's compatible with agent attachment:
 const javaBinPromise: Promise<string | false> = (async () => {
+    // Check what Java binaries might exist:
     const javaBinPaths = [
-        // Check what Java binaries might exist:
-        ...(!!process.env.JAVA_HOME // $JAVA_HOME/bin/java is preferable
-            ? [path.join(process.env.JAVA_HOME!!, 'bin', 'java')]
-            : []
-        ),
-        ...(await commandExists('java') // but any other Java in $PATH will do
-            ? ['java']
-            : []
-        )
-    ];
+        await getMacJavaHome(), // Magic Mac helper for exactly this
+        !!process.env.JAVA_HOME && // $JAVA_HOME/bin/java is standard
+            path.join(process.env.JAVA_HOME!!, 'bin', 'java'),
+        (await commandExists('java')) && // Fallback to java in $PATH
+            'java'
+    ].filter(p => !!p) as string[];
 
     // Run a self test in parallel with each of them:
     const javaTestResults = await Promise.all(javaBinPaths.map(async (possibleJavaBin) => ({
@@ -57,6 +54,16 @@ const javaBinPromise: Promise<string | false> = (async () => {
     return false;
 });
 
+// Try to use use Mac's java_home helper (available since 10.5 apparently)
+async function getMacJavaHome() {
+    if (!await commandExists('/usr/libexec/java_home')) return;
+
+    const result = await spawnToResult('/usr/libexec/java_home', ['-v', '1.9+']);
+    if (result.exitCode != 0) return;
+    else return path.join(result.stdout.trim(), 'bin', 'java');
+}
+
+// Test a single binary, with a timeout:
 function testJavaBin(possibleJavaBin: string) {
     return Promise.race([
         spawnToResult(
