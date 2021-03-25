@@ -7,7 +7,7 @@ import { HtkConfig } from '../config';
 import { spawnToResult, waitForExit } from '../process-management';
 import { OVERRIDE_JAVA_AGENT } from './terminal/terminal-env-overrides';
 import { reportError } from '../error-tracking';
-import { commandExists, delay } from '../util';
+import { commandExists, delay, canAccess } from '../util';
 
 type JvmTarget = { pid: string, name: string, interceptedByProxy: number | undefined };
 
@@ -56,7 +56,7 @@ const javaBinPromise: Promise<string | false> = (async () => {
 
 // Try to use use Mac's java_home helper (available since 10.5 apparently)
 async function getMacJavaHome() {
-    if (!await commandExists('/usr/libexec/java_home')) return;
+    if (!await canAccess('/usr/libexec/java_home')) return;
 
     const result = await spawnToResult('/usr/libexec/java_home', ['-v', '1.9+']);
     if (result.exitCode != 0) return;
