@@ -29,13 +29,14 @@ export interface Interceptor {
     id: string;
     version: string;
 
-    getMetadata?(type: 'summary' | 'detailed'): any;
+    getMetadata?(type: 'summary' | 'detailed'): Promise<any>;
 
     isActivable(): Promise<boolean>;
+    activableTimeout?: number;
+
     isActive(proxyPort: number): boolean;
 
     activate(proxyPort: number, options?: any): Promise<void | {}>;
-    activationTimeout?: number;
 
     deactivate(proxyPort: number, options?: any): Promise<void | {}>;
     deactivateAll(): Promise<void | {}>;

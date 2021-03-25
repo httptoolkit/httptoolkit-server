@@ -45,6 +45,8 @@ export class AndroidAdbInterceptor implements Interceptor {
         return (await getConnectedDevices(this.adbClient)).length > 0;
     }
 
+    activableTimeout = 3000; // Increase timeout for device detection slightly
+
     isActive(): boolean {
         return false;
     }
@@ -54,8 +56,6 @@ export class AndroidAdbInterceptor implements Interceptor {
             deviceIds: await getConnectedDevices(this.adbClient)
         };
     }
-
-    activationTimeout = 10000; // Increase timeout for this interceptor to 10s, as initial setup takes a while
 
     async activate(proxyPort: number, options: {
         deviceId: string
