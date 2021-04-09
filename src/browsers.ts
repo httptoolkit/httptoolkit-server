@@ -83,5 +83,16 @@ export { LaunchOptions };
 
 export const launchBrowser = async (url: string, options: LaunchOptions, configPath: string) => {
     const launcher = await getLauncher(configPath);
-    return await promisify(launcher)(url, options);
+    const browserInstance = await promisify(launcher)(url, options);
+
+    browserInstance.process.on('error', (e) => {
+        // If nothing else is listening for this error, this acts as default
+        // fallback error handling: log & report & don't crash.
+        if (browserInstance.process.listenerCount('error') === 1) {
+            console.log('Browser launch error');
+            reportError(e);
+        }
+    });
+
+    return browserInstance;
 };
