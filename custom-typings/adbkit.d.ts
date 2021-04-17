@@ -38,6 +38,7 @@ declare module '@devicefarmer/adbkit' {
         shell(id: string, cmd: string | string[]): Promise<stream.Readable>;
         root(id: string): Promise<true>;
         on(type: 'error', handler: (error: Error) => void): void;
+        reverse(id: string, remote: string, local: string): Promise<true>;
     }
 
     export function createClient(options?: {
