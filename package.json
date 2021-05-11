@@ -52,7 +52,7 @@
     "global-tunnel-ng": "^2.7.1",
     "graphql": "^14.7.0",
     "iconv-lite": "^0.4.24",
-    "lodash": "^4.17.19",
+    "lodash": "^4.17.21",
     "mime-types": "^2.1.27",
     "mockttp": "^1.2.1",
     "node-fetch": "^2.6.1",
