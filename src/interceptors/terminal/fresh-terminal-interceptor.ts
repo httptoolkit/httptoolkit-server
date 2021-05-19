@@ -247,6 +247,13 @@ export class FreshTerminalInterceptor implements Interceptor {
             reportError(e);
             onTerminalClosed();
         });
+
+        // Watch for spawn errors immediately after startup to judge whether the
+        // terminal launch was actually successful:
+        return new Promise((resolve, reject) => {
+            setTimeout(resolve, 500); // If it doesn't crash within 500ms, it's probably good
+            childProc.once('error', reject) // If it does crash, it's definitely not.
+        });
     }
 
     async deactivate(proxyPort: number | string): Promise<void> {
