@@ -39,10 +39,10 @@ const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
 });
 
 const getWindowsTerminalCommand = async (): Promise<SpawnArgs | null> => {
-    if (await commandExists('git-bash')) {
-        return { command: 'git-bash' };
-    } else if (await canAccess(DEFAULT_GIT_BASH_PATH)) {
+    if (await canAccess(DEFAULT_GIT_BASH_PATH)) {
         return { command: DEFAULT_GIT_BASH_PATH };
+    } else if (await commandExists('git-bash')) {
+        return { command: 'git-bash' };
     }
 
     return { command: 'start', args: ['cmd'], options: { shell: true }, skipStartupScripts: true };
