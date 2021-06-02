@@ -7,10 +7,14 @@ FOR /F "tokens=*" %%i IN (' %GET_TAR% ') DO SET TAR_PATH=%%i
 
 tar -xvzf %TAR_PATH%
 
+echo Starting server...
+
 START "server" .\httptoolkit-server\bin\httptoolkit-server start
 
 REM The closest we can get to a 10 second delay on Windows in CI, ick:
 ping -n 10 127.0.0.1 >NUL
+
+echo Testing server...
 
 REM CSRF protection fully blocks unrecognized/missing origin requests:
 set WITH_ORIGIN="-HOrigin: https://app.httptoolkit.tech"

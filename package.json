@@ -154,7 +154,7 @@
         }
       },
       "node": {
-        "version": "14.6.0",
+        "version": "14.17.0",
         "targets": [
           "win32-x64",
           "linux-x64",

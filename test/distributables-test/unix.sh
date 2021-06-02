@@ -6,10 +6,14 @@ ls -la *
 
 tar -xvzf ./distributables/v*/httptoolkit-server-*-$1-x64.tar.gz
 
+echo "Starting server..."
+
 ./httptoolkit-server/bin/httptoolkit-server start &
 SERVER_PID=$!
 
 sleep 5
+
+echo "Testing server..."
 
 # CSRF protection fully blocks unrecognized/missing origin requests:
 WITH_ORIGIN="-HOrigin: https://app.httptoolkit.tech"

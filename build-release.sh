@@ -39,8 +39,6 @@ rm -r ./tmp || true
 # Build the package for this platform
 # ------------------------------------------------------------------------
 
-env | grep -E 'npm_config_|TARGET_'
-
 echo
 echo "BUILDING FOR $TARGET_PLATFORM"
 echo
