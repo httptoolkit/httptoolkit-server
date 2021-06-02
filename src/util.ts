@@ -2,7 +2,7 @@ import { promisify } from 'util';
 import * as fs from 'fs';
 import * as tmp from 'tmp';
 import * as rimraf from 'rimraf';
-import * as ensureCommandExists from 'command-exists';
+import { lookpath } from 'lookpath';
 
 export function delay(durationMs: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, durationMs));
@@ -63,7 +63,7 @@ export const ensureDirectoryExists = (path: string) =>
     checkAccess(path).catch(() => mkDir(path, { recursive: true }));
 
 export const commandExists = (path: string): Promise<boolean> =>
-    ensureCommandExists(path).then(() => true).catch(() => false);
+    lookpath(path).then((result) => result !== undefined);
 
 export const createTmp = (options: tmp.Options = {}) => new Promise<{
     path: string,
