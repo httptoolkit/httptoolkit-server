@@ -35,6 +35,7 @@ const javaBinPromise: Promise<string | false> = (async () => {
     const javaTestResults = await Promise.all(javaBinPaths.map(async (possibleJavaBin) => ({
         javaBin: possibleJavaBin,
         output: await testJavaBin(possibleJavaBin)
+            .catch((e) => ({ exitCode: -1, stdout: '', stderr: e.toString() }))
     })))
 
     // Use the first Java in the list that succeeds:
