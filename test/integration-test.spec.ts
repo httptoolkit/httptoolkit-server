@@ -74,6 +74,8 @@ describe('Integration test', function () {
             });
 
             serverProcess.stderr!.on('data', (d) => {
+                console.warn(d.toString());
+
                 // Some nodes warn about fs.promises - ignore it.
                 if (d.toString().includes('ExperimentalWarning: The fs.promises API')) return;
                 // We use _stream_wrap, in some node versions this is deprecated, for now ignore it
@@ -85,7 +87,6 @@ describe('Integration test', function () {
                 if (d.toString().includes('[ENOENT]')) return;
 
                 stderr = stderr + d.toString();
-                console.warn(d.toString());
             });
 
             // Exit or error before our expected output means startup failed.
