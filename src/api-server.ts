@@ -15,6 +15,7 @@ import { reportError, addBreadcrumb } from './error-tracking';
 import { buildInterceptors, Interceptor, ActivationError } from './interceptors';
 import { ALLOWED_ORIGINS } from './constants';
 import { delay } from './util';
+import { getSystemProxyConfig } from './detect-proxy';
 
 const ENABLE_PLAYGROUND = false;
 
@@ -44,6 +45,7 @@ const typeDefs = `
         interceptors: [Interceptor!]!
         interceptor(id: ID!): Interceptor!
         networkInterfaces: Json
+        systemProxy: Proxy
     }
 
     type Mutation {
@@ -72,6 +74,11 @@ const typeDefs = `
 
         isActivable: Boolean!
         isActive(proxyPort: Int!): Boolean!
+    }
+
+    type Proxy {
+        proxyUrl: String!
+        noProxy: [String!]
     }
 
     enum MetadataType {
@@ -116,7 +123,8 @@ const buildResolvers = (
                 // convenient to do it up front.
                 certificateFingerprint: generateSPKIFingerprint(config.https.certContent)
             }),
-            networkInterfaces: () => os.networkInterfaces()
+            networkInterfaces: () => os.networkInterfaces(),
+            systemProxy: () => getSystemProxyConfig()
         },
 
         Mutation: {
