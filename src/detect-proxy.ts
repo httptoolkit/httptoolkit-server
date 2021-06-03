@@ -32,9 +32,9 @@ export async function getSystemProxyConfig(): Promise<ProxyConfig | undefined> {
                 proxyUrl: `http://${proxySettings.HTTPProxy}:${proxySettings.HTTPPort}`,
                 noProxy
             };
-        } else if (proxySettings.SOCKSEnable && proxySettings.SOCKSProxy && proxySettings.SOCKSProxy) {
+        } else if (proxySettings.SOCKSEnable && proxySettings.SOCKSProxy && proxySettings.SOCKSPort) {
             return {
-                proxyUrl: `socks://${proxySettings.SOCKSProxy}:${proxySettings.SOCKSProxy}`,
+                proxyUrl: `socks://${proxySettings.SOCKSProxy}:${proxySettings.SOCKSPort}`,
                 noProxy
             };
         } else {
