@@ -51,4 +51,4 @@ exit /b %err%
 echo All good.
 
 REM Shut down by matching title passed to START to run in the background
-taskkill /FI "WindowTitle eq server*" /T /F
+taskkill /FI "WindowTitle eq server*" /T /F || goto :success
