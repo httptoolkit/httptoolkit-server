@@ -41,15 +41,21 @@ export async function getSystemProxyConfig(): Promise<ProxyConfig | undefined> {
             return undefined;
         }
     } else {
-        const proxyUrl = process.env.HTTPS_PROXY ||
-            process.env.HTTP_PROXY ||
-            process.env.https_proxy ||
-            process.env.http_proxy;
+        const {
+            HTTPS_PROXY,
+            https_proxy,
+            HTTP_PROXY,
+            http_proxy,
+            NO_PROXY,
+            no_proxy
+        } = process.env;
+
+        const proxyUrl = HTTPS_PROXY || HTTP_PROXY || https_proxy || http_proxy;
 
         if (!proxyUrl) return undefined;
 
-        const noProxy = process.env.NO_PROXY
-            ? process.env.NO_PROXY.split(',')
+        const noProxy = !!(NO_PROXY || no_proxy)
+            ? (NO_PROXY || no_proxy)!.split(',')
             : undefined;
 
         return {
