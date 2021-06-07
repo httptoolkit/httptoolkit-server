@@ -15,7 +15,7 @@ import { reportError, addBreadcrumb } from './error-tracking';
 import { buildInterceptors, Interceptor, ActivationError } from './interceptors';
 import { ALLOWED_ORIGINS } from './constants';
 import { delay } from './util';
-import { getSystemProxyConfig } from './detect-proxy';
+import { getSystemProxy } from 'os-proxy-config';
 
 const ENABLE_PLAYGROUND = false;
 
@@ -124,7 +124,10 @@ const buildResolvers = (
                 certificateFingerprint: generateSPKIFingerprint(config.https.certContent)
             }),
             networkInterfaces: () => os.networkInterfaces(),
-            systemProxy: () => getSystemProxyConfig()
+            systemProxy: () => getSystemProxy().catch((e) => {
+                reportError(e);
+                return undefined;
+            })
         },
 
         Mutation: {
