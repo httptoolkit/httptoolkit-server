@@ -101,6 +101,7 @@ export async function restartAndInjectContainer(
     // First we clone the continer, with our custom env vars:
     const newContainer = await docker.createContainer({
         ...containerDetails.Config,
+        HostConfig: containerDetails.HostConfig,
         name: containerDetails.Name,
         NetworkingConfig: {
             EndpointsConfig: networkNames.length > 1
@@ -136,7 +137,6 @@ export async function restartAndInjectContainer(
         );
     }
 
-
     // Then we actually inject the override files:
     for (let pack of [
         packInterceptionFiles(certContent), // The general overide files & MITM cert
@@ -144,7 +144,6 @@ export async function restartAndInjectContainer(
     ]) {
         await newContainer.putArchive(pack, { path: '/' });
     }
-
 
     // Start everything up!
     await newContainer.start();
