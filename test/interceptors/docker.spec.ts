@@ -85,7 +85,8 @@ describe('Docker interceptor', function () {
 
     [
         'JS',
-        'Python'
+        'Python',
+        'Java'
     ].forEach((target) => {
         it(`should intercept external ${target} requests`, async function () {
             this.timeout(20000);
