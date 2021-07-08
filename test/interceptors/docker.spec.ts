@@ -1,7 +1,7 @@
 import * as _ from 'lodash';
-import * as util from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as stream from 'stream';
 
 import { expect } from 'chai';
 
@@ -33,18 +33,31 @@ async function buildAndRun(dockerFolder: string, argument: string) {
         if (data.stream) console.log(data.stream.replace(/\n$/, ''));
     });
 
-    // Wait for the build to complete
-    await new Promise((resolve) => buildStream.on('end', resolve));
+    // Wait for the build to complete without errors:
+    await new Promise<void>((resolve, reject) => {
+        docker.modem.followProgress(buildStream, (err: Error | null, stream: Array<{ error?: string }>) => {
+            if (err) reject(err);
+
+            const firstError = stream.find((msg) => !!msg.error);
+            if (firstError) reject(new Error(firstError.error));
+
+            resolve();
+        });
+    });
     console.log(`${dockerFolder} container built`);
 
     // Run the container, using its default entrypoint
-    docker.run(imageName, [], process.stdout, {
+    const outputStream = new stream.PassThrough();
+    docker.run(imageName, [], outputStream, {
         HostConfig: { AutoRemove: true },
         Cmd: [argument]
     });
 
-    await delay(500); // Wait for the container to be ready
-    console.log('Container started');
+    outputStream.pipe(process.stdout);
+
+    // The promise that docker.run returns waits for the container to *finish*. To wait until the
+    // container has started, we wait for the first stream output:
+    await new Promise((resolve) => outputStream.on('data', resolve));
 }
 
 async function killAllContainers() {
@@ -83,7 +96,8 @@ describe('Docker interceptor', function () {
 
             await interceptor.activate(server.port);
             console.log('Container intercepted');
-            await delay(1000);
+
+            await new Promise((resolve) => server.on('response', resolve));
 
             const seenRequests = await mainRule.getSeenRequests();
             expect(seenRequests.map(r => r.url)).to.include('https://example.com/');
