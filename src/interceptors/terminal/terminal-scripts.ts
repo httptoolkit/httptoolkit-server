@@ -71,7 +71,7 @@ ${END_CONFIG_SECTION}`;
 
 // A source-able shell script. Should work for everything except fish, sadly.
 export const getShellScript = (env: { [name: string]: string }) => `${
-        _.map(env, (value, key) => `    export ${key}="${value}"`).join('\n')
+        _.map(env, (value, key) => `    export ${key}="${value.replace(/"/g, '\\"')}"`).join('\n')
     }
 
     if command -v winpty >/dev/null 2>&1; then
