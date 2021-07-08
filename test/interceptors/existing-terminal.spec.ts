@@ -36,6 +36,7 @@ describe('Existing terminal interceptor', function () {
         const result = await interceptor.activate(server.port) as { port: number };
         expect(interceptor.isActive(server.port)).to.equal(false);
         await fetch(`http://localhost:${result.port}/setup`);
+        await fetch(`http://localhost:${result.port}/success`, { method: 'POST' });
         expect(interceptor.isActive(server.port)).to.equal(true);
 
         expect(interceptor.isActive(server.port + 1)).to.equal(false);
@@ -51,6 +52,7 @@ describe('Existing terminal interceptor', function () {
 
         const result = await interceptor.activate(server.port) as { port: number };
         await fetch(`http://localhost:${result.port}/setup`);
+        await fetch(`http://localhost:${result.port}/success`, { method: 'POST' });
         expect(interceptor.isActive(server.port)).to.equal(true);
 
         await interceptor.deactivateAll();
@@ -88,6 +90,7 @@ describe('Existing terminal interceptor', function () {
         });
 
         expect(scriptOutput.stdout).to.contain("HTTP Toolkit interception enabled");
+        expect(interceptor.isActive(server.port)).to.equal(true);
 
         const seenRequests = _.concat(...await Promise.all([
             mainRule.getSeenRequests(),

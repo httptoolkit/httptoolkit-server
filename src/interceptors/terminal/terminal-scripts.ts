@@ -70,7 +70,7 @@ end
 ${END_CONFIG_SECTION}`;
 
 // A source-able shell script. Should work for everything except fish, sadly.
-export const getShellScript = (env: { [name: string]: string }) => `${
+export const getShellScript = (callbackUrl: string, env: { [name: string]: string }) => `${
         _.map(env, (value, key) => `    export ${key}="${value.replace(/"/g, '\\"')}"`).join('\n')
     }
 
@@ -78,6 +78,11 @@ export const getShellScript = (env: { [name: string]: string }) => `${
         # Work around for winpty's hijacking of certain commands
         alias php=php
         alias node=node
+    fi
+
+    if command -v curl >/dev/null 2>&1; then
+        # Let the HTTP Toolkit app know this ran succesfully
+        (curl --noproxy '*' -X POST "${callbackUrl}" >/dev/null 2>&1 &) &> /dev/null
     fi
 
     echo 'HTTP Toolkit interception enabled'
