@@ -85,8 +85,10 @@ describe('Docker interceptor', function () {
 
     [
         'JS',
+        'Java',
         'Python',
-        'Java'
+        'Ruby',
+        'Go'
     ].forEach((target) => {
         it(`should intercept external ${target} requests`, async function () {
             this.timeout(20000);
@@ -95,6 +97,7 @@ describe('Docker interceptor', function () {
 
             await buildAndRun(target.toLowerCase(), 'https://example.com');
 
+            await delay(100);
             await interceptor.activate(server.port);
             console.log('Container intercepted');
 
