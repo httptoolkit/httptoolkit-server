@@ -5,4 +5,4 @@ WORKDIR /usr/src/app
 
 COPY . .
 
-ENTRYPOINT node /usr/src/app/external-request.js
+ENTRYPOINT ["node", "/usr/src/app/app.js"]

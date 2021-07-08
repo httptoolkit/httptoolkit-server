@@ -2,12 +2,14 @@ const https = require('https');
 
 const delay = (timeMs) => new Promise((resolve) => setTimeout(resolve, timeMs));
 
+const targetUrl = process.argv[2];
+
 (async function() {
-    console.log('Starting external request container');
+    console.log('Starting JS container');
 
     while (true) {
         const response = await new Promise((resolve, reject) => {
-            const req = https.get("https://example.com");
+            const req = https.get(targetUrl);
             req.on('response', resolve);
             req.on('error', reject);
         });

@@ -14,16 +14,17 @@ const interceptorSetup = setupInterceptor('docker-all');
 
 const docker = new Docker();
 const DOCKER_FIXTURES = path.join(__dirname, '..', 'fixtures', 'docker');
-const dockerContext = {
-    context: DOCKER_FIXTURES,
-    src: fs.readdirSync(DOCKER_FIXTURES),
-};
 
-async function buildAndRun(dockerfile: string) {
-    const imageName = `test-${dockerfile.split('.')[0]}:latest`;
+async function buildAndRun(dockerFolder: string, argument: string) {
+    const imageName = `test-${dockerFolder}:latest`;
+
+    const dockerContext = {
+        context: path.join(DOCKER_FIXTURES, dockerFolder),
+        src: fs.readdirSync(path.join(DOCKER_FIXTURES, dockerFolder)),
+    };
 
     const buildStream = await docker.buildImage(dockerContext, {
-        dockerfile,
+        dockerfile: 'Dockerfile',
         t: imageName
     });
 
@@ -34,10 +35,12 @@ async function buildAndRun(dockerfile: string) {
 
     // Wait for the build to complete
     await new Promise((resolve) => buildStream.on('end', resolve));
+    console.log(`${dockerFolder} container built`);
 
     // Run the container, using its default entrypoint
     docker.run(imageName, [], process.stdout, {
-        HostConfig: { AutoRemove: true }
+        HostConfig: { AutoRemove: true },
+        Cmd: [argument]
     });
 
     await delay(500); // Wait for the container to be ready
@@ -67,18 +70,24 @@ describe('Docker interceptor', function () {
 
     itIsAvailable(interceptorSetup);
 
-    it("should intercept external JS requests", async function () {
-        this.timeout(20000);
-        const { interceptor, server } = await interceptorSetup;
-        const mainRule = await server.get('https://example.com').thenReply(404);
+    [
+        'JS',
+        'Python'
+    ].forEach((target) => {
+        it(`should intercept external ${target} requests`, async function () {
+            this.timeout(20000);
+            const { interceptor, server } = await interceptorSetup;
+            const mainRule = await server.get('https://example.com').thenReply(404);
 
-        await buildAndRun('external-request-js.Dockerfile');
+            await buildAndRun(target.toLowerCase(), 'https://example.com');
 
-        await interceptor.activate(server.port);
-        await delay(1000);
+            await interceptor.activate(server.port);
+            console.log('Container intercepted');
+            await delay(1000);
 
-        const seenRequests = await mainRule.getSeenRequests();
-        expect(seenRequests.map(r => r.url)).to.include('https://example.com/');
+            const seenRequests = await mainRule.getSeenRequests();
+            expect(seenRequests.map(r => r.url)).to.include('https://example.com/');
+        });
     });
 
 });
