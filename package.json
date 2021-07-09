@@ -38,7 +38,7 @@
     "@sentry/integrations": "^5.29.2",
     "@sentry/node": "^5.29.2",
     "@types/cors": "^2.8.7",
-    "@types/dockerode": "^3.2.1",
+    "@types/dockerode": "^3.2.4",
     "@types/node-fetch": "^2.5.4",
     "@types/tar-fs": "^2.0.0",
     "@types/tmp": "0.0.33",

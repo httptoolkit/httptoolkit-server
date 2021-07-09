@@ -15,12 +15,10 @@ export class DockerAllInterceptor implements Interceptor {
         private config: HtkConfig
     ) {}
 
+    private docker = new Docker();
+
     async activate(proxyPort: number, options?: any): Promise<void | {}> {
-        console.log("activate docker");
-
-        const docker = new Docker();
-
-        const currentContainers = await docker.listContainers();
+        const currentContainers = await this.docker.listContainers();
 
         // Restart each container, plus our own config, one by one. If we do this
         // in parallel, when all containers are stopped any running docker-compose
@@ -32,12 +30,12 @@ export class DockerAllInterceptor implements Interceptor {
         };
 
         for (let container of currentContainers) {
-            await restartAndInjectContainer(docker, container.Id, interceptionSettings);
+            await restartAndInjectContainer(this.docker, container.Id, interceptionSettings);
         }
     }
 
     async isActivable(): Promise<boolean> {
-        return true;
+        return this.docker.ping().then(() => true).catch(() => false);
     }
 
     isActive(proxyPort: number): boolean {
@@ -59,19 +57,35 @@ export class DockerContainerInterceptor implements Interceptor {
         private config: HtkConfig
     ) {}
 
-    async activate(proxyPort: number, options: { containerId: string }): Promise<void | {}> {
-        const docker = new Docker();
+    private docker = new Docker();
 
+    async getMetadata() {
+        if (await this.isActivable()) {
+            return (await this.docker.listContainers()).map((containerData) => ({
+                // Keep the docker data structure, but normalize the key names and filter
+                // to just the relevant data, just to make sure we don't unnecessarily
+                // expose secrets or similar.
+                id: containerData.Id,
+                names: containerData.Names,
+                command: containerData.Command,
+                labels: containerData.Labels,
+                state: containerData.State,
+                status: containerData.Status
+            }));
+        }
+    }
+
+    async activate(proxyPort: number, options: { containerId: string }): Promise<void | {}> {
         const interceptionSettings = {
             proxyPort,
             certContent: this.config.https.certContent
         };
 
-        await restartAndInjectContainer(docker, options.containerId, interceptionSettings);
+        await restartAndInjectContainer(this.docker, options.containerId, interceptionSettings);
     }
 
     async isActivable(): Promise<boolean> {
-        return true;
+        return this.docker.ping().then(() => true).catch(() => false);
     }
 
     isActive(proxyPort: number): boolean {

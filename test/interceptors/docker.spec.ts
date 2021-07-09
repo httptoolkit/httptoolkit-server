@@ -1,7 +1,6 @@
 import * as _ from 'lodash';
 import * as path from 'path';
 import * as fs from 'fs';
-import * as stream from 'stream';
 
 import { expect } from 'chai';
 
@@ -9,8 +8,6 @@ import * as Docker from 'dockerode';
 
 import { setupInterceptor, itIsAvailable } from './interceptor-test-utils';
 import { delay } from '../../src/util';
-
-const interceptorSetup = setupInterceptor('docker-all');
 
 const docker = new Docker();
 const DOCKER_FIXTURES = path.join(__dirname, '..', 'fixtures', 'docker');
@@ -44,20 +41,34 @@ async function buildAndRun(dockerFolder: string, argument: string) {
             resolve();
         });
     });
-    console.log(`${dockerFolder} container built`);
+    console.log(`${dockerFolder} image built`);
 
     // Run the container, using its default entrypoint
-    const outputStream = new stream.PassThrough();
-    docker.run(imageName, [], outputStream, {
+    const container = await docker.createContainer({
+        Image: imageName,
         HostConfig: { AutoRemove: true },
-        Cmd: [argument]
+        Cmd: [argument],
+        Tty: true,
     });
 
-    outputStream.pipe(process.stdout);
+    const stream = await container.attach({
+        stream: true,
+        stdout: true,
+        stderr: true
+    });
+
+    stream.setEncoding('utf8');
+    stream.pipe(process.stdout);
+
+    console.log('Container created');
+
+    container.start();
 
     // The promise that docker.run returns waits for the container to *finish*. To wait until the
     // container has started, we wait for the first stream output:
-    await new Promise((resolve) => outputStream.on('data', resolve));
+    await new Promise((resolve) => stream.on('data', resolve));
+
+    return container.id;
 }
 
 async function killAllContainers() {
@@ -67,7 +78,9 @@ async function killAllContainers() {
     ));
 }
 
-describe('Docker interceptor', function () {
+const interceptorSetup = setupInterceptor('docker-container');
+
+describe('Docker single-container interceptor', function () {
 
     beforeEach(async () => {
         const { server } = await interceptorSetup;
@@ -95,10 +108,13 @@ describe('Docker interceptor', function () {
             const { interceptor, server } = await interceptorSetup;
             const mainRule = await server.get('https://example.com').thenReply(404);
 
-            await buildAndRun(target.toLowerCase(), 'https://example.com');
+            const containerId = await buildAndRun(target.toLowerCase(), 'https://example.com');
 
-            await delay(100);
-            await interceptor.activate(server.port);
+            expect(
+                (await interceptor.getMetadata!('summary')).map(({ id }: any) => id)
+            ).to.include(containerId);
+
+            await interceptor.activate(server.port, { containerId });
             console.log('Container intercepted');
 
             await new Promise((resolve) => server.on('response', resolve));
