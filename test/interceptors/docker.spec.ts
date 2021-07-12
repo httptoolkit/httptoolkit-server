@@ -104,12 +104,13 @@ describe('Docker single-container interceptor', function () {
         'Go'
     ].forEach((target) => {
         it(`should intercept external ${target} requests`, async function () {
-            this.timeout(20000);
+            this.timeout(60000);
             const { interceptor, server } = await interceptorSetup;
             const mainRule = await server.get('https://example.com').thenReply(404);
 
             const containerId = await buildAndRun(target.toLowerCase(), 'https://example.com');
 
+            await delay(500);
             expect(
                 (await interceptor.getMetadata!('summary')).map(({ id }: any) => id)
             ).to.include(containerId);

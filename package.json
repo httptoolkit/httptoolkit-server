@@ -15,7 +15,6 @@
   ],
   "scripts": {
     "start": "node-dev ./bin/run start",
-    "build": "npm run build:src && npm run build:release",
     "build:src": "rm -rf lib && tsc -b --force",
     "build:release": "oclif-dev manifest && webpack && ts-node ./pack.ts",
     "prepack": "npm run build:src && oclif-dev manifest",

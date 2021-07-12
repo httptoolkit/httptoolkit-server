@@ -6,7 +6,11 @@ jobs:
   build:
     name: Build & test
     runs-on: ubuntu-18.04
-    container: httptoolkit/act-build-base
+    container:
+      image: httptoolkit/act-build-base
+      options: "--privileged" # Required for DIND tests
+    env:
+      DIND_HOST: unix:///tmp/docker.sock
     steps:
       - uses: actions/checkout@v2
 
@@ -21,7 +25,9 @@ jobs:
 
       - run: npm ci
 
-      - name: Install test environment
+      - run: npm run build:src
+
+      - name: Prepare test environment
         run: |
           apt-get update
           apt-get install p7zip-full xterm
@@ -35,15 +41,19 @@ jobs:
           # Fix $HOME perms to make Firefox happy
           chown $(whoami) $HOME
 
-      - run: npm run build
+          # Start a DIND docker host, running in the background
+          dockerd -H $DIND_HOST &
+
+      - run: DOCKER_HOST=$DIND_HOST xvfb-run npm run test
+
+      - run: npm run build:release
         env:
           SENTRY_AUTH_TOKEN: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && secrets.SENTRY_AUTH_TOKEN) || '' }}
           SENTRY_ORG: http-toolkit
           SENTRY_PROJECT: httptoolkit-server
           NPM_CONFIG_UNSAFE_PERM: true
 
-      - run: xvfb-run npm run test
-      - run: xvfb-run npm run test:release
+      - run: DOCKER_HOST=$DIND_HOST xvfb-run npm run test:release
 
       - uses: actions/upload-artifact@v2
         with:
