@@ -138,7 +138,11 @@ describe('Integration test', function () {
         expect(response.version).to.equal(require('../package.json').version);
     });
 
-    it('exposes interceptors over HTTP', async () => {
+    it('exposes interceptors over HTTP', async function () {
+        // Browser detection on a fresh machine (i.e. in CI) with many browsers
+        // installed can take a couple of seconds. Give it one retry.
+        this.retries(1);
+
         const graphql = buildGraphql('http://localhost:45457/');
 
         const response = await graphql(`
