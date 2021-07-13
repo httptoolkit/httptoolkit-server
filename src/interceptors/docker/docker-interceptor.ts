@@ -25,9 +25,11 @@ export class DockerAllInterceptor implements Interceptor {
         // will stop too. Could improve by detecting compose and handling that.
 
         const interceptionSettings = {
+            interceptionType: 'mount',
             proxyPort,
-            certContent: this.config.https.certContent
-        };
+            certContent: this.config.https.certContent,
+            certPath: this.config.https.certPath,
+        } as const;
 
         for (let container of currentContainers) {
             await restartAndInjectContainer(this.docker, container.Id, interceptionSettings);
@@ -77,9 +79,11 @@ export class DockerContainerInterceptor implements Interceptor {
 
     async activate(proxyPort: number, options: { containerId: string }): Promise<void | {}> {
         const interceptionSettings = {
+            interceptionType: 'mount',
             proxyPort,
-            certContent: this.config.https.certContent
-        };
+            certContent: this.config.https.certContent,
+            certPath: this.config.https.certPath,
+        } as const;
 
         await restartAndInjectContainer(this.docker, options.containerId, interceptionSettings);
     }

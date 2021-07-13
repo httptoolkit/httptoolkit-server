@@ -8,7 +8,6 @@ public class Main {
         URL url = new URL(targetUrl);
 
         System.out.println("Starting Java container");
-        System.out.println(System.getenv("JAVA_TOOL_OPTIONS"));
         while (true) {
             HttpURLConnection con = (HttpURLConnection) url.openConnection();
             con.setRequestMethod("GET");

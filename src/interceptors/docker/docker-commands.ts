@@ -9,6 +9,8 @@ import {
 } from '../terminal/terminal-env-overrides';
 
 const HTTP_TOOLKIT_INJECTED_PATH = '/http-toolkit-injections';
+const HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'overrides');
+const HTTP_TOOLKIT_INJECTED_CA_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'ca.pem');
 
 const envArrayToObject = (envArray: string[]) =>
     _.fromPairs(envArray.map((e) => {
@@ -24,7 +26,7 @@ const envObjectToArray = (envObject: { [key: string]: string }): string[] =>
 function packInterceptionFiles(certContent: string) {
     return tarFs.pack(OVERRIDES_DIR, {
         map: (fileHeader) => {
-            fileHeader.name = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, fileHeader.name);
+            fileHeader.name = path.posix.join(HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH, fileHeader.name);
 
             // Owned by root by default
             fileHeader.uid = 0;
@@ -37,9 +39,7 @@ function packInterceptionFiles(certContent: string) {
         },
         finalize: false,
         finish: (pack) => {
-            pack.entry({
-                name: path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'ca.pem')
-            }, certContent);
+            pack.entry({ name: HTTP_TOOLKIT_INJECTED_CA_PATH }, certContent);
             pack.finalize();
         }
     });
@@ -48,7 +48,16 @@ function packInterceptionFiles(certContent: string) {
 export async function restartAndInjectContainer(
     docker: Docker,
     containerId: string,
-    { proxyPort, certContent }: { proxyPort: number, certContent: string }
+    { interceptionType, proxyPort, certContent, certPath }: {
+        // If 'mount', the override files should be bind-mounted directly into the image. If
+        // 'inject', the override files should be copied into the image. 'Mount' is generally
+        // better & faster, but not possible for builds or injection into remote hosts.
+        interceptionType: 'mount' | 'inject'
+
+        proxyPort: number,
+        certContent: string
+        certPath: string
+    }
 ) {
     // We intercept containers by stopping them, cloning them, injecting our settings,
     // and then starting up the clone.
@@ -77,7 +86,19 @@ export async function restartAndInjectContainer(
     // First we clone the continer, with our custom env vars:
     const newContainer = await docker.createContainer({
         ...containerDetails.Config,
-        HostConfig: containerDetails.HostConfig,
+        HostConfig: interceptionType === 'mount'
+            ? {
+                ...containerDetails.HostConfig,
+                Binds: [
+                    ...(containerDetails.HostConfig.Binds || []),
+                    // Bind-mount the CA certificate file individually too:
+                    `${certPath}:${HTTP_TOOLKIT_INJECTED_CA_PATH}:ro`,
+                    // Bind-mount the overrides directory into the container:
+                    `${OVERRIDES_DIR}:${HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH}:ro`
+                    // ^ Both 'ro' - untrusted containers must not be able to mess with these!
+                ]
+            }
+            : containerDetails.HostConfig,
         name: containerDetails.Name,
         NetworkingConfig: {
             EndpointsConfig: networkNames.length > 1
@@ -89,11 +110,11 @@ export async function restartAndInjectContainer(
             ...envObjectToArray(
                 getTerminalEnvVars(
                     proxyPort,
-                    { certPath: path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'ca.pem') },
+                    { certPath: HTTP_TOOLKIT_INJECTED_CA_PATH },
                     envArrayToObject(containerDetails.Config.Env),
                     {
                         httpToolkitIp: '172.17.0.1',
-                        overridePath: HTTP_TOOLKIT_INJECTED_PATH,
+                        overridePath: HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH,
                         targetPlatform: 'linux'
                     }
                 )
@@ -113,8 +134,10 @@ export async function restartAndInjectContainer(
         );
     }
 
-    // Then we actually inject the overide files & MITM cert:
-    await newContainer.putArchive(packInterceptionFiles(certContent), { path: '/' });
+    if (interceptionType === 'inject') {
+        // Inject the overide files & MITM cert into the image directly:
+        await newContainer.putArchive(packInterceptionFiles(certContent), { path: '/' });
+    }
 
     // Start everything up!
     await newContainer.start();
