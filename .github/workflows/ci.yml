@@ -24,6 +24,8 @@ jobs:
           java-version: 11
 
       - run: npm ci
+        env:
+          NPM_CONFIG_UNSAFE_PERM: true
 
       - run: npm run build:src
 

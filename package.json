@@ -17,6 +17,7 @@
     "start": "node-dev ./bin/run start",
     "build:src": "rm -rf lib && tsc -b --force",
     "build:release": "oclif-dev manifest && webpack && ts-node ./pack.ts",
+    "prepare": "cd ./overrides/js && npm install",
     "prepack": "npm run build:src && oclif-dev manifest",
     "test": "cross-env TS_NODE_FILES=true mocha --exit -r ts-node/register 'test/**/*.spec.ts'",
     "test:release": "cross-env TEST_BUILT_TARBALL=1 npm run test"
@@ -49,8 +50,6 @@
     "env-paths": "^1.0.0",
     "express": "^4.17.1",
     "express-graphql": "^0.11.0",
-    "global-agent": "^2.0.0",
-    "global-tunnel-ng": "^2.7.1",
     "graphql": "^14.7.0",
     "iconv-lite": "^0.4.24",
     "lodash": "^4.17.21",
@@ -138,9 +137,7 @@
       "@oclif/plugin-update",
       "vm2",
       "registry-js",
-      "win-version-info",
-      "global-agent",
-      "global-tunnel-ng"
+      "win-version-info"
     ],
     "update": {
       "s3": {

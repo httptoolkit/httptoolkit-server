@@ -1,0 +1,10 @@
+{
+  "name": "js-overrides",
+  "description": "Scripts used to inject HTTP Toolkit settings into Node.js targets, as part of HTTP Toolkit Server",
+  "repository": "httptoolkit/httptoolkit-server",
+  "license": "AGPL-3.0-or-later",
+  "dependencies": {
+    "global-agent": "2.0.0",
+    "global-tunnel-ng": "2.7.1"
+  }
+}
