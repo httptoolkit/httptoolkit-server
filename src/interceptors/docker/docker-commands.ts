@@ -7,7 +7,6 @@ import {
     getTerminalEnvVars,
     OVERRIDES_DIR
 } from '../terminal/terminal-env-overrides';
-import { APP_ROOT } from '../../constants';
 
 const HTTP_TOOLKIT_INJECTED_PATH = '/http-toolkit-injections';
 
@@ -44,29 +43,6 @@ function packInterceptionFiles(certContent: string) {
             pack.finalize();
         }
     });
-}
-
-function packNodeModules() {
-    return tarFs.pack(path.join(APP_ROOT, 'node_modules'), {
-        map: (fileHeader) => {
-            fileHeader.name = path.posix.join(
-                HTTP_TOOLKIT_INJECTED_PATH, 'node_modules', fileHeader.name
-            );
-
-            // Owned by root by default
-            fileHeader.uid = 0;
-            fileHeader.gid = 0;
-
-            // But ensure everything is globally readable by everybody
-            if (fileHeader.type === "directory") {
-                fileHeader.mode = parseInt('555', 8);
-            } else {
-                fileHeader.mode = parseInt('444', 8);
-            }
-
-            return fileHeader;
-        }
-    })
 }
 
 export async function restartAndInjectContainer(
@@ -137,13 +113,8 @@ export async function restartAndInjectContainer(
         );
     }
 
-    // Then we actually inject the override files:
-    for (let pack of [
-        packInterceptionFiles(certContent), // The general overide files & MITM cert
-        packNodeModules() // Various modules & their subdeps for JS interception
-    ]) {
-        await newContainer.putArchive(pack, { path: '/' });
-    }
+    // Then we actually inject the overide files & MITM cert:
+    await newContainer.putArchive(packInterceptionFiles(certContent), { path: '/' });
 
     // Start everything up!
     await newContainer.start();
