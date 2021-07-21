@@ -94,7 +94,7 @@ export class AndroidAdbInterceptor implements Interceptor {
             ].concat(
                 // Every other external network ip
                 _.flatMap(os.networkInterfaces(), (addresses) =>
-                    addresses
+                    (addresses || [])
                         .filter(a => !a.internal)
                         .map(a => a.address)
                 )
