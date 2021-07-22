@@ -226,7 +226,10 @@ export class FreshTerminalInterceptor implements Interceptor {
             command,
             (args || []),
             _.assign(options || {}, {
-                env: _.assign({}, currentEnv, getTerminalEnvVars(proxyPort, this.config.https, currentEnv)),
+                env: {
+                    ...currentEnv,
+                    ...getTerminalEnvVars(proxyPort, this.config.https, currentEnv),
+                },
                 cwd: currentEnv.HOME || currentEnv.USERPROFILE
             })
         );

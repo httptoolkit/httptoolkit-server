@@ -1,6 +1,7 @@
 import * as path from 'path';
 
 import { APP_ROOT } from '../../constants';
+import { getDockerPipePath } from '../docker/docker-proxy';
 
 const BIN_OVERRIDE_DIR = 'path';
 const RUBY_OVERRIDE_DIR = 'gems';
@@ -37,6 +38,8 @@ export function getTerminalEnvVars(
     const joinPath = targetPlatform === 'win32' ? path.win32.join : path.posix.join;
 
     const proxyUrl = `http://${httpToolkitIp}:${proxyPort}`;
+
+    const dockerHost = `unix://${getDockerPipePath(proxyPort, targetPlatform)}`;
 
     const rubyGemsPath = joinPath(overridePath, RUBY_OVERRIDE_DIR);
     const pythonPath = joinPath(overridePath, PYTHON_OVERRIDE_DIR);
@@ -118,6 +121,9 @@ export function getTerminalEnvVars(
                 ? `$JAVA_TOOL_OPTIONS ${javaAgentOption}`
             : currentEnv.JAVA_TOOL_OPTIONS
                 ? `${currentEnv.JAVA_TOOL_OPTIONS} ${javaAgentOption}`
-            : javaAgentOption
+            : javaAgentOption,
+
+        // Run all Docker operations through our Docker-hooking proxy:
+        'DOCKER_HOST': dockerHost
     };
 }

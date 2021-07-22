@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as envPaths from 'env-paths';
 import { getStandalone, generateCACertificate } from 'mockttp';
+import { MockttpStandalone } from 'mockttp/dist/standalone/mockttp-standalone';
 import { Mutex } from 'async-mutex';
 
 import updateCommand from '@oclif/plugin-update/lib/commands/update';
@@ -11,8 +12,11 @@ import { checkBrowserConfig } from './browsers';
 import { reportError } from './error-tracking';
 import { ALLOWED_ORIGINS } from './constants';
 import { delay, readFile, checkAccess, writeFile, ensureDirectoryExists, isErrorLike } from './util';
-import { registerShutdownHandler } from './shutdown';
+import { registerShutdownHandler, addShutdownHandler } from './shutdown';
 import { getTimeToCertExpiry, parseCert } from './certificates';
+
+import { createDockerProxy } from './interceptors/docker/docker-proxy';
+import { DestroyableServer } from './destroyable-server';
 
 const APP_NAME = "HTTP Toolkit";
 
@@ -55,6 +59,29 @@ function checkCertExpiry(certContents: string): void {
     }
 }
 
+function pairWithInterceptingDockerProxies(
+    standalone: MockttpStandalone,
+    httpsConfig: { certPath: string }
+) {
+    const dockerProxies: { [port: number]: DestroyableServer } = {};
+
+    standalone.on('mock-server-started', async (server) => {
+        dockerProxies[server.port] = await createDockerProxy(server.port, httpsConfig);
+    });
+
+    standalone.on('mock-server-stopping', (server) => {
+        const port = server.port;
+        if (dockerProxies[port]) { // Might not exist, in some error scenarios
+            dockerProxies[port].destroy();
+            delete dockerProxies[port];
+        }
+    });
+
+    addShutdownHandler(() => Promise.all(
+        Object.values(dockerProxies).map((proxy) => proxy.destroy())
+    ));
+}
+
 export async function runHTK(options: {
     configPath?: string
     authToken?: string
@@ -88,6 +115,7 @@ export async function runHTK(options: {
             maxAge: 86400 // Cache CORS responses for as long as possible
         }
     });
+    pairWithInterceptingDockerProxies(standalone, httpsConfig);
     await standalone.start({
         port: 45456,
         host: '127.0.0.1'

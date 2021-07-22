@@ -1,15 +1,27 @@
+import * as os from 'os';
+import * as path from 'path';
 import * as http from 'http';
-import * as Modem from 'docker-modem';
-import { getPortPromise as getPort } from 'portfinder';
+import * as Dockerode from 'dockerode';
 
-export const createDockerProxy = async () => {
+import { deleteFile } from '../../util';
+import { destroyable } from '../../destroyable-server';
+
+export const getDockerPipePath = (proxyPort: number, targetPlatform: NodeJS.Platform = process.platform) => {
+    if (targetPlatform === 'win32') {
+        return `\\\\.\\pipe\\httptoolkit-${proxyPort}-docker`;
+    } else {
+        return path.join(os.tmpdir(), `httptoolkit-${proxyPort}-docker.sock`);
+    }
+};
+
+const docker = new Dockerode();
+
+export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPath: string }) => {
     // Hacky logic to reuse docker-modem's internal env + OS parsing logic to
     // work out where the local Docker host is:
-    const dockerModem = (new Modem() as any);
-    const dockerHostOptions = dockerModem.socketPath
-        ? { socketPath: dockerModem.socketPath }
-        : { host: dockerModem.host, port: dockerModem.port };
-
+    const dockerHostOptions = docker.modem.socketPath
+        ? { socketPath: docker.modem.socketPath }
+        : { host: docker.modem.host, port: docker.modem.port };
 
     const agent = new http.Agent({ keepAlive: true });
 
@@ -66,10 +78,18 @@ export const createDockerProxy = async () => {
         });
     });
 
-    const port = await getPort();
+    const proxyListenPath = getDockerPipePath(proxyPort);
+    if (process.platform !== 'win32') {
+        // Outside windows, sockets live on the filesystem, and persist. If a server
+        // failed to clean up properly, they may still be present, which will
+        // break server startup, so we clean up first:
+        await deleteFile(proxyListenPath).catch(() => {});
+    }
+
     await new Promise<void>((resolve, reject) => {
-        server.listen(port, '127.0.0.1', resolve);
+        server.listen(proxyListenPath, resolve);
         server.on('error', reject);
     });
-    return server;
+
+    return destroyable(server);
 };
