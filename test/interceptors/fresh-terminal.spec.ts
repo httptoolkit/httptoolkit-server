@@ -5,9 +5,6 @@ import { expect } from 'chai';
 
 import { setupInterceptor, itIsAvailable, itCanBeActivated } from './interceptor-test-utils';
 import { getTerminalEnvVars } from '../../src/interceptors/terminal/terminal-env-overrides';
-import { spawnToResult } from '../../src/process-management';
-import { createDockerProxy } from '../../src/interceptors/docker/docker-proxy';
-import { DestroyableServer } from '../../src/destroyable-server';
 
 const interceptorSetup = setupInterceptor('fresh-terminal');
 
@@ -41,15 +38,6 @@ describe('Fresh terminal interceptor', function () {
     });
 
     describe('simulated from env vars', () => {
-
-        let dockerProxy: DestroyableServer;
-
-        beforeEach(async () => {
-            const { server, httpsConfig } = await interceptorSetup;
-            dockerProxy = await createDockerProxy(server.port, httpsConfig);
-        });
-
-        afterEach(() => dockerProxy?.destroy());
 
         it("should intercept all popular JS libraries", async function () {
             this.timeout(10000);
@@ -98,32 +86,6 @@ describe('Fresh terminal interceptor', function () {
 
             // Special case modules that need manual handling:
             expect(seenRequests).to.include('https://api.stripe.com/v1/customers');
-        });
-
-        it("should intercept 'docker run'", async function () {
-            this.timeout(10000);
-
-            const { server, httpsConfig } = await interceptorSetup;
-
-            const mainRule = await server.get("https://example.test").thenReply(200);
-
-            const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env);
-
-            const { exitCode, stdout, stderr } = await spawnToResult(
-                'docker', ['run', '--rm', 'node:14', '-e', `require("https").get("https://example.test")`],
-                {
-                    env: { ...process.env, ...terminalEnvOverrides }
-                },
-                true
-            );
-
-            expect(exitCode).to.equal(0);
-            expect(stdout).to.equal('');
-            expect(stderr).to.equal('');
-
-            const seenRequests = await mainRule.getSeenRequests();
-            expect(seenRequests.length).to.equal(1);
-            expect(seenRequests[0].url).to.equal("https://example.test/");
         });
 
     });

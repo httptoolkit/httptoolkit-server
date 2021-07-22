@@ -21,33 +21,43 @@ const getCertificateDetails = _.memoize(async (configPath: string) => {
     return { certPath, keyPath, certContent: newCertPair.cert, keyLength: 2048};
 });
 
-type InterceptorSetup = Promise<{
+type TestSetup = {
     server: Mockttp,
-    interceptor: Interceptor,
-    httpsConfig: { certPath: string, keyPath: string }
-}>
+    configPath: string,
+    httpsConfig: { certPath: string, keyPath: string, certContent: string, keyLength: number }
+};
 
-export async function setupInterceptor(interceptor: string): InterceptorSetup {
+export async function setupTest(): Promise<TestSetup> {
     const configPath = tmp.dirSync({ unsafeCleanup: true }).name;
 
     const httpsConfig = await getCertificateDetails(configPath);
 
     const server = getLocal({ https: httpsConfig });
+
+    return { server, configPath, httpsConfig };
+}
+
+type InterceptorSetup = TestSetup & {
+    interceptor: Interceptor
+};
+
+export async function setupInterceptor(interceptor: string): Promise<InterceptorSetup> {
+    const { server, configPath, httpsConfig } = await setupTest();
     const interceptors = buildInterceptors({ appName: "HTTP Toolkit", configPath, https: httpsConfig });
 
-    return { server, interceptor: interceptors[interceptor], httpsConfig };
+    return { server, configPath, httpsConfig, interceptor: interceptors[interceptor] };
 }
 
 // Various tests that we'll want to reuse across interceptors:
 
-export function itIsAvailable(interceptorSetup: InterceptorSetup) {
+export function itIsAvailable(interceptorSetup: Promise<InterceptorSetup>) {
     it('is available', async () => {
         const { interceptor } = await interceptorSetup;
         expect(await interceptor.isActivable()).to.equal(true);
     });
 }
 
-export function itCanBeActivated(interceptorSetup: InterceptorSetup) {
+export function itCanBeActivated(interceptorSetup: Promise<InterceptorSetup>) {
     it('can be activated', async () => {
         const { interceptor, server } = await interceptorSetup;
 
