@@ -9,6 +9,7 @@ import * as getRawBody from 'raw-body';
 
 import { deleteFile } from '../../util';
 import { transformContainerCreationConfig } from './docker-commands';
+import { injectIntoBuildStream } from './docker-build-injection';
 import { destroyable } from '../../destroyable-server';
 
 export const getDockerPipePath = (proxyPort: number, targetPlatform: NodeJS.Platform = process.platform) => {
@@ -20,10 +21,11 @@ export const getDockerPipePath = (proxyPort: number, targetPlatform: NodeJS.Plat
 };
 
 const CREATE_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/create/;
+const BUILD_IMAGE_MATCHER = /^\/[^\/]+\/build/;
 
 const docker = new Dockerode();
 
-export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPath: string }) => {
+export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPath: string, certContent: string }) => {
     // Hacky logic to reuse docker-modem's internal env + OS parsing logic to
     // work out where the local Docker host is:
     const dockerHostOptions = docker.modem.socketPath
@@ -75,6 +77,15 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
                 }
             );
             requestBodyStream = stream.Readable.from(JSON.stringify(transformedConfig));
+        }
+
+        if (reqPath.match(BUILD_IMAGE_MATCHER)) {
+            const dockerfileName = 'Dockerfile';
+
+            requestBodyStream = await injectIntoBuildStream(dockerfileName, req, {
+                certContent: httpsConfig.certContent,
+                proxyPort
+            });
         }
 
         const dockerReq = sendToDocker(req, requestBodyStream);

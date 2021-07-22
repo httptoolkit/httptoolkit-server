@@ -61,7 +61,7 @@ function checkCertExpiry(certContents: string): void {
 
 function pairWithInterceptingDockerProxies(
     standalone: MockttpStandalone,
-    httpsConfig: { certPath: string }
+    httpsConfig: { certPath: string, certContent: string }
 ) {
     const dockerProxies: { [port: number]: DestroyableServer } = {};
 
