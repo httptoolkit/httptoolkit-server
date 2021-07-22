@@ -45,6 +45,11 @@ jobs:
 
           # Start a DIND docker host, running in the background
           dockerd -H $DIND_HOST &
+          sleep 5
+
+          # Pre-pull lots of the Docker images we'll want to use later
+          echo node:14 golang:1.16 openjdk:16-alpine3.13 python:3.9-slim ruby:alpine3.13 |
+            DOCKER_HOST=$DIND_HOST xargs -P10 -n1 docker pull
 
       - run: DOCKER_HOST=$DIND_HOST xvfb-run npm run test
 

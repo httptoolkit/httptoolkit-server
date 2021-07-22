@@ -12,8 +12,8 @@ const HTTP_TOOLKIT_INJECTED_PATH = '/http-toolkit-injections';
 const HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'overrides');
 const HTTP_TOOLKIT_INJECTED_CA_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'ca.pem');
 
-const envArrayToObject = (envArray: string[]) =>
-    _.fromPairs(envArray.map((e) => {
+const envArrayToObject = (envArray: string[] | null | undefined) =>
+    _.fromPairs((envArray ?? []).map((e) => {
         const equalsIndex = e.indexOf('=');
         if (equalsIndex === -1) throw new Error('Env var without =');
 
@@ -45,15 +45,123 @@ function packInterceptionFiles(certContent: string) {
     });
 }
 
+// The two ways to inject the files required for interception into the image.
+// If 'mount', the override files should be bind-mounted directly into the image. If
+// 'inject', the override files should be copied into the image. 'Mount' is generally
+// better & faster, but not possible for builds or injection into remote hosts.
+export type DOCKER_INTERCEPTION_TYPE =
+    | 'mount'
+    | 'inject';
+
+/**
+ * Takes the config for a container, and returns the config to create the
+ * same container, but fully intercepted.
+ *
+ * To hook the creation of any container, we need to get the full config of
+ * the container (to make sure we get *all* env vars, for example) and then
+ * combine that with the inter
+ */
+export function transformContainerCreationConfig(
+    containerConfig: Docker.ContainerCreateOptions,
+    baseImageConfig: Docker.ImageInspectInfo | undefined,
+    { interceptionType, proxyPort, certPath }: {
+        interceptionType: DOCKER_INTERCEPTION_TYPE
+        proxyPort: number,
+        certPath: string
+    }
+): Docker.ContainerCreateOptions {
+    // Get the container-relevant config from the image config first.
+    // The image has both .Config and .ContainerConfig. The former
+    // is preferred, seems that .ContainerConfig is backward compat.
+    const imageContainerConfig = baseImageConfig?.Config ??
+        baseImageConfig?.ContainerConfig;
+
+    // Combine the image config with the container creation options. Most
+    // fields are overriden by container config, a couple are merged:
+    const effectiveConfig: Docker.ContainerCreateOptions = {
+        ...imageContainerConfig,
+        ...containerConfig,
+        Env: [
+            ...(imageContainerConfig?.Env ?? []),
+            ...(containerConfig.Env ?? [])
+        ],
+        Labels: {
+            ...(imageContainerConfig?.Labels ?? {}),
+            ...(containerConfig.Labels ?? {})
+        }
+    };
+
+    // Extend that config, injecting our custom overrides:
+    return {
+        ...effectiveConfig,
+        HostConfig: interceptionType === 'mount' && effectiveConfig.HostConfig
+            ? {
+                ...effectiveConfig.HostConfig,
+                Binds: [
+                    ...(effectiveConfig.HostConfig?.Binds || []),
+                    // Bind-mount the CA certificate file individually too:
+                    `${certPath}:${HTTP_TOOLKIT_INJECTED_CA_PATH}:ro`,
+                    // Bind-mount the overrides directory into the container:
+                    `${OVERRIDES_DIR}:${HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH}:ro`
+                    // ^ Both 'ro' - untrusted containers must not be able to mess with these!
+                ]
+            }
+            : effectiveConfig.HostConfig,
+        Env: [
+            ...(effectiveConfig.Env ?? []),
+            ...envObjectToArray(
+                getTerminalEnvVars(
+                    proxyPort,
+                    { certPath: HTTP_TOOLKIT_INJECTED_CA_PATH },
+                    envArrayToObject(effectiveConfig.Env),
+                    {
+                        httpToolkitIp: '172.17.0.1',
+                        overridePath: HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH,
+                        targetPlatform: 'linux'
+                    }
+                )
+            )
+        ],
+        Labels: {
+            ...effectiveConfig.Labels,
+            'tech.httptoolkit.docker.proxy': String(proxyPort)
+        }
+    };
+}
+
+function deriveContainerCreationConfigFromInspection(
+    containerDetails: Docker.ContainerInspectInfo
+): Docker.ContainerCreateOptions {
+    return {
+        ...containerDetails.Config,
+        HostConfig: containerDetails.HostConfig,
+        name: containerDetails.Name,
+        // You can't reconnect all networks at creation for >1 network.
+        // To simplify things, we just connect all networks after creation.
+        NetworkingConfig: {}
+    };
+}
+
+async function connectNetworks(
+    docker: Docker,
+    containerId: string,
+    networks: Docker.EndpointsConfig
+) {
+    await Promise.all(
+        Object.keys(networks).map(networkName =>
+            docker.getNetwork(networkName).connect({
+                Container: containerId,
+                EndpointConfig: networks[networkName]
+            })
+        )
+    );
+}
+
 export async function restartAndInjectContainer(
     docker: Docker,
     containerId: string,
     { interceptionType, proxyPort, certContent, certPath }: {
-        // If 'mount', the override files should be bind-mounted directly into the image. If
-        // 'inject', the override files should be copied into the image. 'Mount' is generally
-        // better & faster, but not possible for builds or injection into remote hosts.
-        interceptionType: 'mount' | 'inject'
-
+        interceptionType: DOCKER_INTERCEPTION_TYPE
         proxyPort: number,
         certContent: string
         certPath: string
@@ -80,59 +188,29 @@ export async function restartAndInjectContainer(
         }
     });
 
-    const networkDetails = containerDetails.NetworkSettings.Networks;
-    const networkNames = Object.keys(networkDetails);
-
-    // First we clone the continer, with our custom env vars:
-    const newContainer = await docker.createContainer({
-        ...containerDetails.Config,
-        HostConfig: interceptionType === 'mount'
-            ? {
-                ...containerDetails.HostConfig,
-                Binds: [
-                    ...(containerDetails.HostConfig.Binds || []),
-                    // Bind-mount the CA certificate file individually too:
-                    `${certPath}:${HTTP_TOOLKIT_INJECTED_CA_PATH}:ro`,
-                    // Bind-mount the overrides directory into the container:
-                    `${OVERRIDES_DIR}:${HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH}:ro`
-                    // ^ Both 'ro' - untrusted containers must not be able to mess with these!
-                ]
+    // First we clone the continer, injecting our custom settings:
+    const newContainer = await docker.createContainer(
+        transformContainerCreationConfig(
+            // Get options required to directly recreate this container
+            deriveContainerCreationConfigFromInspection(
+                containerDetails
+            ),
+            // We don't need image config - inspect result has *everything*
+            undefined,
+            { // The settings to inject:
+                interceptionType,
+                certPath,
+                proxyPort
             }
-            : containerDetails.HostConfig,
-        name: containerDetails.Name,
-        NetworkingConfig: {
-            EndpointsConfig: networkNames.length > 1
-                ? { [networkNames[0]]: networkDetails[networkNames[0]] }
-                : networkDetails
-        },
-        Env: [
-            ...containerDetails.Config.Env,
-            ...envObjectToArray(
-                getTerminalEnvVars(
-                    proxyPort,
-                    { certPath: HTTP_TOOLKIT_INJECTED_CA_PATH },
-                    envArrayToObject(containerDetails.Config.Env),
-                    {
-                        httpToolkitIp: '172.17.0.1',
-                        overridePath: HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH,
-                        targetPlatform: 'linux'
-                    }
-                )
-            )
-        ]
-    });
+        )
+    );
 
-    // We reconnect all networks (we can't do this during create() for >1 network)
-    if (networkNames.length > 1) {
-        await Promise.all(
-            Object.keys(networkNames.slice(1)).map(networkName =>
-                docker.getNetwork(networkName).connect({
-                    Container: newContainer.id,
-                    EndpointConfig: networkDetails[networkName]
-                })
-            )
-        );
-    }
+    // Reconnect to all the previous container's networks:
+    connectNetworks(
+        docker,
+        newContainer.id,
+        containerDetails.NetworkSettings.Networks
+    );
 
     if (interceptionType === 'inject') {
         // Inject the overide files & MITM cert into the image directly:
