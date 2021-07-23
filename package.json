@@ -52,6 +52,7 @@
     "docker-file-parser": "^1.0.5",
     "dockerode": "^3.2.1",
     "env-paths": "^1.0.0",
+    "event-stream": "^4.0.1",
     "express": "^4.17.1",
     "express-graphql": "^0.11.0",
     "graphql": "^14.7.0",

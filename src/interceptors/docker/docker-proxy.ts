@@ -9,7 +9,7 @@ import * as getRawBody from 'raw-body';
 
 import { deleteFile } from '../../util';
 import { transformContainerCreationConfig } from './docker-commands';
-import { injectIntoBuildStream } from './docker-build-injection';
+import { injectIntoBuildStream, getBuildOutputPipeline } from './docker-build-injection';
 import { destroyable } from '../../destroyable-server';
 import { reportError } from '../../error-tracking';
 
@@ -117,7 +117,12 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
                 dockerRes.destroy();
             });
 
-            dockerRes.pipe(res);
+            if (reqPath.match(BUILD_IMAGE_MATCHER) && dockerRes.statusCode === 200) {
+                dockerRes.pipe(getBuildOutputPipeline()).pipe(res);
+            } else {
+                dockerRes.pipe(res);
+            }
+
             res.flushHeaders(); // Required, or blocking responses (/wait) don't work!
         });
     });

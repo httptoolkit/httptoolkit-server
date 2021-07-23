@@ -1,6 +1,7 @@
 import * as _ from 'lodash';
 import * as path from 'path';
 import * as stream from 'stream';
+import * as EventStream from 'event-stream';
 import * as getRawBody from 'raw-body';
 import maybeGunzip = require('gunzip-maybe');
 import * as tarStream from 'tar-stream';
@@ -19,6 +20,8 @@ const HTTP_TOOLKIT_INJECTED_CA_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH
 const HTTP_TOOLKIT_CONTEXT_PATH = '/.http-toolkit-injections';
 const HTTP_TOOLKIT_CONTEXT_OVERRIDES_PATH = path.posix.join(HTTP_TOOLKIT_CONTEXT_PATH, 'overrides');
 const HTTP_TOOLKIT_CONTEXT_CA_PATH = path.posix.join(HTTP_TOOLKIT_CONTEXT_PATH, 'ca.pem');
+
+const BUILD_LABEL = 'tech.httptoolkit.docker.build-proxy';
 
 /**
  * Take a build context stream, and transform it to inject into the build itself via
@@ -103,23 +106,33 @@ function injectIntoDockerfile(dockerfileContents: string, config: { proxyPort: n
         }
     );
 
+    const injectionCommands = [
+        {
+            name: 'LABEL',
+            args: [`${BUILD_LABEL}=started-${config.proxyPort}`]
+        },
+        {
+            name: 'COPY',
+            args: [HTTP_TOOLKIT_CONTEXT_OVERRIDES_PATH, HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH]
+        },
+        {
+            name: 'COPY',
+            args: [HTTP_TOOLKIT_CONTEXT_CA_PATH, HTTP_TOOLKIT_INJECTED_CA_PATH]
+        },
+        {
+            name: 'ENV',
+            args: envVars
+        },
+        {
+            name: 'LABEL',
+            args: [`${BUILD_LABEL}=${config.proxyPort}`]
+        }
+        // COPY must not be the last command, or (in subsequent multi-stage builds) we will hit
+        // this Docker bug: https://github.com/moby/moby/issues/37965
+    ];
+
     fromCommandIndexes.reverse().forEach((fromIndex) => {
-        dockerCommands.splice(fromIndex + 1, 0, ...[
-            {
-                name: 'COPY',
-                args: [HTTP_TOOLKIT_CONTEXT_OVERRIDES_PATH, HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH]
-            },
-            {
-                name: 'COPY',
-                args: [HTTP_TOOLKIT_CONTEXT_CA_PATH, HTTP_TOOLKIT_INJECTED_CA_PATH]
-            },
-            {
-                name: 'ENV',
-                args: envVars
-            }
-            // COPY must not be the last command, or (in subsequent multi-stage builds) we will hit
-            // this Docker bug: https://github.com/moby/moby/issues/37965
-        ]);
+        dockerCommands.splice(fromIndex + 1, 0, ...injectionCommands);
     });
 
     return generateDockerfileFromCommands(dockerCommands);
@@ -138,7 +151,7 @@ function generateDockerfileFromCommands(commands: DockerCommand[]): string {
     ).join('\n');
 }
 
-const SPACE_SEPARATED_ARRAY_COMMANDS = ['ARG', 'EXPOSE'];
+const SPACE_SEPARATED_ARRAY_COMMANDS = ['ARG', 'EXPOSE', 'LABEL'];
 
 function argsToString(
 	args: string | { [key: string]: string } | string[],
@@ -164,3 +177,49 @@ function argsToString(
 		return args as string;
 	}
 };
+
+const END_OF_STEP_REGEX = /^ ---\u003e [a-z0-9]+\n$/;
+
+/**
+ * Takes a response stream of a Docker build (i.e. build output) and transforms it to simplify all the
+ * HTTP Toolkit interception noise down to a single clear line.
+ */
+export function getBuildOutputPipeline(): NodeJS.ReadWriteStream {
+    let outputToHide: 'none' | 'all' | 'until-next' = 'none';
+
+    return EventStream.pipeline(
+        EventStream.split(),
+        EventStream.mapSync((rawLine: string | Buffer) => {
+            if (!rawLine?.toString()) return rawLine;
+
+            const data = JSON.parse(rawLine.toString()) as { "stream"?: string };
+
+            // We use labels as start/end markers for our injected sections.
+            if (data.stream?.includes(`LABEL ${BUILD_LABEL}=started`)) {
+                // When we see a start label, print a single message, and then hide all the work
+                // that's actually required to intercept everything.
+                outputToHide = 'all';
+                return JSON.stringify({
+                    stream: " *** Enabling HTTP Toolkit interception ***\n"
+                });
+            } else if (outputToHide === 'all') {
+                if (data.stream?.includes(`LABEL ${BUILD_LABEL}=`)) {
+                    // When we see the final label, start looking for an end-of-step line
+                    outputToHide ='until-next';
+                }
+                return "";
+            } else if (outputToHide === 'until-next' && data.stream) {
+                // Keep skipping, until we get until-next state + an end-of-step line
+                if (!data.stream.match(END_OF_STEP_REGEX)) {
+                    return "";
+                }
+
+                outputToHide = 'none';
+                // Don't drop the last line - fall through and output as normal:
+            }
+
+            return rawLine;
+        }),
+        EventStream.join('\n'),
+    );
+}
