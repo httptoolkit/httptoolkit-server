@@ -11,6 +11,7 @@ import { deleteFile } from '../../util';
 import { transformContainerCreationConfig } from './docker-commands';
 import { injectIntoBuildStream } from './docker-build-injection';
 import { destroyable } from '../../destroyable-server';
+import { reportError } from '../../error-tracking';
 
 export const getDockerPipePath = (proxyPort: number, targetPlatform: NodeJS.Platform = process.platform) => {
     if (targetPlatform === 'win32') {
@@ -56,7 +57,9 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
     const server = http.createServer(async (req, res) => {
         let requestBodyStream: stream.Readable = req;
 
-        const reqPath = new URL(req.url!, 'http://localhost').pathname;
+        const reqUrl = new URL(req.url!, 'http://localhost');
+        const reqPath = reqUrl.pathname;
+
         // Intercept container creation (e.g. docker run):
         if (reqPath.match(CREATE_CONTAINER_MATCHER)) {
             const body = await getRawBody(req);
@@ -80,7 +83,16 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
         }
 
         if (reqPath.match(BUILD_IMAGE_MATCHER)) {
-            const dockerfileName = 'Dockerfile';
+            if (reqUrl.searchParams.get('remote')) {
+                res.writeHead(400, "Remote parameter is not supported").end();
+                reportError("Build intercepcion failed due to unsupported 'remote' param");
+                // Note that this also blocks buildkit (which passes 'remote=client-session;, then opens
+                // a gRPC session, and streams context on-demand). That's OK - that's not supported either.
+                return;
+            }
+
+            const dockerfileName = reqUrl.searchParams.get('dockerfile')
+                ?? 'Dockerfile';
 
             requestBodyStream = await injectIntoBuildStream(dockerfileName, req, {
                 certContent: httpsConfig.certContent,
