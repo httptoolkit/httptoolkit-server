@@ -82,6 +82,7 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
             requestBodyStream = stream.Readable.from(JSON.stringify(transformedConfig));
         }
 
+        let extraDockerCommandCount = 0;
         if (reqPath.match(BUILD_IMAGE_MATCHER)) {
             if (reqUrl.searchParams.get('remote')) {
                 res.writeHead(400, "Remote parameter is not supported").end();
@@ -94,10 +95,13 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
             const dockerfileName = reqUrl.searchParams.get('dockerfile')
                 ?? 'Dockerfile';
 
-            requestBodyStream = await injectIntoBuildStream(dockerfileName, req, {
+            const streamInjection = await injectIntoBuildStream(dockerfileName, req, {
                 certContent: httpsConfig.certContent,
                 proxyPort
             });
+
+            requestBodyStream = streamInjection.injectedStream;
+            extraDockerCommandCount = streamInjection.commandsAddedToDockerfile;
         }
 
         const dockerReq = sendToDocker(req, requestBodyStream);
@@ -118,7 +122,7 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
             });
 
             if (reqPath.match(BUILD_IMAGE_MATCHER) && dockerRes.statusCode === 200) {
-                dockerRes.pipe(getBuildOutputPipeline()).pipe(res);
+                dockerRes.pipe(getBuildOutputPipeline(extraDockerCommandCount)).pipe(res);
             } else {
                 dockerRes.pipe(res);
             }

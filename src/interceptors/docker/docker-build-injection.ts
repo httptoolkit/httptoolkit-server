@@ -12,6 +12,7 @@ import {
     getTerminalEnvVars,
     OVERRIDES_DIR
 } from '../terminal/terminal-env-overrides';
+import { getDeferred } from '../../util';
 
 const HTTP_TOOLKIT_INJECTED_PATH = '/http-toolkit-injections';
 const HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'overrides');
@@ -35,12 +36,16 @@ export async function injectIntoBuildStream(
     const extractionStream = tarStream.extract();
     const repackStream = tarStream.pack();
 
+    let commandsAddedToDockerfile = getDeferred<number>();
+
     extractionStream.on('entry', async (headers, entryStream, next) => {
         if (headers.name === dockerfileName) {
             const originalDockerfile = (await getRawBody(entryStream)).toString('utf-8');
-            const transformedDockerfile = injectIntoDockerfile(originalDockerfile, config);
+            const dockerfileTransformation = injectIntoDockerfile(originalDockerfile, config);
 
-            repackStream.entry(_.omit(headers, 'size'), transformedDockerfile, next);
+            commandsAddedToDockerfile.resolve(dockerfileTransformation.commandsAdded);
+
+            repackStream.entry(_.omit(headers, 'size'), dockerfileTransformation.dockerfile, next);
         } else {
             // Copy the file into the repacked tarball untouched:
             entryStream.pipe(repackStream.entry(headers, next));
@@ -53,7 +58,16 @@ export async function injectIntoBuildStream(
     });
 
     buildStream.pipe(maybeGunzip()).pipe(extractionStream);
-    return repackStream;
+
+    return {
+        injectedStream: repackStream,
+        commandsAddedToDockerfile: await Promise.race<number>([
+            commandsAddedToDockerfile.promise,
+            // If we never find a Dockerfile, continue anyway, in that case Docker will probably
+            // error immediately in a moment, so this value won't matter too much:
+            new Promise((resolve) => extractionStream.on('finish', resolve)).then(() => 0)
+        ])
+    };
 }
 
 function packOverrideFiles(existingPackStream: tarStream.Pack) {
@@ -135,7 +149,12 @@ function injectIntoDockerfile(dockerfileContents: string, config: { proxyPort: n
         dockerCommands.splice(fromIndex + 1, 0, ...injectionCommands);
     });
 
-    return generateDockerfileFromCommands(dockerCommands);
+    const commandsAdded = fromCommandIndexes.length * injectionCommands.length;
+
+    return {
+        dockerfile: generateDockerfileFromCommands(dockerCommands),
+        commandsAdded
+    };
 }
 
 // Commands -> Dockerfile logic based on Balena's equivalent (Apache-2 licensed) code here:
@@ -178,14 +197,21 @@ function argsToString(
 	}
 };
 
+// Output parsing & transformation logic inspired from Balena's equivalent (Apache-2 licensed) code here:
+// https://github.com/balena-io-modules/docker-qemu-transpose/blob/734d8397dfe33ae3af85cdd4fb27c64a6ca77a25/src/index.ts#L232-L285
+
 const END_OF_STEP_REGEX = /^ ---\u003e [a-z0-9]+\n$/;
 
 /**
  * Takes a response stream of a Docker build (i.e. build output) and transforms it to simplify all the
- * HTTP Toolkit interception noise down to a single clear line.
+ * HTTP Toolkit interception noise down to a single clear line, and normalize the step count text
+ * to match.
  */
-export function getBuildOutputPipeline(): NodeJS.ReadWriteStream {
+export function getBuildOutputPipeline(extraDockerCommandCount: number): NodeJS.ReadWriteStream {
     let outputToHide: 'none' | 'all' | 'until-next' = 'none';
+
+    let totalStepCount = -1;
+    let step = 0;
 
     return EventStream.pipeline(
         EventStream.split(),
@@ -193,6 +219,12 @@ export function getBuildOutputPipeline(): NodeJS.ReadWriteStream {
             if (!rawLine?.toString()) return rawLine;
 
             const data = JSON.parse(rawLine.toString()) as { "stream"?: string };
+
+            if (isStepLine(data.stream) && totalStepCount === -1) {
+                // Pull the total step count from the first step line we find, and the reduce it to
+                // hide the extra steps that we've added:
+                totalStepCount = getTotalSteps(data.stream) - extraDockerCommandCount;
+            }
 
             // We use labels as start/end markers for our injected sections.
             if (data.stream?.includes(`LABEL ${BUILD_LABEL}=started`)) {
@@ -218,8 +250,30 @@ export function getBuildOutputPipeline(): NodeJS.ReadWriteStream {
                 // Don't drop the last line - fall through and output as normal:
             }
 
-            return rawLine;
+            // If we're actually printing a line, update it to fix the step count:
+            if (isStepLine(data.stream)) {
+                step += 1;
+                data.stream = replaceSteps(data.stream, step, totalStepCount);
+            }
+
+            return JSON.stringify(data);
         }),
         EventStream.join('\n'),
     );
+}
+
+// Regex to match against 'Step 1/5:', 'Step 1/5 :', and all lower case versions etc.
+const stepLineRegex = /^step\s\d+\/(\d+)\s?:/i;
+
+const isStepLine = (str: string | undefined): str is string =>
+    !!str?.match(stepLineRegex);
+
+const getTotalSteps = (stepLine: string) => {
+    const stepLineMatch = stepLineRegex.exec(stepLine)!;
+    if (!stepLineMatch) throw new Error('Unexpected non-Step X line in Docker output');
+    return parseInt(stepLineMatch[1], 10);
+}
+
+const replaceSteps = (stepLine: string, stepCount: number, totalSteps: number) => {
+    return stepLine.replace(stepLineRegex, `Step ${stepCount}/${totalSteps} :`);
 }
