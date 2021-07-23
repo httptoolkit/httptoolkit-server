@@ -62,7 +62,7 @@ describe('Docker CLI interception', function () {
         const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env);
 
         const { exitCode, stdout, stderr } = await spawnToResult('docker', ['build', '.'], {
-            env: terminalEnvOverrides,
+            env: { ...process.env, ...terminalEnvOverrides },
             cwd: path.join(__dirname, '..', 'fixtures', 'docker', 'requests-in-build')
         }, true);
 
