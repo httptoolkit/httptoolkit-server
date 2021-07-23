@@ -57,7 +57,7 @@ describe('Docker CLI interception', function () {
 
         const { server, httpsConfig } = await testSetup;
 
-        const mainRule = await server.anyRequest().thenReply(200);
+        const mainRule = await server.anyRequest().thenReply(200, "Mock response\n");
 
         const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env);
 
@@ -75,6 +75,51 @@ describe('Docker CLI interception', function () {
             "https://base2-request.test/",
             "https://final-stage-request.test/"
         ]);
+
+        expect(
+            stdout.replace(
+                // Replace hashes with <hash> in every place docker might use them:
+                /(?<=(--->|---> Running in|Removing intermediate container|Successfully built) )[a-z0-9]{12}/g,
+                '<hash>'
+            )
+        ).to.equal(
+`Sending build context to Docker daemon  3.072kB\r\r
+Step 1/8 : FROM node:14 as BASE
+ ---> <hash>
+ *** Enabling HTTP Toolkit interception ***
+ ---> <hash>
+Step 2/8 : RUN curl -s https://base-request.test
+ ---> Running in <hash>
+Mock response
+Removing intermediate container <hash>
+ ---> <hash>
+Step 3/8 : FROM node:14 as BASE2
+ ---> <hash>
+ *** Enabling HTTP Toolkit interception ***
+ ---> <hash>
+Step 4/8 : COPY . .
+ ---> <hash>
+Step 5/8 : RUN curl -s https://base2-request.test
+ ---> Running in <hash>
+Mock response
+Removing intermediate container <hash>
+ ---> <hash>
+Step 6/8 : FROM BASE
+ ---> <hash>
+ *** Enabling HTTP Toolkit interception ***
+ ---> <hash>
+Step 7/8 : COPY --from=BASE2 make-request.js .
+ ---> <hash>
+Step 8/8 : RUN node ./make-request.js https://final-stage-request.test
+ ---> Running in <hash>
+Making request to https://final-stage-request.test
+Got 200 response
+Removing intermediate container <hash>
+ ---> <hash>
+Successfully built <hash>
+`
+        );
+        expect(stderr).to.equal('');
     });
 
 });
