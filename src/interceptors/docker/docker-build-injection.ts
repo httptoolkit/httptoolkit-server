@@ -93,7 +93,7 @@ function packOverrideFiles(existingPackStream: tarStream.Pack) {
 }
 
 // Simplify to just the params we care about
-type DockerCommand = Pick<CommandEntry, 'name' | 'args'>;
+type DockerCommand = Pick<CommandEntry, 'name' | 'args'> & { raw?: string };
 
 function injectIntoDockerfile(dockerfileContents: string, config: { proxyPort: number }) {
     const dockerCommands: DockerCommand[] = parseDockerfile(dockerfileContents, {
@@ -160,14 +160,18 @@ function injectIntoDockerfile(dockerfileContents: string, config: { proxyPort: n
 // Commands -> Dockerfile logic based on Balena's equivalent (Apache-2 licensed) code here:
 // https://github.com/balena-io-modules/docker-qemu-transpose/blob/734d8397dfe33ae3af85cdd4fb27c64a6ca77a25/src/index.ts#L107-L144
 function generateDockerfileFromCommands(commands: DockerCommand[]): string {
-	return commands.map(command =>
-        command.name === 'COMMENT'
-            ? (command.args as string)
-            :`${command.name} ${argsToString(
+	return commands.map(command => {
+        if (command.raw) {
+            return command.raw;
+        } else if (command.name === 'COMMENT') {
+            return command.args as string;
+        } else {
+            return `${command.name} ${argsToString(
                 command.args,
                 command.name,
             )}`
-    ).join('\n');
+        }
+    }).join('\n');
 }
 
 const SPACE_SEPARATED_ARRAY_COMMANDS = ['ARG', 'EXPOSE', 'LABEL'];
