@@ -39,7 +39,11 @@ export function getTerminalEnvVars(
 
     const proxyUrl = `http://${httpToolkitIp}:${proxyPort}`;
 
-    const dockerHost = `unix://${getDockerPipePath(proxyPort, targetPlatform)}`;
+    const dockerHost = `${
+        targetPlatform === 'win32'
+        ? 'npipe'
+        : 'unix'
+    }://${getDockerPipePath(proxyPort, targetPlatform)}`;
 
     const rubyGemsPath = joinPath(overridePath, RUBY_OVERRIDE_DIR);
     const pythonPath = joinPath(overridePath, PYTHON_OVERRIDE_DIR);

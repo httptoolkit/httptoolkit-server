@@ -15,7 +15,7 @@ import { reportError } from '../../error-tracking';
 
 export const getDockerPipePath = (proxyPort: number, targetPlatform: NodeJS.Platform = process.platform) => {
     if (targetPlatform === 'win32') {
-        return `\\\\.\\pipe\\httptoolkit-${proxyPort}-docker`;
+        return `//./pipe/httptoolkit-${proxyPort}-docker`;
     } else {
         return path.join(os.tmpdir(), `httptoolkit-${proxyPort}-docker.sock`);
     }
