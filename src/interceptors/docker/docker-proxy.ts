@@ -152,8 +152,10 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
                 "\r\n"
             );
 
-            socket.write(dockerHead);
-            dockerSocket.write(head);
+            // We only write upgrade head data if it's non-empty. For some bizarre reason on
+            // Windows, writing empty data to a named pipe here kills the connection entirely.
+            if (dockerHead.length) socket.write(dockerHead);
+            if (head.length) dockerSocket.write(head);
 
             dockerSocket.on('error', (e) => {
                 console.error('Docker proxy error', e);
