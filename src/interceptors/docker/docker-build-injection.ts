@@ -127,11 +127,7 @@ function injectIntoDockerfile(dockerfileContents: string, config: { proxyPort: n
         },
         {
             name: 'COPY',
-            args: [HTTP_TOOLKIT_CONTEXT_OVERRIDES_PATH, HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH]
-        },
-        {
-            name: 'COPY',
-            args: [HTTP_TOOLKIT_CONTEXT_CA_PATH, HTTP_TOOLKIT_INJECTED_CA_PATH]
+            args: [HTTP_TOOLKIT_CONTEXT_PATH, HTTP_TOOLKIT_INJECTED_PATH]
         },
         {
             name: 'ENV',
