@@ -4,7 +4,7 @@
   "repository": "httptoolkit/httptoolkit-server",
   "license": "AGPL-3.0-or-later",
   "dependencies": {
-    "global-agent": "2.0.0",
+    "global-agent": "3.0.0",
     "global-tunnel-ng": "2.7.1"
   }
 }
