@@ -68,7 +68,7 @@
   },
   "devDependencies": {
     "@oclif/dev-cli": "^1.19.4",
-    "@sentry/webpack-plugin": "^1.14.0",
+    "@sentry/webpack-plugin": "^1.16.0",
     "@types/aws-lambda": "^8.10.15",
     "@types/chai": "^4.1.6",
     "@types/env-paths": "^1.0.2",
