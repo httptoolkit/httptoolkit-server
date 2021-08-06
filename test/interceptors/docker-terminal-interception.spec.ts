@@ -84,7 +84,7 @@ describe('Docker CLI interception', function () {
             )
         ).to.equal(
 `Sending build context to Docker daemon  3.072kB\r\r
-Step 1/8 : FROM node:14 as BASE
+Step 1/8 : FROM node:14 as base-image
  ---> <hash>
  *** Enabling HTTP Toolkit interception ***
  ---> <hash>
@@ -93,7 +93,7 @@ Step 2/8 : RUN curl -s https://base-request.test
 Mock response
 Removing intermediate container <hash>
  ---> <hash>
-Step 3/8 : FROM node:14 as BASE2
+Step 3/8 : FROM node:14 as base-image-2
  ---> <hash>
  *** Enabling HTTP Toolkit interception ***
  ---> <hash>
@@ -104,11 +104,11 @@ Step 5/8 : RUN curl -s https://base2-request.test
 Mock response
 Removing intermediate container <hash>
  ---> <hash>
-Step 6/8 : FROM BASE
+Step 6/8 : FROM base-image
  ---> <hash>
  *** Enabling HTTP Toolkit interception ***
  ---> <hash>
-Step 7/8 : COPY --from=BASE2 make-request.js .
+Step 7/8 : COPY --from=base-image-2 make-request.js .
  ---> <hash>
 Step 8/8 : RUN node ./make-request.js https://final-stage-request.test
  ---> Running in <hash>
