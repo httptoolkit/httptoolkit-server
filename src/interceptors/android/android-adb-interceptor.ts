@@ -6,7 +6,7 @@ import { HtkConfig } from '../../config';
 import { generateSPKIFingerprint } from 'mockttp';
 
 import { reportError } from '../../error-tracking';
-import { delay } from '../../util';
+import { delay } from '../../util/promise';
 import {
     ANDROID_TEMP,
     createAdbClient,

@@ -12,7 +12,7 @@ import {
     getTerminalEnvVars,
     OVERRIDES_DIR
 } from '../terminal/terminal-env-overrides';
-import { getDeferred } from '../../util';
+import { getDeferred } from '../../util/promise';
 
 const HTTP_TOOLKIT_INJECTED_PATH = '/http-toolkit-injections';
 const HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'overrides');

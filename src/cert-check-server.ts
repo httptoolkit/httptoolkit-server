@@ -1,7 +1,7 @@
 import { getLocal, Mockttp } from 'mockttp';
 
 import { HtkConfig } from './config';
-import { getDeferred } from './util';
+import { getDeferred } from './util/promise';
 
 const buildPage = (config: HtkConfig, style: string, script?: string, body?: string) =>
 `<html>

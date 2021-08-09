@@ -9,8 +9,10 @@ import ChromeRemoteInterface = require('chrome-remote-interface');
 import { Interceptor } from '.';
 
 import { HtkConfig } from '../config';
-import { delay, isErrorLike, readFile } from '../util';
-import { windowsClose } from '../process-management';
+import { delay } from '../util/promise';
+import { isErrorLike } from '../util/error';
+import { readFile } from '../util/fs';
+import { windowsClose } from '../util/process-management';
 import { getTerminalEnvVars, OVERRIDES_DIR } from './terminal/terminal-env-overrides';
 import { reportError, addBreadcrumb } from '../error-tracking';
 import { findExecutableInApp } from '@httptoolkit/osx-find-executable';

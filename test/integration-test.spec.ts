@@ -1,16 +1,18 @@
 import { promisify } from 'util';
 import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
-import { getRemote } from 'mockttp';
+
 import * as request from 'request-promise-native';
 import * as tmp from 'tmp';
 import { extractTarball as extractTarballCb } from 'tarball-extract';
-const extractTarball = promisify(extractTarballCb) as (source: string, dest: string) => Promise<void>;
-
+import { expect } from 'chai';
 import * as getGraphQL from 'graphql.js';
 
-import { delay } from '../src/util';
-import { expect } from 'chai';
+import { getRemote } from 'mockttp';
+
+import { delay } from '../src/util/promise';
+
+const extractTarball = promisify(extractTarballCb) as (source: string, dest: string) => Promise<void>;
 
 async function setupServerPath() {
     if (!process.env.TEST_BUILT_TARBALL) {

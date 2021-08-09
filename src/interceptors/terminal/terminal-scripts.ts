@@ -4,7 +4,7 @@ import * as util from 'util';
 import * as os from 'os';
 import * as path from 'path';
 
-import { canAccess, writeFile, renameFile, readFile } from '../../util';
+import { canAccess, writeFile, renameFile, readFile } from '../../util/fs';
 import { reportError } from '../../error-tracking';
 import { OVERRIDE_BIN_PATH } from './terminal-env-overrides';
 

@@ -9,13 +9,13 @@ import { GraphQLScalarType } from 'graphql';
 import { graphqlHTTP } from 'express-graphql';
 
 import { generateSPKIFingerprint } from 'mockttp';
+import { getSystemProxy } from 'os-proxy-config';
 
 import { HtkConfig } from './config';
 import { reportError, addBreadcrumb } from './error-tracking';
 import { buildInterceptors, Interceptor, ActivationError } from './interceptors';
 import { ALLOWED_ORIGINS } from './constants';
-import { delay } from './util';
-import { getSystemProxy } from 'os-proxy-config';
+import { delay } from './util/promise';
 
 const ENABLE_PLAYGROUND = false;
 

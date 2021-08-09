@@ -11,7 +11,11 @@ import { HttpToolkitServerApi } from './api-server';
 import { checkBrowserConfig } from './browsers';
 import { reportError } from './error-tracking';
 import { ALLOWED_ORIGINS } from './constants';
-import { delay, readFile, checkAccess, writeFile, ensureDirectoryExists, isErrorLike } from './util';
+
+import { delay } from './util/promise';
+import { isErrorLike } from './util/error';
+import { readFile, checkAccess, writeFile, ensureDirectoryExists } from './util/fs';
+
 import { registerShutdownHandler, addShutdownHandler } from './shutdown';
 import { getTimeToCertExpiry, parseCert } from './certificates';
 

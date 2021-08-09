@@ -7,7 +7,7 @@ import * as http from 'http';
 import * as Dockerode from 'dockerode';
 import * as getRawBody from 'raw-body';
 
-import { deleteFile } from '../../util';
+import { deleteFile } from '../../util/fs';
 import { transformContainerCreationConfig } from './docker-commands';
 import { injectIntoBuildStream, getBuildOutputPipeline } from './docker-build-injection';
 import { destroyable } from '../../destroyable-server';

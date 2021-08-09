@@ -7,7 +7,7 @@ import { expect } from 'chai';
 import * as Docker from 'dockerode';
 
 import { setupInterceptor, itIsAvailable } from './interceptor-test-utils';
-import { delay } from '../../src/util';
+import { delay } from '../../src/util/promise';
 
 const docker = new Docker();
 const DOCKER_FIXTURES = path.join(__dirname, '..', 'fixtures', 'docker');

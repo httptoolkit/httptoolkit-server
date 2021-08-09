@@ -4,7 +4,7 @@ import * as path from 'path';
 import { expect } from 'chai';
 
 import { setupTest } from './interceptor-test-utils';
-import { spawnToResult } from '../../src/process-management';
+import { spawnToResult } from '../../src/util/process-management';
 import { createDockerProxy } from '../../src/interceptors/docker/docker-proxy';
 import { DestroyableServer } from '../../src/destroyable-server';
 

@@ -7,8 +7,10 @@ import { HtkConfig } from '../config';
 import { reportError } from '../error-tracking';
 
 import { getAvailableBrowsers, launchBrowser, BrowserInstance } from '../browsers';
-import { delay, readFile, canAccess, deleteFolder, isErrorLike } from '../util';
-import { windowsKill, spawnToResult } from '../process-management';
+import { delay } from '../util/promise';
+import { isErrorLike } from '../util/error';
+import { readFile, canAccess, deleteFolder } from '../util/fs';
+import { windowsKill, spawnToResult } from '../util/process-management';
 import { MessageServer } from '../message-server';
 import { CertCheckServer } from '../cert-check-server';
 import { Interceptor } from '.';

@@ -1,5 +1,5 @@
 import { reportError } from './error-tracking';
-import { delay } from './util';
+import { delay } from './util/promise';
 
 type ShutdownHandler = () => Promise<unknown>;
 const shutdownHandlers: Array<ShutdownHandler> = [];
