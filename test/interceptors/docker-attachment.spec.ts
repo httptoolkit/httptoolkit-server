@@ -78,7 +78,7 @@ async function killAllContainers() {
     ));
 }
 
-const interceptorSetup = setupInterceptor('docker-container');
+const interceptorSetup = setupInterceptor('docker-attach');
 
 describe('Docker single-container interceptor', function () {
 
@@ -112,7 +112,7 @@ describe('Docker single-container interceptor', function () {
 
             await delay(500);
             expect(
-                (await interceptor.getMetadata!('summary')).map(({ id }: any) => id)
+                _.map(((await interceptor.getMetadata!('summary')).targets), ({ id }: any) => id)
             ).to.include(containerId);
 
             await interceptor.activate(server.port, { containerId });

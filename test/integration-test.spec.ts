@@ -193,7 +193,7 @@ describe('Integration test', function () {
             inactivable('android-adb'),
             activable('attach-jvm', '1.0.1'),
             activable('docker-all'),
-            activable('docker-container')
+            activable('docker-attach')
         ]);
     });
 });

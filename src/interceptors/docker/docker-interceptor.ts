@@ -52,7 +52,7 @@ export class DockerAllInterceptor implements Interceptor {
 
 export class DockerContainerInterceptor implements Interceptor {
 
-    id: string = "docker-container";
+    id: string = "docker-attach";
     version: string = "1.0.0";
 
     constructor(
@@ -63,17 +63,23 @@ export class DockerContainerInterceptor implements Interceptor {
 
     async getMetadata() {
         if (await this.isActivable()) {
-            return (await this.docker.listContainers()).map((containerData) => ({
-                // Keep the docker data structure, but normalize the key names and filter
-                // to just the relevant data, just to make sure we don't unnecessarily
-                // expose secrets or similar.
-                id: containerData.Id,
-                names: containerData.Names,
-                command: containerData.Command,
-                labels: containerData.Labels,
-                state: containerData.State,
-                status: containerData.Status
-            }));
+            return {
+                targets: _(await this.docker.listContainers())
+                    .map((containerData) => ({
+                        // Keep the docker data structure, but normalize the key names and filter
+                        // to just the relevant data, just to make sure we don't unnecessarily
+                        // expose secrets or similar.
+                        id: containerData.Id,
+                        names: containerData.Names,
+                        command: containerData.Command,
+                        labels: containerData.Labels,
+                        state: containerData.State,
+                        status: containerData.Status,
+                        image: containerData.Image
+                    }))
+                    .keyBy('id')
+                    .valueOf()
+            };
         }
     }
 
