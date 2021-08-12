@@ -38,10 +38,24 @@ export async function injectIntoBuildStream(
 
     let commandsAddedToDockerfile = getDeferred<number>();
 
+    const dockerfileConfig = {
+        ...config,
+        envVars: getTerminalEnvVars(
+            config.proxyPort,
+            { certPath: HTTP_TOOLKIT_INJECTED_CA_PATH },
+            'runtime-inherit', // Dockerfile commands can reference vars directly
+            {
+                httpToolkitIp: '172.17.0.1',
+                overridePath: HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH,
+                targetPlatform: 'linux'
+            }
+        )
+    };
+
     extractionStream.on('entry', async (headers, entryStream, next) => {
         if (headers.name === dockerfileName) {
             const originalDockerfile = (await getRawBody(entryStream)).toString('utf-8');
-            const dockerfileTransformation = injectIntoDockerfile(originalDockerfile, config);
+            const dockerfileTransformation = injectIntoDockerfile(originalDockerfile, dockerfileConfig);
 
             commandsAddedToDockerfile.resolve(dockerfileTransformation.commandsAdded);
 
@@ -95,7 +109,10 @@ function packOverrideFiles(existingPackStream: tarStream.Pack) {
 // Simplify to just the params we care about
 type DockerCommand = Pick<CommandEntry, 'name' | 'args'> & { raw?: string };
 
-function injectIntoDockerfile(dockerfileContents: string, config: { proxyPort: number }) {
+export function injectIntoDockerfile(
+    dockerfileContents: string,
+    config: { proxyPort: number, envVars: { [key: string]: string } }
+) {
     const dockerCommands: DockerCommand[] = parseDockerfile(dockerfileContents, {
         includeComments: true
     });
@@ -109,17 +126,6 @@ function injectIntoDockerfile(dockerfileContents: string, config: { proxyPort: n
         )
         .filter((index) => index !== -1);
 
-    const envVars = getTerminalEnvVars(
-        config.proxyPort,
-        { certPath: HTTP_TOOLKIT_INJECTED_CA_PATH },
-        'runtime-inherit', // ARG can reference ENV vars directly
-        {
-            httpToolkitIp: '172.17.0.1',
-            overridePath: HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH,
-            targetPlatform: 'linux'
-        }
-    );
-
     const injectionCommands = [
         {
             name: 'LABEL',
@@ -129,10 +135,12 @@ function injectIntoDockerfile(dockerfileContents: string, config: { proxyPort: n
             name: 'COPY',
             args: [HTTP_TOOLKIT_CONTEXT_PATH, HTTP_TOOLKIT_INJECTED_PATH]
         },
-        {
-            name: 'ENV',
-            args: envVars
-        },
+        ...(!_.isEmpty(config.envVars)
+            ? [{
+                name: 'ENV',
+                args: config.envVars
+            }] : []
+        ),
         {
             name: 'LABEL',
             args: [`${BUILD_LABEL}=${config.proxyPort}`]
