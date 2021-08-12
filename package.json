@@ -29,7 +29,7 @@
     "@devicefarmer/adbkit": "^2.11.2",
     "@graphql-tools/schema": "^6.0.18",
     "@graphql-tools/utils": "^6.0.18",
-    "@httptoolkit/browser-launcher": "^2.0.0",
+    "@httptoolkit/browser-launcher": "^2.0.1",
     "@httptoolkit/osx-find-executable": "^2.0.1",
     "@oclif/command": "^1.5.4",
     "@oclif/config": "^1.13.3",
