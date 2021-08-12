@@ -10,6 +10,7 @@ import * as getRawBody from 'raw-body';
 import { deleteFile } from '../../util/fs';
 import { transformContainerCreationConfig } from './docker-commands';
 import { injectIntoBuildStream, getBuildOutputPipeline } from './docker-build-injection';
+import { rawHeadersToHeaders } from '../../util/http';
 import { destroyable } from '../../destroyable-server';
 import { reportError } from '../../error-tracking';
 
@@ -36,15 +37,15 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
     const agent = new http.Agent({ keepAlive: true });
 
     const sendToDocker = (req: http.IncomingMessage, bodyStream: stream.Readable = req) => {
-        const url = req.url!.replace(/^\/qwe/, '');
+        const headers = rawHeadersToHeaders(req.rawHeaders);
 
         const dockerReq = http.request({
             ...dockerHostOptions,
             agent: agent,
 
             method: req.method,
-            headers: { ..._.omit(req.headers, 'content-length') },
-            path: url,
+            headers: _.omitBy(headers, (_v, k) => k.toLowerCase() === 'content-length'),
+            path: req.url,
         });
 
 
