@@ -8,9 +8,25 @@ import {
     OVERRIDES_DIR
 } from '../terminal/terminal-env-overrides';
 
+/**
+ * The path inside the container where injected files will be stored, and so the paths that
+ * env vars injected into the container need to reference.
+ */
 const HTTP_TOOLKIT_INJECTED_PATH = '/http-toolkit-injections';
 const HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'overrides');
 const HTTP_TOOLKIT_INJECTED_CA_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'ca.pem');
+
+/**
+ * The hostname that resolves to the host OS (i.e. generally: where HTTP Toolkit is running)
+ * from inside containers.
+ *
+ * In Docker for Windows & Mac, host.docker.internal is supported automatically:
+ * https://docs.docker.com/docker-for-windows/networking/#use-cases-and-workarounds
+ * https://docs.docker.com/docker-for-mac/networking/#use-cases-and-workarounds
+ *
+ * On Linux this is _not_ supported, so we add it ourselves with (--add-host).
+ */
+export const DOCKER_HOST_HOSTNAME = "host.docker.internal";
 
 const envArrayToObject = (envArray: string[] | null | undefined) =>
     _.fromPairs((envArray ?? []).map((e) => {
@@ -104,9 +120,29 @@ export function transformContainerCreationConfig(
                     // Bind-mount the overrides directory into the container:
                     `${OVERRIDES_DIR}:${HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH}:ro`
                     // ^ Both 'ro' - untrusted containers must not be able to mess with these!
-                ]
+                ],
+                ...(process.platform === 'linux'
+                    ? {
+                        ExtraHosts: [
+                            ...effectiveConfig.HostConfig?.ExtraHosts,
+                            `${DOCKER_HOST_HOSTNAME}:172.17.0.1`
+                        ]
+                    }
+                    : {}
+                )
             }
-            : effectiveConfig.HostConfig,
+            : {
+                ...effectiveConfig.HostConfig,
+                ...(process.platform === 'linux'
+                    ? {
+                        ExtraHosts: [
+                            ...effectiveConfig.HostConfig?.ExtraHosts,
+                            `${DOCKER_HOST_HOSTNAME}:172.17.0.1`
+                        ]
+                    }
+                    : {}
+                )
+            },
         Env: [
             ...(effectiveConfig.Env ?? []),
             ...envObjectToArray(
@@ -115,7 +151,7 @@ export function transformContainerCreationConfig(
                     { certPath: HTTP_TOOLKIT_INJECTED_CA_PATH },
                     envArrayToObject(effectiveConfig.Env),
                     {
-                        httpToolkitIp: '172.17.0.1',
+                        httpToolkitIp: DOCKER_HOST_HOSTNAME,
                         overridePath: HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH,
                         targetPlatform: 'linux'
                     }

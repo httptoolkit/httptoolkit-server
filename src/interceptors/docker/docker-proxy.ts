@@ -8,7 +8,7 @@ import * as Dockerode from 'dockerode';
 import * as getRawBody from 'raw-body';
 
 import { deleteFile } from '../../util/fs';
-import { transformContainerCreationConfig } from './docker-commands';
+import { transformContainerCreationConfig, DOCKER_HOST_HOSTNAME } from './docker-commands';
 import { injectIntoBuildStream, getBuildOutputPipeline } from './docker-build-injection';
 import { rawHeadersToHeaders } from '../../util/http';
 import { destroyable } from '../../destroyable-server';
@@ -103,6 +103,12 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
 
             requestBodyStream = streamInjection.injectedStream;
             extraDockerCommandCount = streamInjection.commandsAddedToDockerfile;
+
+            // Make sure that host.docker.internal resolves on Linux too:
+            if (process.platform === 'linux') {
+                reqUrl.searchParams.append('extrahosts', `${DOCKER_HOST_HOSTNAME}:172.17.0.1`);
+                req.url = reqUrl.toString();
+            }
         }
 
         const dockerReq = sendToDocker(req, requestBodyStream);
