@@ -2,6 +2,7 @@ import * as _ from 'lodash';
 import * as Docker from 'dockerode';
 import * as path from 'path';
 import * as tarFs from 'tar-fs';
+import * as semver from 'semver';
 
 import {
     getTerminalEnvVars,
@@ -27,6 +28,29 @@ const HTTP_TOOLKIT_INJECTED_CA_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH
  * On Linux this is _not_ supported, so we add it ourselves with (--add-host).
  */
 export const DOCKER_HOST_HOSTNAME = "host.docker.internal";
+
+/**
+ * To make the above hostname work on Linux, where it's not supported by default, we need to map it to the
+ * host ip. This method works out the host IP to use to do so.
+ */
+export const getDockerHostIp = (platform: typeof process.platform, dockerVersion: string | undefined, containerMetadata?: Docker.ContainerInspectInfo) => {
+    if (platform !== 'linux') {
+        // On non-linux platforms this method isn't necessary - host.docker.internal is always supported
+        // so we can just use that.
+        return DOCKER_HOST_HOSTNAME;
+    } else if (dockerVersion &&
+        semver.satisfies(semver.coerce(dockerVersion)?.version ?? '0.0.0', '>=1.21')
+    ) {
+        // Special name defined in new Docker versions, that refers to the host gateway
+        return 'host-gateway';
+    } else if (containerMetadata) {
+        // Old/Unknown Linux with known container: query the metadata, and if _that_ fails, use the default gateway IP.
+        return containerMetadata.NetworkSettings.Gateway || "172.17.0.1";
+    } else {
+        // Old/Unknown Linux without a container (e.g. during a build). Always use the default gateway IP:
+        return "172.17.0.1";
+    }
+}
 
 const envArrayToObject = (envArray: string[] | null | undefined) =>
     _.fromPairs((envArray ?? []).map((e) => {
@@ -80,9 +104,10 @@ export type DOCKER_INTERCEPTION_TYPE =
 export function transformContainerCreationConfig(
     containerConfig: Docker.ContainerCreateOptions,
     baseImageConfig: Docker.ImageInspectInfo | undefined,
-    { interceptionType, proxyPort, certPath }: {
+    { interceptionType, proxyPort, proxyHost, certPath }: {
         interceptionType: DOCKER_INTERCEPTION_TYPE
         proxyPort: number,
+        proxyHost: string,
         certPath: string
     }
 ): Docker.ContainerCreateOptions {
@@ -94,7 +119,7 @@ export function transformContainerCreationConfig(
 
     // Combine the image config with the container creation options. Most
     // fields are overriden by container config, a couple are merged:
-    const effectiveConfig: Docker.ContainerCreateOptions = {
+    const currentConfig: Docker.ContainerCreateOptions = {
         ...imageContainerConfig,
         ...containerConfig,
         Env: [
@@ -107,49 +132,46 @@ export function transformContainerCreationConfig(
         }
     };
 
-    // Extend that config, injecting our custom overrides:
-    return {
-        ...effectiveConfig,
-        HostConfig: interceptionType === 'mount' && effectiveConfig.HostConfig
+    const hostConfig: Docker.HostConfig = {
+        ...currentConfig.HostConfig,
+        // To intercept without modifying the container, we bind mount our overrides and certificate
+        // files into place:
+        ...(interceptionType === 'mount'
             ? {
-                ...effectiveConfig.HostConfig,
                 Binds: [
-                    ...(effectiveConfig.HostConfig?.Binds || []),
+                    ...(currentConfig.HostConfig?.Binds ?? []),
                     // Bind-mount the CA certificate file individually too:
                     `${certPath}:${HTTP_TOOLKIT_INJECTED_CA_PATH}:ro`,
                     // Bind-mount the overrides directory into the container:
                     `${OVERRIDES_DIR}:${HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH}:ro`
                     // ^ Both 'ro' - untrusted containers must not be able to mess with these!
-                ],
-                ...(process.platform === 'linux'
-                    ? {
-                        ExtraHosts: [
-                            ...effectiveConfig.HostConfig?.ExtraHosts,
-                            `${DOCKER_HOST_HOSTNAME}:172.17.0.1`
-                        ]
-                    }
-                    : {}
-                )
+                ]
             }
-            : {
-                ...effectiveConfig.HostConfig,
-                ...(process.platform === 'linux'
-                    ? {
-                        ExtraHosts: [
-                            ...effectiveConfig.HostConfig?.ExtraHosts,
-                            `${DOCKER_HOST_HOSTNAME}:172.17.0.1`
-                        ]
-                    }
-                    : {}
-                )
-            },
+            : {}
+        ),
+        ...(process.platform === 'linux'
+            // On Linux only, we need to add an explicit host to make host.docker.internal work:
+            ? {
+                ExtraHosts: [
+                    ...(currentConfig.HostConfig?.ExtraHosts ?? []),
+                    `${DOCKER_HOST_HOSTNAME}:${proxyHost}`
+                ]
+            }
+            : {}
+        )
+    };
+
+    // Extend that config, injecting our custom overrides:
+    return {
+        ...currentConfig,
+        HostConfig: hostConfig,
         Env: [
-            ...(effectiveConfig.Env ?? []),
+            ...(currentConfig.Env ?? []),
             ...envObjectToArray(
                 getTerminalEnvVars(
                     proxyPort,
                     { certPath: HTTP_TOOLKIT_INJECTED_CA_PATH },
-                    envArrayToObject(effectiveConfig.Env),
+                    envArrayToObject(currentConfig.Env),
                     {
                         httpToolkitIp: DOCKER_HOST_HOSTNAME,
                         overridePath: HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH,
@@ -159,7 +181,7 @@ export function transformContainerCreationConfig(
             )
         ],
         Labels: {
-            ...effectiveConfig.Labels,
+            ...currentConfig.Labels,
             'tech.httptoolkit.docker.proxy': String(proxyPort)
         }
     };
@@ -224,6 +246,12 @@ export async function restartAndInjectContainer(
         }
     });
 
+    const proxyHost = getDockerHostIp(
+        process.platform,
+        (await docker.version()).ApiVersion,
+        containerDetails
+    );
+
     // First we clone the continer, injecting our custom settings:
     const newContainer = await docker.createContainer(
         transformContainerCreationConfig(
@@ -236,7 +264,8 @@ export async function restartAndInjectContainer(
             { // The settings to inject:
                 interceptionType,
                 certPath,
-                proxyPort
+                proxyPort,
+                proxyHost
             }
         )
     );

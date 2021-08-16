@@ -8,7 +8,7 @@ import * as Dockerode from 'dockerode';
 import * as getRawBody from 'raw-body';
 
 import { deleteFile } from '../../util/fs';
-import { transformContainerCreationConfig, DOCKER_HOST_HOSTNAME } from './docker-commands';
+import { transformContainerCreationConfig, DOCKER_HOST_HOSTNAME, getDockerHostIp } from './docker-commands';
 import { injectIntoBuildStream, getBuildOutputPipeline } from './docker-build-injection';
 import { rawHeadersToHeaders } from '../../util/http';
 import { destroyable } from '../../destroyable-server';
@@ -22,6 +22,7 @@ export const getDockerPipePath = (proxyPort: number, targetPlatform: NodeJS.Plat
     }
 };
 
+const API_VERSION_MATCH = /^\/v?([\.\d]+)\//;
 const CREATE_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/create/;
 const BUILD_IMAGE_MATCHER = /^\/[^\/]+\/build/;
 
@@ -61,6 +62,8 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
         const reqUrl = new URL(req.url!, 'http://localhost');
         const reqPath = reqUrl.pathname;
 
+        const dockerVersion = API_VERSION_MATCH.exec(reqPath)?.[1];
+
         // Intercept container creation (e.g. docker run):
         if (reqPath.match(CREATE_CONTAINER_MATCHER)) {
             const body = await getRawBody(req);
@@ -71,13 +74,19 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
                 // create will fail, and will be re-run after the image is pulled in a minute.
                 .catch(() => undefined);
 
+            const proxyHost = getDockerHostIp(
+                process.platform,
+                dockerVersion ?? imageConfig?.DockerVersion,
+            );
+
             const transformedConfig = transformContainerCreationConfig(
                 config,
                 imageConfig,
                 {
                     interceptionType: 'mount',
                     certPath: httpsConfig.certPath,
-                    proxyPort
+                    proxyPort,
+                    proxyHost
                 }
             );
             requestBodyStream = stream.Readable.from(JSON.stringify(transformedConfig));
@@ -106,7 +115,10 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
 
             // Make sure that host.docker.internal resolves on Linux too:
             if (process.platform === 'linux') {
-                reqUrl.searchParams.append('extrahosts', `${DOCKER_HOST_HOSTNAME}:172.17.0.1`);
+                reqUrl.searchParams.append(
+                    'extrahosts',
+                    `${DOCKER_HOST_HOSTNAME}:${getDockerHostIp(process.platform, dockerVersion)}`
+                );
                 req.url = reqUrl.toString();
             }
         }
