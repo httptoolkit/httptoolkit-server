@@ -139,7 +139,12 @@ export function transformContainerCreationConfig(
         ...(interceptionType === 'mount'
             ? {
                 Binds: [
-                    ...(currentConfig.HostConfig?.Binds ?? []),
+                    ...(currentConfig.HostConfig?.Binds ?? []).filter((existingMount) =>
+                        // Drop any existing mounts for these folders - this allows re-intercepting containers, e.g.
+                        // to switch from one proxy port to another.
+                        !existingMount.startsWith(`${certPath}:`) &&
+                        !existingMount.startsWith(`${OVERRIDES_DIR}:`)
+                    ),
                     // Bind-mount the CA certificate file individually too:
                     `${certPath}:${HTTP_TOOLKIT_INJECTED_CA_PATH}:ro`,
                     // Bind-mount the overrides directory into the container:
