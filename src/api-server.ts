@@ -16,6 +16,7 @@ import { reportError, addBreadcrumb } from './error-tracking';
 import { buildInterceptors, Interceptor, ActivationError } from './interceptors';
 import { ALLOWED_ORIGINS } from './constants';
 import { delay } from './util/promise';
+import { getDnsServer } from './dns-server';
 
 const ENABLE_PLAYGROUND = false;
 
@@ -46,6 +47,7 @@ const typeDefs = `
         interceptor(id: ID!): Interceptor!
         networkInterfaces: Json
         systemProxy: Proxy
+        dnsServers(proxyPort: Int!): [String!]!
     }
 
     type Mutation {
@@ -127,7 +129,11 @@ const buildResolvers = (
             systemProxy: () => getSystemProxy().catch((e) => {
                 reportError(e);
                 return undefined;
-            })
+            }),
+            dnsServers: async (__: void, { proxyPort }: { proxyPort: number }): Promise<string[]> => {
+                const dnsServer = await getDnsServer(proxyPort);
+                return [`127.0.0.1:${dnsServer.address().port}`];
+            }
         },
 
         Mutation: {

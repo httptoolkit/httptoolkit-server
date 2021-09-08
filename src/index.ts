@@ -21,6 +21,7 @@ import { getTimeToCertExpiry, parseCert } from './certificates';
 
 import { createDockerProxy } from './interceptors/docker/docker-proxy';
 import { DestroyableServer } from './destroyable-server';
+import { manageDnsServers } from './dns-server';
 
 const APP_NAME = "HTTP Toolkit";
 
@@ -119,7 +120,10 @@ export async function runHTK(options: {
             maxAge: 86400 // Cache CORS responses for as long as possible
         }
     });
+
+    manageDnsServers(standalone);
     pairWithInterceptingDockerProxies(standalone, httpsConfig);
+
     await standalone.start({
         port: 45456,
         host: '127.0.0.1'
