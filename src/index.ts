@@ -10,7 +10,7 @@ import { HttpToolkitServerApi } from './api-server';
 import { checkBrowserConfig } from './browsers';
 import { reportError } from './error-tracking';
 import { ALLOWED_ORIGINS } from './constants';
-import { delay, readFile, checkAccess, writeFile, ensureDirectoryExists } from './util';
+import { delay, readFile, checkAccess, writeFile, ensureDirectoryExists, isErrorLike } from './util';
 import { registerShutdownHandler } from './shutdown';
 import { getTimeToCertExpiry, parseCert } from './certificates';
 
@@ -110,7 +110,7 @@ export async function runHTK(options: {
             (<Promise<void>> updateCommand.run(['stable']))
             .catch((error) => {
                 // Received successful update that wants to restart the server
-                if (error.code === 'EEXIT') {
+                if (isErrorLike(error) && error.code === 'EEXIT') {
                     // Block future update checks for one hour.
 
                     // If we don't, we'll redownload the same update again every check.

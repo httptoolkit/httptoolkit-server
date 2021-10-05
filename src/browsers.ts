@@ -1,4 +1,3 @@
-import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
 
@@ -12,7 +11,7 @@ import {
 } from '@httptoolkit/browser-launcher';
 
 import { reportError } from './error-tracking';
-import { readFile, deleteFile, delay } from './util';
+import { readFile, deleteFile, delay, isErrorLike } from './util';
 
 const getBrowserLauncher = promisify(getBrowserLauncherCb);
 const updateBrowserCache: (configPath: string) => Promise<unknown> = promisify(updateBrowserCacheCb);
@@ -31,12 +30,13 @@ export async function checkBrowserConfig(configPath: string) {
         const rawConfig = await readFile(browserConfig, 'utf8');
         JSON.parse(rawConfig);
     } catch (error) {
-        if (error.code === 'ENOENT') return;
+        if (isErrorLike(error) && error.code === 'ENOENT') return;
         console.warn(`Failed to read browser config cache from ${browserConfig}, clearing.`, error);
 
         return deleteFile(browserConfig).catch((err) => {
             // There may be possible races around here - as long as the file's gone, we're happy
-            if (err.code === 'ENOENT') return;
+            if (isErrorLike(err) && err.code === 'ENOENT') return;
+
             console.error('Failed to clear broken config file:', err);
             reportError(err);
         });

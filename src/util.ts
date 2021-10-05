@@ -25,6 +25,23 @@ export async function waitUntil<T extends unknown>(
     else return result as Exclude<T, false>;
 }
 
+export type ErrorLike = Partial<Error> & {
+    // Various properties we might want to look for on errors:
+    code?: string,
+    cmd?: string,
+    signal?: string
+};
+
+// Useful to easily cast and then examine errors that are otherwise 'unknown':
+export function isErrorLike(error: any): error is ErrorLike {
+    return typeof error === 'object' && (
+        error instanceof Error ||
+        error.message ||
+        error.code ||
+        error.stack
+    )
+}
+
 export interface Deferred<T> {
     resolve: (arg: T) => void,
     reject: (e?: Error) => void,
@@ -80,7 +97,7 @@ export const moveFile = async (oldPath: string, newPath: string) => {
     try {
         await renameFile(oldPath, newPath);
     } catch (e) {
-        if (e.code === 'EXDEV') {
+        if (isErrorLike(e) && e.code === 'EXDEV') {
             // Cross-device - can't rename files across partions etc.
             // In that case, we fallback to copy then delete:
             await copyFile(oldPath, newPath);

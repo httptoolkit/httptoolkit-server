@@ -2,7 +2,7 @@ import * as stream from 'stream';
 import * as path from 'path';
 import * as adb from '@devicefarmer/adbkit';
 import { reportError } from '../../error-tracking';
-import { delay, waitUntil } from '../../util';
+import { delay, waitUntil, isErrorLike } from '../../util';
 import { getCertificateFingerprint, parseCert } from '../../certificates';
 
 export const ANDROID_TEMP = '/data/local/tmp';
@@ -60,13 +60,14 @@ export const getConnectedDevices = batchCalls(async (adbClient: adb.AdbClient) =
                 !d.type.startsWith("no permissions")
             ).map(d => d.id);
     } catch (e) {
-        if (
-            e.code === 'ENOENT' || // No ADB available
-            e.code === 'EACCES' || // ADB available, but we aren't allowed to run it
-            e.code === 'ECONNREFUSED' || // Tried to start ADB, but still couldn't connect
-            e.code === 'ENOTDIR' || // ADB path contains something that's not a directory
-            e.signal === 'SIGKILL' || // In some envs 'adb start-server' is always killed (why?)
-            (e.cmd && e.code)      // ADB available, but "adb start-server" failed
+        if (isErrorLike(e) && (
+                e.code === 'ENOENT' || // No ADB available
+                e.code === 'EACCES' || // ADB available, but we aren't allowed to run it
+                e.code === 'ECONNREFUSED' || // Tried to start ADB, but still couldn't connect
+                e.code === 'ENOTDIR' || // ADB path contains something that's not a directory
+                e.signal === 'SIGKILL' || // In some envs 'adb start-server' is always killed (why?)
+                (e.cmd && e.code)      // ADB available, but "adb start-server" failed
+            )
         ) {
             if (e.code !== 'ENOENT') {
                 console.log(`ADB unavailable, ${e.cmd

@@ -7,7 +7,7 @@ import { HtkConfig } from '../config';
 import { reportError } from '../error-tracking';
 
 import { getAvailableBrowsers, launchBrowser, BrowserInstance } from '../browsers';
-import { delay, readFile, canAccess, deleteFolder } from '../util';
+import { delay, readFile, canAccess, deleteFolder, isErrorLike } from '../util';
 import { windowsKill, spawnToResult } from '../process-management';
 import { MessageServer } from '../message-server';
 import { CertCheckServer } from '../cert-check-server';
@@ -27,7 +27,7 @@ const testCertutil = (command: string, options?: SpawnOptions) => {
             output.stderr.includes("Utility to manipulate NSS certificate databases")
         )
         .catch((e: any) => {
-            if (e.code !== 'ENOENT') {
+            if (!isErrorLike(e) || e.code !== 'ENOENT') {
                 console.log(`Failed to run ${command}`);
                 console.log(e);
             }
@@ -210,7 +210,7 @@ export class FreshFirefox implements Interceptor {
 
         // Tell firefox to shutdown, and wait until it does.
         profileSetupBrowser.stop();
-        await new Promise((resolve) => {
+        await new Promise<void>((resolve) => {
             if (!profileSetupBrowser) return resolve();
             else profileSetupBrowser.process.once('close', resolve);
         });

@@ -9,7 +9,7 @@ import ChromeRemoteInterface = require('chrome-remote-interface');
 import { Interceptor } from '.';
 
 import { HtkConfig } from '../config';
-import { delay, readFile } from '../util';
+import { delay, isErrorLike, readFile } from '../util';
 import { windowsClose } from '../process-management';
 import { getTerminalEnvVars, OVERRIDES_DIR } from './terminal/terminal-env-overrides';
 import { reportError, addBreadcrumb } from '../error-tracking';
@@ -85,7 +85,7 @@ export class ElectronInterceptor implements Interceptor {
             try {
                 debugClient = await ChromeRemoteInterface({ port: debugPort });
             } catch (error) {
-                if (error.code !== 'ECONNREFUSED' || retries === 0) {
+                if ((isErrorLike(error) && error.code !== 'ECONNREFUSED') || retries === 0) {
                     throw error;
                 }
 
@@ -155,7 +155,7 @@ export class ElectronInterceptor implements Interceptor {
         await Promise.all(
             this.debugClients[proxyPort].map(async (debugClient) => {
                 let shutdown = false;
-                const disconnectPromise = new Promise((resolve) =>
+                const disconnectPromise = new Promise<void>((resolve) =>
                     debugClient.once('disconnect', resolve)
                 ).then(() => {
                     shutdown = true

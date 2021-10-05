@@ -7,7 +7,7 @@ import { findExecutableById } from '@httptoolkit/osx-find-executable';
 import { Interceptor } from '..';
 import { HtkConfig } from '../../config';
 import { reportError, addBreadcrumb } from '../../error-tracking';
-import { canAccess, commandExists } from '../../util';
+import { canAccess, commandExists, isErrorLike } from '../../util';
 import { spawnToResult } from '../../process-management';
 
 import { getTerminalEnvVars } from './terminal-env-overrides';
@@ -122,7 +122,7 @@ const getXTerminalCommand = async (command = 'x-terminal-emulator'): Promise<Spa
             return getKonsoleTerminalCommand();
         }
     } catch (e) {
-        if (e.message.includes('rxvt')) {
+        if (isErrorLike(e) && e.message?.includes('rxvt')) {
             // Bizarrely, rxvt -h prints help but always returns a non-zero exit code.
             // Doesn't need any special arguments anyway though, so just ignore it
         } else {

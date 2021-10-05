@@ -73,7 +73,7 @@ async function updateLocalApk(
     const tmpApkStream = fs.createWriteStream(tmpApk, { fd: tmpApkFd });
     apkStream.pipe(tmpApkStream);
 
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
         apkStream.on('error', (e) => {
             reject(e);
             tmpApkStream.close();

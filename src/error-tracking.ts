@@ -107,7 +107,7 @@ export function addBreadcrumb(message: string, data: Sentry.Breadcrumb) {
     Sentry.addBreadcrumb(Object.assign({ message }, data));
 }
 
-export function reportError(error: Error | string): undefined | Promise<void> {
+export function reportError(error: Error | string | unknown): undefined | Promise<void> {
     console.warn(error);
     if (!sentryInitialized) return;
 
