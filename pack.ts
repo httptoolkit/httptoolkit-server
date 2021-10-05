@@ -5,7 +5,8 @@ import { spawn as spawnAsync, SpawnOptions } from 'child_process';
 
 const OUTPUT_DIR = path.join(__dirname, 'build');
 
-const pjson = require(path.join(__dirname, './package.json'));
+const pJson = require(path.join(__dirname, './package.json'));
+const pLockJson = require(path.join(__dirname, './package-lock.json'));
 
 const spawn = (command: string, args: string[] = [], options: SpawnOptions = {}) => {
     return new Promise<void>((resolve, reject) => {
@@ -24,7 +25,7 @@ const packageApp = async () => {
     await fs.emptyDir(OUTPUT_DIR);
 
     // Copy all normally deployable files:
-    const filesToCopy = pjson.files;
+    const filesToCopy = pJson.files;
     await Promise.all(filesToCopy.map((file: string) =>
         fs.copy(
             path.join(__dirname, file),
@@ -48,11 +49,17 @@ const packageApp = async () => {
     ));
 
     // Edit the package to replace deps with the bundle:
-    pjson.files.push('/bundle');
-    pjson.files.push('/nss');
-    pjson.dependencies = _.pick(pjson.dependencies, pjson.oclif.dependenciesToPackage);
-    delete pjson.scripts.prepack; // We don't want to rebuild
-    await fs.writeJson(path.join(OUTPUT_DIR, 'package.json'), pjson);
+    pJson.files.push('/bundle');
+    pJson.files.push('/nss');
+
+    // Replace package dependencies with strict version dependencies on only the
+    // unbundleable dependencies, pulling the versions from our package lock.
+    pJson.dependencies = _(pJson.oclif.dependenciesToPackage)
+        .keyBy(_.identity)
+        .mapValues((pkg: string) => pLockJson.dependencies[pkg].version);
+
+    delete pJson.scripts.prepack; // We don't want to rebuild
+    await fs.writeJson(path.join(OUTPUT_DIR, 'package.json'), pJson);
 
     const buildScript = path.join(OUTPUT_DIR, 'build-release.sh');
 
@@ -78,8 +85,8 @@ const packageApp = async () => {
     await fs.remove(path.join(
         OUTPUT_DIR,
         'dist',
-        `v${pjson.version}`,
-        `httptoolkit-server-v${pjson.version}.tar.gz`
+        `v${pJson.version}`,
+        `httptoolkit-server-v${pJson.version}.tar.gz`
     ));
 }
 
