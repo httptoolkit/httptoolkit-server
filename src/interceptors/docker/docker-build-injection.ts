@@ -29,7 +29,7 @@ const BUILD_LABEL = 'tech.httptoolkit.docker.build-proxy';
  * Take a build context stream, and transform it to inject into the build itself via
  * the Dockerfile. Supports gzipped & raw tarballs.
  */
-export async function injectIntoBuildStream(
+export function injectIntoBuildStream(
     dockerfileName: string,
     buildStream: stream.Readable,
     config: { proxyPort: number, certContent: string }
@@ -76,7 +76,7 @@ export async function injectIntoBuildStream(
 
     return {
         injectedStream: repackStream,
-        commandsAddedToDockerfile: await Promise.race<number>([
+        totalCommandsAddedPromise: Promise.race<number>([
             commandsAddedToDockerfile.promise,
             // If we never find a Dockerfile, continue anyway, in that case Docker will probably
             // error immediately in a moment, so this value won't matter too much:
@@ -266,8 +266,7 @@ export function getBuildOutputPipeline(extraDockerCommandCount: number): NodeJS.
             }
 
             return JSON.stringify(data);
-        }),
-        EventStream.join('\n'),
+        })
     );
 }
 

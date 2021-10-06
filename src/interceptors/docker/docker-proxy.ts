@@ -96,7 +96,7 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
             requestBodyStream = stream.Readable.from(JSON.stringify(transformedConfig));
         }
 
-        let extraDockerCommandCount = 0;
+        let extraDockerCommandCount: Promise<number> | undefined;
         if (reqPath.match(BUILD_IMAGE_MATCHER)) {
             if (reqUrl.searchParams.get('remote')) {
                 res.writeHead(400, "Remote parameter is not supported").end();
@@ -115,7 +115,7 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
             });
 
             requestBodyStream = streamInjection.injectedStream;
-            extraDockerCommandCount = streamInjection.commandsAddedToDockerfile;
+            extraDockerCommandCount = streamInjection.totalCommandsAddedPromise;
 
             // Make sure that host.docker.internal resolves on Linux too:
             if (process.platform === 'linux') {
@@ -133,7 +133,7 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
             res.destroy();
         });
 
-        dockerReq.on('response', (dockerRes) => {
+        dockerReq.on('response', async (dockerRes) => {
             res.writeHead(
                 dockerRes.statusCode!,
                 dockerRes.statusMessage,
@@ -145,7 +145,7 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
             });
 
             if (reqPath.match(BUILD_IMAGE_MATCHER) && dockerRes.statusCode === 200) {
-                dockerRes.pipe(getBuildOutputPipeline(extraDockerCommandCount)).pipe(res);
+                dockerRes.pipe(getBuildOutputPipeline(await extraDockerCommandCount!)).pipe(res);
             } else {
                 dockerRes.pipe(res);
             }
