@@ -1,7 +1,6 @@
+import * as _ from 'lodash';
 import * as dns2 from 'dns2';
 import { MockttpStandalone } from 'mockttp';
-
-import { addShutdownHandler } from './shutdown';
 
 class DnsServer extends dns2.UDPServer {
 
@@ -9,14 +8,19 @@ class DnsServer extends dns2.UDPServer {
         super((req, sendResponse) => this.handleQuery(req, sendResponse));
     }
 
-    private hostMap: { [host: string]: string[] | undefined } = {};
-
-    registerHost(hostname: string, ip: string) {
-        if (!this.hostMap[hostname]) {
-            this.hostMap[hostname] = [ip];
-        } else {
-            this.hostMap[hostname]!.push(ip);
+    private hostMaps: {
+        [sourceId: string]: {
+            [host: string]: string[] | undefined
         }
+    } = {};
+
+    setSourceHosts(sourceId: string, hosts: { [hostname: string]: string[] }) {
+        this.hostMaps[sourceId] = hosts;
+    }
+
+    private getHostAddresses(hostname: string) {
+        return _.flatMap(this.hostMaps, (hostMap) => hostMap[hostname])
+            .filter(h => !!h) as string[];
     }
 
     handleQuery(request: dns2.DnsRequest, sendResponse: (response: dns2.DnsResponse) => void) {
@@ -26,7 +30,11 @@ class DnsServer extends dns2.UDPServer {
         // supports it, so we don't either.
         const [question] = request.questions;
 
-        const answers = this.hostMap[question.name];
+        const answers = this.getHostAddresses(question.name);
+
+        if (answers.length > 1) {
+            console.log(`Multiple hosts in internal DNS for hostname ${question.name}: ${answers}`);
+        }
 
         if (answers) {
             answers.forEach((answer) => {
@@ -59,10 +67,10 @@ class DnsServer extends dns2.UDPServer {
     }
 }
 
-const DNS_SERVER_MAP: { [mockServerPort: number]: Promise<DnsServer> } = {};
+const DNS_SERVER_MAP: { [mockServerPort: number]: Promise<DnsServer> | undefined } = {};
 
 export function getDnsServer(mockServerPort: number): Promise<DnsServer> {
-    if (DNS_SERVER_MAP[mockServerPort]) return DNS_SERVER_MAP[mockServerPort];
+    if (DNS_SERVER_MAP[mockServerPort]) return DNS_SERVER_MAP[mockServerPort]!;
 
     const serverPromise = (async () => {
         const server = new DnsServer();
@@ -85,13 +93,7 @@ export function manageDnsServers(standalone: MockttpStandalone) {
     standalone.on('mock-server-stopping', async (server) => {
         const port = server.port;
         if (DNS_SERVER_MAP[port]) { // Might not exist, in some error scenarios
-            (await DNS_SERVER_MAP[port]).stop();
+            (await DNS_SERVER_MAP[port]!).stop();
         }
     });
-
-    addShutdownHandler(() => Promise.all(
-        Object.values(DNS_SERVER_MAP).map(async (server) =>
-            (await server).stop()
-        )
-    ));
 }

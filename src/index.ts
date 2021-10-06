@@ -22,6 +22,7 @@ import { getTimeToCertExpiry, parseCert } from './certificates';
 import { createDockerProxy } from './interceptors/docker/docker-proxy';
 import { DestroyableServer } from './destroyable-server';
 import { manageDnsServers } from './dns-server';
+import { stopMonitoringDockerNetworkAliases } from './interceptors/docker/docker-networking';
 
 const APP_NAME = "HTTP Toolkit";
 
@@ -80,6 +81,7 @@ function pairWithInterceptingDockerProxies(
             dockerProxies[port].destroy();
             delete dockerProxies[port];
         }
+        stopMonitoringDockerNetworkAliases(port);
     });
 
     addShutdownHandler(() => Promise.all(

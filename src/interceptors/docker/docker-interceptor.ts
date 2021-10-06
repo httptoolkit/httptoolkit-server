@@ -5,6 +5,7 @@ import { Interceptor } from "..";
 import { HtkConfig } from '../../config';
 
 import { restartAndInjectContainer } from './docker-commands';
+import { monitorDockerNetworkAliases } from './docker-networking';
 
 export class DockerAllInterceptor implements Interceptor {
 
@@ -30,6 +31,8 @@ export class DockerAllInterceptor implements Interceptor {
             certContent: this.config.https.certContent,
             certPath: this.config.https.certPath,
         } as const;
+
+        monitorDockerNetworkAliases(this.docker, proxyPort);
 
         for (let container of currentContainers) {
             await restartAndInjectContainer(this.docker, container.Id, interceptionSettings);
@@ -91,6 +94,7 @@ export class DockerContainerInterceptor implements Interceptor {
             certPath: this.config.https.certPath,
         } as const;
 
+        monitorDockerNetworkAliases(this.docker, proxyPort);
         await restartAndInjectContainer(this.docker, options.containerId, interceptionSettings);
     }
 

@@ -52,6 +52,10 @@ export const getDockerHostIp = (platform: typeof process.platform, dockerVersion
     }
 }
 
+export function isInterceptedContainer(container: Docker.ContainerInspectInfo, port: string | number) {
+    return container.Config.Labels['tech.httptoolkit.docker.proxy'] === port.toString();
+}
+
 const envArrayToObject = (envArray: string[] | null | undefined) =>
     _.fromPairs((envArray ?? []).map((e) => {
         const equalsIndex = e.indexOf('=');

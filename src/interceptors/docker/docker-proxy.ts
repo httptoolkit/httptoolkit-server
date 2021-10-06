@@ -14,6 +14,8 @@ import { rawHeadersToHeaders } from '../../util/http';
 import { destroyable } from '../../destroyable-server';
 import { reportError } from '../../error-tracking';
 
+import { monitorDockerNetworkAliases } from './docker-networking';
+
 export const getDockerPipePath = (proxyPort: number, targetPlatform: NodeJS.Platform = process.platform) => {
     if (targetPlatform === 'win32') {
         return `//./pipe/httptoolkit-${proxyPort}-docker`;
@@ -64,6 +66,8 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
 
         const dockerVersion = API_VERSION_MATCH.exec(reqPath)?.[1];
 
+        monitorDockerNetworkAliases(docker, proxyPort);
+
         // Intercept container creation (e.g. docker run):
         if (reqPath.match(CREATE_CONTAINER_MATCHER)) {
             const body = await getRawBody(req);
@@ -96,7 +100,7 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
         if (reqPath.match(BUILD_IMAGE_MATCHER)) {
             if (reqUrl.searchParams.get('remote')) {
                 res.writeHead(400, "Remote parameter is not supported").end();
-                reportError("Build intercepcion failed due to unsupported 'remote' param");
+                reportError("Build interception failed due to unsupported 'remote' param");
                 // Note that this also blocks buildkit (which passes 'remote=client-session;, then opens
                 // a gRPC session, and streams context on-demand). That's OK - that's not supported either.
                 return;
