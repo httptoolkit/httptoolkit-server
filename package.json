@@ -81,7 +81,7 @@
     "@types/request-promise-native": "^1.0.15",
     "@types/rimraf": "^2.0.2",
     "@types/ws": "^6.0.1",
-    "axios": "^0.21.1",
+    "axios": "^0.21.2",
     "bent": "^1.5.13",
     "chai": "^4.2.0",
     "copy-webpack-plugin": "^5.0.4",
