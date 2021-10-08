@@ -162,8 +162,9 @@ export function transformContainerCreationConfig(
             // On Linux only, we need to add an explicit host to make host.docker.internal work:
             ? {
                 ExtraHosts: [
-                    ...(currentConfig.HostConfig?.ExtraHosts ?? []),
-                    `${DOCKER_HOST_HOSTNAME}:${proxyHost}`
+                    `${DOCKER_HOST_HOSTNAME}:${proxyHost}`,
+                    // Seems that first host wins conflicts, so we go before existing values
+                    ...(currentConfig.HostConfig?.ExtraHosts ?? [])
                 ]
             }
             : {}
