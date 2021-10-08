@@ -196,6 +196,14 @@ export function transformContainerCreationConfig(
         ],
         Labels: {
             ...currentConfig.Labels,
+            // If there's a docker-compose project label, append our suffix. This ensures that normal
+            // DC commands don't use intercepted containers, and vice versa.
+            ...(currentConfig.Labels?.['com.docker.compose.project']
+                ? { 'com.docker.compose.project':
+                    `${currentConfig.Labels['com.docker.compose.project']}_HTK:${proxyPort}`
+                }
+                : {}
+            ),
             // Label the resulting container as intercepted by this specific proxy:
             [DOCKER_CONTAINER_LABEL]: String(proxyPort)
         }

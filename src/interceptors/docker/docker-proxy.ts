@@ -8,12 +8,17 @@ import * as Dockerode from 'dockerode';
 import * as getRawBody from 'raw-body';
 
 import { deleteFile } from '../../util/fs';
-import { transformContainerCreationConfig, DOCKER_HOST_HOSTNAME, getDockerHostIp } from './docker-commands';
-import { injectIntoBuildStream, getBuildOutputPipeline } from './docker-build-injection';
 import { rawHeadersToHeaders } from '../../util/http';
 import { destroyable, DestroyableServer } from '../../destroyable-server';
 import { reportError } from '../../error-tracking';
 
+import {
+    isInterceptedContainer,
+    transformContainerCreationConfig,
+    DOCKER_HOST_HOSTNAME,
+    getDockerHostIp
+} from './docker-commands';
+import { injectIntoBuildStream, getBuildOutputPipeline } from './docker-build-injection';
 import { monitorDockerNetworkAliases } from './docker-networking';
 
 export const getDockerPipePath = (proxyPort: number, targetPlatform: NodeJS.Platform = process.platform) => {
@@ -27,6 +32,7 @@ export const getDockerPipePath = (proxyPort: number, targetPlatform: NodeJS.Plat
 const API_VERSION_MATCH = /^\/v?([\.\d]+)\//;
 const CREATE_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/create/;
 const BUILD_IMAGE_MATCHER = /^\/[^\/]+\/build/;
+const CONTAINER_LIST_MATCHER = /^\/[^\/]+\/containers\/json/;
 
 const DOCKER_PROXY_MAP: { [mockServerPort: number]: Promise<DestroyableServer> | undefined } = {};
 
@@ -115,6 +121,69 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
                 }
             );
             requestBodyStream = stream.Readable.from(JSON.stringify(transformedConfig));
+
+            // If you try to create a container with a name that directly conflicts with another name
+            // that's currently in use by a non-intercepted container, we create a separate container
+            // with an _HTK$PORT suffix to avoid conflicts. This happens commonly, because of how
+            // docker-compose automatically generates container names.
+            const containerName = reqUrl.searchParams.get('name');
+            if (containerName) {
+                const existingContainer = await docker.getContainer(containerName).inspect()
+                    .catch<false>(() => false);
+                if (existingContainer && !isInterceptedContainer(existingContainer, proxyPort)) {
+                    if (!existingContainer.State.Running) {
+                        // If there's a duplicate but stopped container, we start the new container with an
+                        // modified name, so that everything works with no conflicts:
+                        reqUrl.searchParams.set('name', `${containerName}_HTK${proxyPort}`);
+                        req.url = reqUrl.toString();
+                    } else {
+                        // If there's a duplicate running container, we could to the same, but instead we return an error.
+                        // It's likely that this will create conflicts otherwise, e.g. two running containers using the
+                        // same volumes or the same network aliases. Better to play it safe.
+                        res.statusCode = 409;
+                        res.end(JSON.stringify({
+                            "message": `Conflict. The container name ${
+                                containerName
+                            } is already in use by a running container.\n${''
+                            }HTTP Toolkit won't intercept this by default to avoid conflicts with shared resources. ${''
+                            }To create & intercept this container, either stop the existing unintercepted container, or use a different name.`
+                        }));
+                        return;
+                    }
+                }
+            }
+        }
+
+        if (reqPath.match(CONTAINER_LIST_MATCHER)) {
+            const filterString = reqUrl.searchParams.get('filters') ?? '{}';
+
+            try {
+                const filters = JSON.parse(filterString) as { [key: string]: string[] };
+                const projectFilter = (filters.label ?? [])
+                    .filter(l => l.startsWith("com.docker.compose.project="))[0];
+                if (projectFilter) {
+                    const project = projectFilter.slice(projectFilter.indexOf('=') + 1);
+
+                    // This is a request from docker-compose, looking for containers related to a
+                    // specific project. Add an extra filter so that it only finds *intercepted*
+                    // containers. This ensures it'll recreate any unintercepted containers.
+                    reqUrl.searchParams.set('filters', JSON.stringify({
+                        ...filters,
+                        label: [
+                            // Replace the project filter, to ensure that the intercepted & non-intercepted containers
+                            // are handled separately. We need to ensure that a) this request only finds intercepted
+                            // containers, and b) future non-proxied requests only find non-intercepted containers.
+                            // By excluding non-intercepted containers, we force DC to recreate, so we can then
+                            // intercept the container creation itself and inject what we need.
+                            ...filters.label.filter((label) => label !== projectFilter),
+                            `${projectFilter}_HTK:${proxyPort}`
+                        ]
+                    }));
+                    req.url = reqUrl.toString();
+                }
+            } catch (e) {
+                console.log("Could not parse /containers/json filters param", e);
+            }
         }
 
         let extraDockerCommandCount: Promise<number> | undefined;

@@ -127,22 +127,28 @@ Successfully built <hash>
         this.timeout(30000);
 
         const { server, httpsConfig, getPassThroughOptions } = await testSetup;
-
         const externalRule = await server.get("https://example.test").thenReply(200, "Mock response");
         const internalRule = await server.post().thenPassThrough(await getPassThroughOptions());
 
+        // Create non-intercepted docker-compose containers, like normal use:
+        const composeRoot = path.join(__dirname, '..', 'fixtures', 'docker', 'compose');
+        await spawnToResult('docker-compose', ['create', '--force-recreate'], { cwd: composeRoot });
+
         const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env);
 
-        const { exitCode } = await spawnToResult(
+        // "DC Up" the same project, but in an intercepted env. Should ignore the existing containers,
+        // create new intercepted containers, and then up those as normal.
+        const { exitCode, stdout } = await spawnToResult(
             'docker-compose', ['up'],
             {
                 env: { ...process.env, ...terminalEnvOverrides },
-                cwd: path.join(__dirname, '..', 'fixtures', 'docker', 'compose')
+                cwd: composeRoot
             },
             true
         );
 
         expect(exitCode).to.equal(0);
+        expect(stdout).to.include("All requests ok");
 
         const seenExternalRequests = await externalRule.getSeenRequests();
         expect(seenExternalRequests.length).to.be.gte(2);
