@@ -1,5 +1,6 @@
 import * as _ from 'lodash';
 import * as path from 'path';
+import * as Docker from 'dockerode';
 
 import { expect } from 'chai';
 
@@ -120,6 +121,36 @@ Successfully built <hash>
 `
         );
         expect(stderr).to.equal('');
+    });
+
+    it("should intercept 'docker-compose up'", async function () {
+        this.timeout(30000);
+
+        const { server, httpsConfig, getPassThroughOptions } = await testSetup;
+
+        const externalRule = await server.get("https://example.test").thenReply(200, "Mock response");
+        const internalRule = await server.post().thenPassThrough(await getPassThroughOptions());
+
+        const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env);
+
+        const { exitCode } = await spawnToResult(
+            'docker-compose', ['up'],
+            {
+                env: { ...process.env, ...terminalEnvOverrides },
+                cwd: path.join(__dirname, '..', 'fixtures', 'docker', 'compose')
+            },
+            true
+        );
+
+        expect(exitCode).to.equal(0);
+
+        const seenExternalRequests = await externalRule.getSeenRequests();
+        expect(seenExternalRequests.length).to.be.gte(2);
+
+        const seenInternalRequests = await internalRule.getSeenRequests();
+        const seenInternalUrls = seenInternalRequests.map(r => r.url);
+        expect(seenInternalUrls).to.include("http://service-a:8000/");
+        expect(seenInternalUrls).to.include("http://service-b:8000/");
     });
 
 });
