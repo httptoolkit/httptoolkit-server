@@ -6,6 +6,7 @@ import * as net from 'net';
 import * as http from 'http';
 import * as Dockerode from 'dockerode';
 import * as getRawBody from 'raw-body';
+import { AbortController } from 'node-abort-controller';
 
 import { deleteFile } from '../../util/fs';
 import { rawHeadersToHeaders } from '../../util/http';
@@ -32,6 +33,7 @@ export const getDockerPipePath = (proxyPort: number, targetPlatform: NodeJS.Plat
 const API_VERSION_MATCH = /^\/v?([\.\d]+)\//;
 const CREATE_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/create/;
 const BUILD_IMAGE_MATCHER = /^\/[^\/]+\/build/;
+const ATTACH_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/([^\/]+)\/attach/;
 const CONTAINER_LIST_MATCHER = /^\/[^\/]+\/containers\/json/;
 
 const DOCKER_PROXY_MAP: { [mockServerPort: number]: Promise<DestroyableServer> | undefined } = {};
@@ -60,9 +62,10 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
 
     // Hacky logic to reuse docker-modem's internal env + OS parsing logic to
     // work out where the local Docker host is:
-    const dockerHostOptions = docker.modem.socketPath
-        ? { socketPath: docker.modem.socketPath }
-        : { host: docker.modem.host, port: docker.modem.port };
+    const modem = docker.modem as any as ({ socketPath: string } | { host: string, port: number });
+    const dockerHostOptions = 'socketPath' in modem
+        ? { socketPath: modem.socketPath }
+        : { host: modem.host, port: modem.port };
 
     const agent = new http.Agent({ keepAlive: true });
 
@@ -255,6 +258,32 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
             console.error('Docker proxy conn error', e);
             dockerReq.destroy();
         });
+
+        const attachMatch = ATTACH_CONTAINER_MATCHER.exec(req.url!);
+        if (attachMatch) {
+            const abortController = new AbortController();
+
+            docker.getContainer(attachMatch[1]).wait({
+                condition: 'next-exit',
+                abortSignal: abortController.signal
+            }).then(() => {
+                // The container has exited. On Windows for some reason attach doesn't exit by itself, even
+                // after the container has actually ended. To handle that, we watch for exit here, and
+                // kill the attach shortly afterwards, if it isn't dead already. We do this on all platforms,
+                // not just Windows, for consistency & reliability in case this comes up elsewhere.
+                setTimeout(() => {
+                    socket.end();
+                }, 100); // Slightly delay, in case there's more output on the way
+            }).catch((err) => {
+                if (abortController.signal.aborted) return; // If we aborted, we don't care about errors
+                console.log("Error waiting for container exit on attach", err);
+            });
+
+            socket.on('close', () => {
+                // Make sure the wait is shut down if the attach is disconnected for any reason:
+                abortController.abort();
+            });
+        }
 
         dockerReq.on('upgrade', (dockerRes, dockerSocket, dockerHead) => {
             socket.write(
