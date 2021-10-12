@@ -16,7 +16,8 @@ const makeRequest = async (method, url) => {
 const SERVER_PORT = 8000;
 
 const DOCKER_TARGET_URL = `http://${process.env.TARGET}:${SERVER_PORT}/`;
-const SELF_TARGET_URL = `http://${process.env.HOSTNAME}:${SERVER_PORT}/`;
+const SELF_LOCALHOST_TARGET_URL = `http://localhost:${SERVER_PORT}/`;
+const SELF_HOSTNAME_TARGET_URL = `http://${process.env.HOSTNAME}:${SERVER_PORT}/`;
 const EXTERNAL_TARGET_URL = `https://example.test/`; // Never normally reachable
 
 const server = http.createServer((req, res) => {
@@ -28,15 +29,21 @@ server.listen(SERVER_PORT, () => {
 });
 
 const pollInterval = setInterval(async () => {
-    console.log("Sending requests to ", DOCKER_TARGET_URL, SELF_TARGET_URL, EXTERNAL_TARGET_URL);
+    console.log("Sending requests to ",
+        DOCKER_TARGET_URL,
+        SELF_LOCALHOST_TARGET_URL,
+        SELF_HOSTNAME_TARGET_URL,
+        EXTERNAL_TARGET_URL
+    );
     const responses = await Promise.all([
         makeRequest("POST", DOCKER_TARGET_URL).catch(e => e), // Will return 200
-        makeRequest("POST", SELF_TARGET_URL).catch(e => e), // Will return 200
+        makeRequest("POST", SELF_LOCALHOST_TARGET_URL).catch(e => e), // Will return 200
+        makeRequest("POST", SELF_HOSTNAME_TARGET_URL).catch(e => e), // Will return 200
         makeRequest("GET", EXTERNAL_TARGET_URL).catch(e => e) // Will not resolve
     ]);
 
     // ^ This will always fail normally, because the external request fails. Will only pass if it's
-    // intercepted such that both internal & external requests are successful at the same time.
+    // intercepted such that both external & all internal requests are successful at the same time.
 
     if (responses.every(r => !(r instanceof Error) && r.statusCode === 200)) {
         console.log("All requests ok");

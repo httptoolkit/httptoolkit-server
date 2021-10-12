@@ -157,6 +157,7 @@ Successfully built <hash>
         const seenInternalUrls = seenInternalRequests.map(r => r.url);
         expect(seenInternalUrls).to.include("http://service-a:8000/");
         expect(seenInternalUrls).to.include("http://service-b:8000/");
+        expect(seenInternalUrls).to.include("http://localhost:8000/");
     });
 
 });
