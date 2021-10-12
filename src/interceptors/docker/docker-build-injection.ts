@@ -23,7 +23,7 @@ const HTTP_TOOLKIT_CONTEXT_PATH = '/.http-toolkit-injections';
 const HTTP_TOOLKIT_CONTEXT_OVERRIDES_PATH = path.posix.join(HTTP_TOOLKIT_CONTEXT_PATH, 'overrides');
 const HTTP_TOOLKIT_CONTEXT_CA_PATH = path.posix.join(HTTP_TOOLKIT_CONTEXT_PATH, 'ca.pem');
 
-const BUILD_LABEL = 'tech.httptoolkit.docker.build-proxy';
+export const DOCKER_BUILD_LABEL = 'tech.httptoolkit.docker.build-proxy';
 
 /**
  * Take a build context stream, and transform it to inject into the build itself via
@@ -129,8 +129,10 @@ export function injectIntoDockerfile(
 
     const injectionCommands = [
         {
+            // The started/end labels are used to spot when the interception process begins &
+            // ends, so we can cleanly remap the output.
             name: 'LABEL',
-            args: [`${BUILD_LABEL}=started-${config.proxyPort}`]
+            args: [`${DOCKER_BUILD_LABEL}=started-${config.proxyPort}`]
         },
         {
             name: 'COPY',
@@ -144,7 +146,7 @@ export function injectIntoDockerfile(
         ),
         {
             name: 'LABEL',
-            args: [`${BUILD_LABEL}=${config.proxyPort}`]
+            args: [`${DOCKER_BUILD_LABEL}=${config.proxyPort}`]
         }
         // COPY must not be the last command, or (in subsequent multi-stage builds) we will hit
         // this Docker bug: https://github.com/moby/moby/issues/37965
@@ -236,7 +238,7 @@ export function getBuildOutputPipeline(extraDockerCommandCount: number): NodeJS.
             }
 
             // We use labels as start/end markers for our injected sections.
-            if (data.stream?.includes(`LABEL ${BUILD_LABEL}=started`)) {
+            if (data.stream?.includes(`LABEL ${DOCKER_BUILD_LABEL}=started`)) {
                 // When we see a start label, print a single message, and then hide all the work
                 // that's actually required to intercept everything.
                 outputToHide = 'all';
@@ -244,7 +246,7 @@ export function getBuildOutputPipeline(extraDockerCommandCount: number): NodeJS.
                     stream: " *** Enabling HTTP Toolkit interception ***\n"
                 });
             } else if (outputToHide === 'all') {
-                if (data.stream?.includes(`LABEL ${BUILD_LABEL}=`)) {
+                if (data.stream?.includes(`LABEL ${DOCKER_BUILD_LABEL}=`)) {
                     // When we see the final label, start looking for an end-of-step line
                     outputToHide ='until-next';
                 }

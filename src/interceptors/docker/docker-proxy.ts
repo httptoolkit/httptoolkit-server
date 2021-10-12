@@ -11,7 +11,7 @@ import { deleteFile } from '../../util/fs';
 import { transformContainerCreationConfig, DOCKER_HOST_HOSTNAME, getDockerHostIp } from './docker-commands';
 import { injectIntoBuildStream, getBuildOutputPipeline } from './docker-build-injection';
 import { rawHeadersToHeaders } from '../../util/http';
-import { destroyable } from '../../destroyable-server';
+import { destroyable, DestroyableServer } from '../../destroyable-server';
 import { reportError } from '../../error-tracking';
 
 import { monitorDockerNetworkAliases } from './docker-networking';
@@ -28,9 +28,30 @@ const API_VERSION_MATCH = /^\/v?([\.\d]+)\//;
 const CREATE_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/create/;
 const BUILD_IMAGE_MATCHER = /^\/[^\/]+\/build/;
 
-const docker = new Dockerode();
+const DOCKER_PROXY_MAP: { [mockServerPort: number]: Promise<DestroyableServer> | undefined } = {};
 
-export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPath: string, certContent: string }) => {
+export async function ensureDockerProxyRunning(
+    proxyPort: number,
+    httpsConfig: { certPath: string, certContent: string }
+) {
+    if (!DOCKER_PROXY_MAP[proxyPort]) {
+        DOCKER_PROXY_MAP[proxyPort] = createDockerProxy(proxyPort, httpsConfig);
+    }
+
+    await DOCKER_PROXY_MAP[proxyPort];
+};
+
+export async function stopDockerProxy(proxyPort: number) {
+    const proxy = await DOCKER_PROXY_MAP[proxyPort];
+    if (!proxy) return;
+
+    delete DOCKER_PROXY_MAP[proxyPort];
+    await proxy.destroy();
+}
+
+async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: string, certContent: string }) {
+    const docker = new Dockerode();
+
     // Hacky logic to reuse docker-modem's internal env + OS parsing logic to
     // work out where the local Docker host is:
     const dockerHostOptions = docker.modem.socketPath
@@ -66,7 +87,7 @@ export const createDockerProxy = async (proxyPort: number, httpsConfig: { certPa
 
         const dockerVersion = API_VERSION_MATCH.exec(reqPath)?.[1];
 
-        monitorDockerNetworkAliases(docker, proxyPort);
+        monitorDockerNetworkAliases(proxyPort);
 
         // Intercept container creation (e.g. docker run):
         if (reqPath.match(CREATE_CONTAINER_MATCHER)) {

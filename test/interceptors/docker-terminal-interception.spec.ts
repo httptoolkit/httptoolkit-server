@@ -5,29 +5,29 @@ import { expect } from 'chai';
 
 import { setupTest } from './interceptor-test-utils';
 import { spawnToResult } from '../../src/util/process-management';
-import { createDockerProxy } from '../../src/interceptors/docker/docker-proxy';
-import { DestroyableServer } from '../../src/destroyable-server';
 
 import { getTerminalEnvVars } from '../../src/interceptors/terminal/terminal-env-overrides';
+
+import {
+    startDockerInterceptionServices,
+    stopDockerInterceptionServices
+} from '../../src/interceptors/docker/docker-interception-services';
 
 const testSetup = setupTest();
 
 describe('Docker CLI interception', function () {
     this.timeout(20000);
 
-    let dockerProxy: DestroyableServer;
-
     beforeEach(async () => {
         const { server, httpsConfig } = await testSetup;
         await server.start();
-
-        dockerProxy = await createDockerProxy(server.port, httpsConfig);
+        await startDockerInterceptionServices(server.port, httpsConfig);
     });
 
     afterEach(async () => {
         const { server } = await testSetup;
+        await stopDockerInterceptionServices(server.port);
         await server.stop();
-        await dockerProxy.destroy();
     });
 
     it("should intercept 'docker run'", async () => {

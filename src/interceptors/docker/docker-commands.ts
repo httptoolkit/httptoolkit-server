@@ -9,6 +9,10 @@ import {
     OVERRIDES_DIR
 } from '../terminal/terminal-env-overrides';
 
+// Used to label intercepted docker containers with the port of the proxy
+// that's currently intercepting them.
+export const DOCKER_CONTAINER_LABEL = "tech.httptoolkit.docker.proxy";
+
 /**
  * The path inside the container where injected files will be stored, and so the paths that
  * env vars injected into the container need to reference.
@@ -53,7 +57,7 @@ export const getDockerHostIp = (platform: typeof process.platform, dockerVersion
 }
 
 export function isInterceptedContainer(container: Docker.ContainerInspectInfo, port: string | number) {
-    return container.Config.Labels['tech.httptoolkit.docker.proxy'] === port.toString();
+    return container.Config.Labels[DOCKER_CONTAINER_LABEL] === port.toString();
 }
 
 const envArrayToObject = (envArray: string[] | null | undefined) =>
@@ -192,7 +196,8 @@ export function transformContainerCreationConfig(
         ],
         Labels: {
             ...currentConfig.Labels,
-            'tech.httptoolkit.docker.proxy': String(proxyPort)
+            // Label the resulting container as intercepted by this specific proxy:
+            [DOCKER_CONTAINER_LABEL]: String(proxyPort)
         }
     };
 }

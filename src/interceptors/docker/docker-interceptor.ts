@@ -32,7 +32,7 @@ export class DockerAllInterceptor implements Interceptor {
             certPath: this.config.https.certPath,
         } as const;
 
-        monitorDockerNetworkAliases(this.docker, proxyPort);
+        monitorDockerNetworkAliases(proxyPort);
 
         for (let container of currentContainers) {
             await restartAndInjectContainer(this.docker, container.Id, interceptionSettings);
@@ -96,7 +96,7 @@ export class DockerContainerInterceptor implements Interceptor {
             certPath: this.config.https.certPath,
         } as const;
 
-        monitorDockerNetworkAliases(this.docker, proxyPort);
+        monitorDockerNetworkAliases(proxyPort);
         await restartAndInjectContainer(this.docker, options.containerId, interceptionSettings);
     }
 

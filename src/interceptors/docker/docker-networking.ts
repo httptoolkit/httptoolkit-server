@@ -68,14 +68,18 @@ const dockerNetworkMonitors: { [proxyPort: string]: DockerNetworkMonitor | undef
  *
  * This has no effect (and no downside) if the monitor is already running, so it's expected
  * that this will be called whenever a user interacts with Docker in a way related to
- * HTTP Toolkit interception for this port.
+ * HTTP Toolkit interception for this port. It's useful to call this often, because its
+ * dependent on the events stream from Docker that may be fragile and need reseting, in a way
+ * that other background services (like the proxy or DNS server) are not.
  *
  * Network monitors are cached and run in the background, staying alive until either the
  * the Docker event stream shuts down (i.e. Docker engine disappears or similar) or it's
  * explicitly shut down with stopMonitoringDockerNetworkAliases for this proxy port.
  */
-export function monitorDockerNetworkAliases(docker: Docker, proxyPort: number) {
+export function monitorDockerNetworkAliases(proxyPort: number) {
     if (!dockerNetworkMonitors[proxyPort]) {
+        const docker = new Docker();
+
         const dnsSourceId = `docker-${proxyPort}`;
 
         const stream = getDockerEventStream(docker);
@@ -113,8 +117,11 @@ export function monitorDockerNetworkAliases(docker: Docker, proxyPort: number) {
 }
 
 export function stopMonitoringDockerNetworkAliases(proxyPort: number) {
+    const monitor = dockerNetworkMonitors[proxyPort];
+    if (!monitor) return;
+
     delete dockerNetworkMonitors[proxyPort];
-    dockerNetworkMonitors[proxyPort]?.stop();
+    monitor.stop();
 }
 
 /**

@@ -16,13 +16,14 @@ import { delay } from './util/promise';
 import { isErrorLike } from './util/error';
 import { readFile, checkAccess, writeFile, ensureDirectoryExists } from './util/fs';
 
-import { registerShutdownHandler, addShutdownHandler } from './shutdown';
+import { registerShutdownHandler } from './shutdown';
 import { getTimeToCertExpiry, parseCert } from './certificates';
 
-import { createDockerProxy } from './interceptors/docker/docker-proxy';
-import { DestroyableServer } from './destroyable-server';
-import { manageDnsServers } from './dns-server';
-import { stopMonitoringDockerNetworkAliases } from './interceptors/docker/docker-networking';
+import { getDnsServer, stopDnsServer } from './dns-server';
+import {
+    startDockerInterceptionServices,
+    stopDockerInterceptionServices
+} from './interceptors/docker/docker-interception-services';
 
 const APP_NAME = "HTTP Toolkit";
 
@@ -65,28 +66,19 @@ function checkCertExpiry(certContents: string): void {
     }
 }
 
-function pairWithInterceptingDockerProxies(
+function manageBackgroundServices(
     standalone: MockttpStandalone,
     httpsConfig: { certPath: string, certContent: string }
 ) {
-    const dockerProxies: { [port: number]: DestroyableServer } = {};
-
     standalone.on('mock-server-started', async (server) => {
-        dockerProxies[server.port] = await createDockerProxy(server.port, httpsConfig);
+        getDnsServer(server.port);
+        startDockerInterceptionServices(server.port, httpsConfig);
     });
 
     standalone.on('mock-server-stopping', (server) => {
-        const port = server.port;
-        if (dockerProxies[port]) { // Might not exist, in some error scenarios
-            dockerProxies[port].destroy();
-            delete dockerProxies[port];
-        }
-        stopMonitoringDockerNetworkAliases(port);
+        stopDnsServer(server.port);
+        stopDockerInterceptionServices(server.port);
     });
-
-    addShutdownHandler(() => Promise.all(
-        Object.values(dockerProxies).map((proxy) => proxy.destroy())
-    ));
 }
 
 export async function runHTK(options: {
@@ -123,8 +115,7 @@ export async function runHTK(options: {
         }
     });
 
-    manageDnsServers(standalone);
-    pairWithInterceptingDockerProxies(standalone, httpsConfig);
+    manageBackgroundServices(standalone, httpsConfig);
 
     await standalone.start({
         port: 45456,

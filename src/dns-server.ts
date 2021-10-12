@@ -1,6 +1,33 @@
 import * as _ from 'lodash';
 import * as dns2 from 'dns2';
-import { MockttpStandalone } from 'mockttp';
+
+const DNS_SERVER_MAP: { [mockServerPort: number]: Promise<DnsServer> | undefined } = {};
+
+export function getDnsServer(mockServerPort: number): Promise<DnsServer> {
+    if (!DNS_SERVER_MAP[mockServerPort]) {
+        const serverPromise = (async () => {
+            const server = new DnsServer();
+
+            server.on('close', () => {
+                delete DNS_SERVER_MAP[mockServerPort];
+            });
+
+            await server.start();
+            return server;
+        })();
+
+        DNS_SERVER_MAP[mockServerPort] = serverPromise;
+    }
+    return DNS_SERVER_MAP[mockServerPort]!;
+}
+
+export async function stopDnsServer(mockServerPort: number) {
+    const dnsServer = await DNS_SERVER_MAP[mockServerPort]
+    if (!dnsServer) return;
+
+    delete DNS_SERVER_MAP[mockServerPort];
+    dnsServer.stop();
+}
 
 class DnsServer extends dns2.UDPServer {
 
@@ -65,35 +92,4 @@ class DnsServer extends dns2.UDPServer {
             this.close();
         });
     }
-}
-
-const DNS_SERVER_MAP: { [mockServerPort: number]: Promise<DnsServer> | undefined } = {};
-
-export function getDnsServer(mockServerPort: number): Promise<DnsServer> {
-    if (DNS_SERVER_MAP[mockServerPort]) return DNS_SERVER_MAP[mockServerPort]!;
-
-    const serverPromise = (async () => {
-        const server = new DnsServer();
-
-        server.on('close', () => {
-            delete DNS_SERVER_MAP[mockServerPort];
-        });
-
-        await server.start();
-        return server;
-    })();
-
-    DNS_SERVER_MAP[mockServerPort] = serverPromise;
-    return serverPromise;
-};
-
-export function manageDnsServers(standalone: MockttpStandalone) {
-    standalone.on('mock-server-started', (server) => getDnsServer(server.port));
-
-    standalone.on('mock-server-stopping', async (server) => {
-        const port = server.port;
-        if (DNS_SERVER_MAP[port]) { // Might not exist, in some error scenarios
-            (await DNS_SERVER_MAP[port]!).stop();
-        }
-    });
 }
