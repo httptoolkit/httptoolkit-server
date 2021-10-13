@@ -132,7 +132,7 @@ Successfully built <hash>
 
         // Create non-intercepted docker-compose containers, like normal use:
         const composeRoot = path.join(__dirname, '..', 'fixtures', 'docker', 'compose');
-        await spawnToResult('docker-compose', ['create', '--force-recreate'], { cwd: composeRoot });
+        await spawnToResult('docker-compose', ['create', '--force-recreate', '--build'], { cwd: composeRoot }, true);
 
         const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env);
 
