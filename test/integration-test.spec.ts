@@ -126,6 +126,7 @@ describe('Integration test', function () {
         delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
 
         expect(response).to.equal('Mock response');
+        await mockttp.stop();
     });
 
     it('exposes the version over HTTP', async () => {
