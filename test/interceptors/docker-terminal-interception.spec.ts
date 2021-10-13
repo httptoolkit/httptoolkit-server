@@ -160,4 +160,31 @@ Successfully built <hash>
         expect(seenInternalUrls).to.include("http://localhost:8000/");
     });
 
+    it("should clean up containers after shutdown", async () => {
+        const { server, httpsConfig } = await testSetup;
+
+        const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env);
+
+        const { exitCode, stdout, stderr } = await spawnToResult(
+            'docker', ['create', 'node:14'],
+            { env: { ...process.env, ...terminalEnvOverrides } },
+            true
+        );
+
+        expect(exitCode).to.equal(0);
+        expect(stderr).to.equal('');
+
+        const containerId = stdout.trim();
+
+        const docker = new Docker();
+        const container = await docker.getContainer(containerId).inspect();
+        expect(container.Config.Image).to.equal('node:14');
+
+        await stopDockerInterceptionServices(server.port);
+
+        const inspectResult: unknown = await docker.getContainer(containerId).inspect().catch(e => e);
+        expect(inspectResult).to.be.instanceOf(Error)
+        expect((inspectResult as Error).message).to.include("no such container");
+    });
+
 });
