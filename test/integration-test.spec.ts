@@ -193,7 +193,6 @@ describe('Integration test', function () {
             activable('electron', '1.0.1'),
             inactivable('android-adb'),
             activable('attach-jvm', '1.0.1'),
-            activable('docker-all'),
             activable('docker-attach')
         ]);
     });
