@@ -41,7 +41,7 @@ async function deleteAllInterceptedDockerData(proxyPort: number | 'all') {
 
     const containers = await docker.listContainers({
         all: true,
-        filter: JSON.stringify({
+        filters: JSON.stringify({
             label: [
                 proxyPort === 'all'
                 ? DOCKER_CONTAINER_LABEL
@@ -63,7 +63,7 @@ async function deleteAllInterceptedDockerData(proxyPort: number | 'all') {
     // on some images that we intercepted.
     const images = await docker.listImages({
         all: true,
-        filter: JSON.stringify({
+        filters: JSON.stringify({
             label: [
                 proxyPort === 'all'
                 ? DOCKER_BUILD_LABEL

@@ -173,26 +173,38 @@ Successfully built <hash>
             dockerEnabled: true
         });
 
-        const { exitCode, stdout, stderr } = await spawnToResult(
+        const uninterceptedResult = await spawnToResult('docker', ['create', 'node:14']);
+
+        expect(uninterceptedResult.exitCode).to.equal(0);
+        expect(uninterceptedResult.stderr).to.equal('');
+        const uninterceptedContainerId = uninterceptedResult.stdout.trim();
+
+        const interceptedResult = await spawnToResult(
             'docker', ['create', 'node:14'],
             { env: { ...process.env, ...terminalEnvOverrides } },
             true
         );
 
-        expect(exitCode).to.equal(0);
-        expect(stderr).to.equal('');
+        expect(interceptedResult.exitCode).to.equal(0);
+        expect(interceptedResult.stderr).to.equal('');
 
-        const containerId = stdout.trim();
+        const interceptedContainerId = interceptedResult.stdout.trim();
 
         const docker = new Docker();
-        const container = await docker.getContainer(containerId).inspect();
-        expect(container.Config.Image).to.equal('node:14');
+        const interceptedContainer = await docker.getContainer(interceptedContainerId).inspect();
+        expect(interceptedContainer.Config.Image).to.equal('node:14');
+
+        const uninterceptedContainer = await docker.getContainer(uninterceptedContainerId).inspect();
+        expect(uninterceptedContainer.Config.Image).to.equal('node:14');
 
         await stopDockerInterceptionServices(server.port);
 
-        const inspectResult: unknown = await docker.getContainer(containerId).inspect().catch(e => e);
-        expect(inspectResult).to.be.instanceOf(Error)
-        expect((inspectResult as Error).message).to.include("no such container");
+        const inspectResultAfterShutdown: unknown = await docker.getContainer(interceptedContainerId).inspect().catch(e => e);
+        expect(inspectResultAfterShutdown).to.be.instanceOf(Error)
+        expect((inspectResultAfterShutdown as Error).message).to.include("no such container");
+
+        const uninterceptedContainerAfterShutdown = await docker.getContainer(uninterceptedContainerId).inspect();
+        expect(uninterceptedContainerAfterShutdown.Config.Image).to.equal('node:14');
     });
 
 });
