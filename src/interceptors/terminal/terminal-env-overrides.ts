@@ -25,7 +25,8 @@ export function getTerminalEnvVars(
         httpToolkitIp?: string,
         overridePath?: string,
         targetPlatform?: NodeJS.Platform
-    } = {}
+    } = {},
+    options: { dockerEnabled?: boolean } = { dockerEnabled: false }
 ): { [key: string]: string } {
     const { overridePath, targetPlatform, httpToolkitIp } = {
         httpToolkitIp: '127.0.0.1',
@@ -127,7 +128,11 @@ export function getTerminalEnvVars(
                 ? `${currentEnv.JAVA_TOOL_OPTIONS} ${javaAgentOption}`
             : javaAgentOption,
 
-        // Run all Docker operations through our Docker-hooking proxy:
-        'DOCKER_HOST': dockerHost
+        ...(options.dockerEnabled
+            ? {
+                // Run all Docker operations through our Docker-hooking proxy:
+                'DOCKER_HOST': dockerHost
+            } : {}
+        )
     };
 }

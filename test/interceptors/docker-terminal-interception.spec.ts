@@ -36,7 +36,9 @@ describe('Docker CLI interception', function () {
 
         const mainRule = await server.get("https://example.test").thenReply(200);
 
-        const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env);
+        const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env, {}, {
+            dockerEnabled: true
+        });
 
         const { exitCode, stdout, stderr } = await spawnToResult(
             'docker', ['run', '--rm', 'node:14', '-e', `require("https").get("https://example.test")`],
@@ -60,7 +62,9 @@ describe('Docker CLI interception', function () {
 
         const mainRule = await server.anyRequest().thenReply(200, "Mock response\n");
 
-        const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env);
+        const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env, {}, {
+            dockerEnabled: true
+        });
 
         const { exitCode, stdout, stderr } = await spawnToResult('docker', ['build', '.'], {
             env: { ...process.env, ...terminalEnvOverrides },
@@ -134,7 +138,9 @@ Successfully built <hash>
         const composeRoot = path.join(__dirname, '..', 'fixtures', 'docker', 'compose');
         await spawnToResult('docker-compose', ['create', '--force-recreate', '--build'], { cwd: composeRoot }, true);
 
-        const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env);
+        const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env, {}, {
+            dockerEnabled: true
+        });
 
         // "DC Up" the same project, but in an intercepted env. Should ignore the existing containers,
         // create new intercepted containers, and then up those as normal.
@@ -163,7 +169,9 @@ Successfully built <hash>
     it("should clean up containers after shutdown", async () => {
         const { server, httpsConfig } = await testSetup;
 
-        const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env);
+        const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env, {}, {
+            dockerEnabled: true
+        });
 
         const { exitCode, stdout, stderr } = await spawnToResult(
             'docker', ['create', 'node:14'],

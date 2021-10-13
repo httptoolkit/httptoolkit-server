@@ -33,7 +33,9 @@ export class ExistingTerminalInterceptor implements Interceptor {
         return !!serverState && serverState.isActive;
     }
 
-    async activate(proxyPort: number): Promise<{ port: number }> {
+    async activate(proxyPort: number, options: {
+        dockerEnabled?: boolean
+    } = {}): Promise<{ port: number }> {
         if (this.servers[proxyPort]) {
             // Reset isActive, so we wait again for a new request
             this.servers[proxyPort].isActive = false;
@@ -43,7 +45,9 @@ export class ExistingTerminalInterceptor implements Interceptor {
         const server = getLocal();
         await server.start({ startPort: proxyPort + 1, endPort: 65535 });
 
-        const envVars = getTerminalEnvVars(proxyPort, this.config.https, 'runtime-inherit');
+        const envVars = getTerminalEnvVars(proxyPort, this.config.https, 'runtime-inherit', {}, {
+            dockerEnabled: options.dockerEnabled
+        });
         const setupScript = getShellScript(server.urlFor('/success'), envVars);
 
         const serverState = { server, isActive: false };
