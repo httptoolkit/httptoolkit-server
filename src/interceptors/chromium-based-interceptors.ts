@@ -10,8 +10,9 @@ import {
     Browser,
     LaunchOptions
 } from '../browsers';
-import { delay, readFile, deleteFolder } from '../util';
-import { listRunningProcesses, windowsClose, waitForExit } from '../process-management';
+import { delay } from '../util/promise';
+import { readFile, deleteFolder } from '../util/fs';
+import { listRunningProcesses, windowsClose, waitForExit } from '../util/process-management';
 import { HideWarningServer } from '../hide-warning-server';
 import { Interceptor } from '.';
 import { reportError } from '../error-tracking';

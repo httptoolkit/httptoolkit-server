@@ -4,10 +4,11 @@ import * as path from 'path';
 import { Interceptor } from '.';
 
 import { HtkConfig } from '../config';
-import { spawnToResult, waitForExit } from '../process-management';
+import { spawnToResult, waitForExit } from '../util/process-management';
 import { OVERRIDE_JAVA_AGENT } from './terminal/terminal-env-overrides';
 import { reportError } from '../error-tracking';
-import { commandExists, delay, canAccess } from '../util';
+import { delay } from '../util/promise';
+import { commandExists, canAccess } from '../util/fs';
 
 type JvmTarget = { pid: string, name: string, interceptedByProxy: number | undefined };
 

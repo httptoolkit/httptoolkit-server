@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as envPaths from 'env-paths';
 import { getStandalone, generateCACertificate } from 'mockttp';
+import { MockttpStandalone } from 'mockttp/dist/standalone/mockttp-standalone';
 import { Mutex } from 'async-mutex';
 
 import updateCommand from '@oclif/plugin-update/lib/commands/update';
@@ -10,9 +11,19 @@ import { HttpToolkitServerApi } from './api-server';
 import { checkBrowserConfig } from './browsers';
 import { reportError } from './error-tracking';
 import { ALLOWED_ORIGINS } from './constants';
-import { delay, readFile, checkAccess, writeFile, ensureDirectoryExists, isErrorLike } from './util';
+
+import { delay } from './util/promise';
+import { isErrorLike } from './util/error';
+import { readFile, checkAccess, writeFile, ensureDirectoryExists } from './util/fs';
+
 import { registerShutdownHandler } from './shutdown';
 import { getTimeToCertExpiry, parseCert } from './certificates';
+
+import { getDnsServer, stopDnsServer } from './dns-server';
+import {
+    startDockerInterceptionServices,
+    stopDockerInterceptionServices
+} from './interceptors/docker/docker-interception-services';
 
 const APP_NAME = "HTTP Toolkit";
 
@@ -55,6 +66,21 @@ function checkCertExpiry(certContents: string): void {
     }
 }
 
+function manageBackgroundServices(
+    standalone: MockttpStandalone,
+    httpsConfig: { certPath: string, certContent: string }
+) {
+    standalone.on('mock-server-started', async (server) => {
+        getDnsServer(server.port);
+        startDockerInterceptionServices(server.port, httpsConfig);
+    });
+
+    standalone.on('mock-server-stopping', (server) => {
+        stopDnsServer(server.port);
+        stopDockerInterceptionServices(server.port);
+    });
+}
+
 export async function runHTK(options: {
     configPath?: string
     authToken?: string
@@ -88,6 +114,9 @@ export async function runHTK(options: {
             maxAge: 86400 // Cache CORS responses for as long as possible
         }
     });
+
+    manageBackgroundServices(standalone, httpsConfig);
+
     await standalone.start({
         port: 45456,
         host: '127.0.0.1'

@@ -37,7 +37,7 @@ describe('Fresh terminal interceptor', function () {
         itCanBeActivated(interceptorSetup);
     });
 
-    describe('simulated to run scripts', () => {
+    describe('simulated from env vars', () => {
 
         it("should intercept all popular JS libraries", async function () {
             this.timeout(10000);

@@ -1,0 +1,11 @@
+version: '3.3'
+
+services:
+  service-a:
+    build: .
+    environment:
+      - TARGET=service-b
+  service-b:
+    build: .
+    environment:
+      - TARGET=service-a

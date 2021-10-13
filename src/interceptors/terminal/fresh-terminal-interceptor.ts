@@ -7,8 +7,9 @@ import { findExecutableById } from '@httptoolkit/osx-find-executable';
 import { Interceptor } from '..';
 import { HtkConfig } from '../../config';
 import { reportError, addBreadcrumb } from '../../error-tracking';
-import { canAccess, commandExists, isErrorLike } from '../../util';
-import { spawnToResult } from '../../process-management';
+import { isErrorLike } from '../../util/error';
+import { canAccess, commandExists } from '../../util/fs';
+import { spawnToResult } from '../../util/process-management';
 
 import { getTerminalEnvVars } from './terminal-env-overrides';
 import { editShellStartupScripts, resetShellStartupScripts } from './terminal-scripts';
@@ -201,7 +202,9 @@ export class FreshTerminalInterceptor implements Interceptor {
         return !!(terminals[proxyPort] && terminals[proxyPort]!.length);
     }
 
-    async activate(proxyPort: number): Promise<void> {
+    async activate(proxyPort: number, activationOptions: {
+        dockerEnabled?: boolean
+    } = {}): Promise<void> {
         const terminalSpawnArgs = await getTerminalCommand();
         if (!terminalSpawnArgs) throw new Error('Could not find a suitable terminal');
 
@@ -212,7 +215,6 @@ export class FreshTerminalInterceptor implements Interceptor {
         // we (very carefully!) rewrite shell startup scripts, to reset the PATH in our shell.
         // This gets reset on exit, and is behind a flag so it won't affect other shells anyway.
         if (!skipStartupScripts) await editShellStartupScripts();
-
 
         const currentEnv = (process.platform === 'win32')
             // Windows env var behaviour is very odd. Windows env vars are case-insensitive, and node
@@ -226,7 +228,12 @@ export class FreshTerminalInterceptor implements Interceptor {
             command,
             (args || []),
             _.assign(options || {}, {
-                env: _.assign({}, currentEnv, getTerminalEnvVars(proxyPort, this.config.https, currentEnv)),
+                env: {
+                    ...currentEnv,
+                    ...getTerminalEnvVars(proxyPort, this.config.https, currentEnv, {}, {
+                        dockerEnabled: activationOptions.dockerEnabled
+                    }),
+                },
                 cwd: currentEnv.HOME || currentEnv.USERPROFILE
             })
         );

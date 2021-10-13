@@ -4,7 +4,7 @@ import * as stream from 'stream';
 import * as semver from 'semver';
 import fetch from 'node-fetch';
 
-import { readDir, createTmp, moveFile, deleteFile } from '../../util';
+import { readDir, createTmp, moveFile, deleteFile } from '../../util/fs';
 import { HtkConfig } from '../../config';
 import { reportError } from '../../error-tracking';
 

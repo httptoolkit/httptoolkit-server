@@ -1,16 +1,18 @@
 import { promisify } from 'util';
 import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
-import { getRemote } from 'mockttp';
+
 import * as request from 'request-promise-native';
 import * as tmp from 'tmp';
 import { extractTarball as extractTarballCb } from 'tarball-extract';
-const extractTarball = promisify(extractTarballCb) as (source: string, dest: string) => Promise<void>;
-
+import { expect } from 'chai';
 import * as getGraphQL from 'graphql.js';
 
-import { delay } from '../src/util';
-import { expect } from 'chai';
+import { getRemote } from 'mockttp';
+
+import { delay } from '../src/util/promise';
+
+const extractTarball = promisify(extractTarballCb) as (source: string, dest: string) => Promise<void>;
 
 async function setupServerPath() {
     if (!process.env.TEST_BUILT_TARBALL) {
@@ -124,6 +126,7 @@ describe('Integration test', function () {
         delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
 
         expect(response).to.equal('Mock response');
+        await mockttp.stop();
     });
 
     it('exposes the version over HTTP', async () => {
@@ -138,7 +141,11 @@ describe('Integration test', function () {
         expect(response.version).to.equal(require('../package.json').version);
     });
 
-    it('exposes interceptors over HTTP', async () => {
+    it('exposes interceptors over HTTP', async function () {
+        // Browser detection on a fresh machine (i.e. in CI) with many browsers
+        // installed can take a couple of seconds. Give it one retry.
+        this.retries(1);
+
         const graphql = buildGraphql('http://localhost:45457/');
 
         const response = await graphql(`
@@ -185,7 +192,8 @@ describe('Integration test', function () {
             activable('existing-terminal'),
             activable('electron', '1.0.1'),
             inactivable('android-adb'),
-            activable('attach-jvm', '1.0.1')
+            activable('attach-jvm', '1.0.1'),
+            activable('docker-attach')
         ]);
     });
 });

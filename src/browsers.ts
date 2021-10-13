@@ -11,7 +11,9 @@ import {
 } from '@httptoolkit/browser-launcher';
 
 import { reportError } from './error-tracking';
-import { readFile, deleteFile, delay, isErrorLike } from './util';
+import { delay } from './util/promise';
+import { isErrorLike } from './util/error';
+import { readFile, deleteFile } from './util/fs';
 
 const getBrowserLauncher = promisify(getBrowserLauncherCb);
 const updateBrowserCache: (configPath: string) => Promise<unknown> = promisify(updateBrowserCacheCb);
