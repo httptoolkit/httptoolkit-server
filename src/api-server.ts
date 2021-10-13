@@ -188,9 +188,9 @@ const buildResolvers = (
                     false
                 );
             },
-            isActive: (interceptor: Interceptor, { proxyPort }: { proxyPort: number }) => {
+            isActive: async (interceptor: Interceptor, { proxyPort }: { proxyPort: number }) => {
                 try {
-                    return interceptor.isActive(proxyPort);
+                    return await interceptor.isActive(proxyPort);
                 } catch (e) {
                     reportError(e);
                     return false;
