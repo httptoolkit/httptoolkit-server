@@ -8,10 +8,11 @@ import * as Dockerode from 'dockerode';
 import * as getRawBody from 'raw-body';
 import { AbortController } from 'node-abort-controller';
 
-import { deleteFile } from '../../util/fs';
+import { deleteFile, readDir } from '../../util/fs';
 import { rawHeadersToHeaders } from '../../util/http';
 import { destroyable, DestroyableServer } from '../../destroyable-server';
 import { reportError } from '../../error-tracking';
+import { addShutdownHandler } from '../../shutdown';
 
 import {
     isInterceptedContainer,
@@ -29,6 +30,15 @@ export const getDockerPipePath = (proxyPort: number, targetPlatform: NodeJS.Plat
         return path.join(os.tmpdir(), `httptoolkit-${proxyPort}-docker.sock`);
     }
 };
+
+if (process.platform !== 'win32') {
+    // At shutdown on Linux/Mac we cleanup all our leftover Docker sockets:
+    addShutdownHandler(async () => Promise.all(
+        (await readDir(os.tmpdir()))
+            .filter((filename) => filename.match(/^httptoolkit-\d+-docker.sock$/))
+            .map((filename) => deleteFile(path.join(os.tmpdir(), filename)))
+    ));
+}
 
 const API_VERSION_MATCH = /^\/v?([\.\d]+)\//;
 const CREATE_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/create/;
