@@ -7,6 +7,7 @@ import { reportError } from '../../error-tracking';
 
 import { getDnsServer } from '../../dns-server';
 import { isInterceptedContainer } from './docker-commands';
+import { isDockerAvailable } from './docker-interception-services';
 
 interface DockerEvent {
     Type: string;
@@ -76,8 +77,8 @@ const dockerNetworkMonitors: { [proxyPort: string]: DockerNetworkMonitor | undef
  * the Docker event stream shuts down (i.e. Docker engine disappears or similar) or it's
  * explicitly shut down with stopMonitoringDockerNetworkAliases for this proxy port.
  */
-export function monitorDockerNetworkAliases(proxyPort: number) {
-    if (!dockerNetworkMonitors[proxyPort]) {
+export async function monitorDockerNetworkAliases(proxyPort: number) {
+    if (await isDockerAvailable() && !dockerNetworkMonitors[proxyPort]) {
         const docker = new Docker();
 
         const dnsSourceId = `docker-${proxyPort}`;

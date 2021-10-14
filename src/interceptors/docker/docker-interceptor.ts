@@ -6,7 +6,7 @@ import { HtkConfig } from '../../config';
 
 import { DOCKER_CONTAINER_LABEL, restartAndInjectContainer } from './docker-commands';
 import { monitorDockerNetworkAliases } from './docker-networking';
-import { deleteAllInterceptedDockerData } from './docker-interception-services';
+import { deleteAllInterceptedDockerData, isDockerAvailable } from './docker-interception-services';
 
 export class DockerContainerInterceptor implements Interceptor {
 
@@ -20,7 +20,7 @@ export class DockerContainerInterceptor implements Interceptor {
     private docker = new Docker();
 
     async isActivable(): Promise<boolean> {
-        return this.docker.ping().then(() => true).catch(() => false);
+        return isDockerAvailable();
     }
 
     private _containersPromise: Promise<Docker.ContainerInfo[]> | undefined;
@@ -79,10 +79,12 @@ export class DockerContainerInterceptor implements Interceptor {
     }
 
     async deactivate(proxyPort: number): Promise<void | {}> {
+        if (!await isDockerAvailable()) return;
         await deleteAllInterceptedDockerData(proxyPort);
     }
 
     async deactivateAll(): Promise<void | {}> {
+        if (!await isDockerAvailable()) return;
         await deleteAllInterceptedDockerData('all');
     }
 

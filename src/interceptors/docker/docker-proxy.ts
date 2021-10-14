@@ -22,6 +22,7 @@ import {
 } from './docker-commands';
 import { injectIntoBuildStream, getBuildOutputPipeline } from './docker-build-injection';
 import { monitorDockerNetworkAliases } from './docker-networking';
+import { isDockerAvailable } from './docker-interception-services';
 
 export const getDockerPipePath = (proxyPort: number, targetPlatform: NodeJS.Platform = process.platform) => {
     if (targetPlatform === 'win32') {
@@ -100,6 +101,11 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
 
     // Forward all requests & responses to & from the real docker server:
     const server = http.createServer(async (req, res) => {
+        if (!await isDockerAvailable()) {
+            res.writeHead(504, "Docker not available").end("HTTP Toolkit could not connect to Docker");
+            return;
+        }
+
         let requestBodyStream: stream.Readable = req;
 
         const reqUrl = new URL(req.url!, 'http://localhost');
@@ -271,7 +277,15 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
     });
 
     // Forward all requests & hijacked streams to & from the real docker server:
-    server.on('upgrade', (req: http.IncomingMessage, socket: net.Socket, head: Buffer) => {
+    server.on('upgrade', async (req: http.IncomingMessage, socket: net.Socket, head: Buffer) => {
+        if (!await isDockerAvailable()) {
+            socket.end(
+                "HTTP/1.1 504 Docker not available\r\n\r\n" +
+                "HTTP Toolkit could not connect to Docker\r\n"
+            );
+            return;
+        }
+
         const dockerReq = sendToDocker(req);
         dockerReq.on('error', (e) => {
             console.error('Docker proxy error', e);

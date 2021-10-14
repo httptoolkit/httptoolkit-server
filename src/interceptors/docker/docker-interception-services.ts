@@ -8,12 +8,15 @@ import { DOCKER_CONTAINER_LABEL } from './docker-commands';
 import { monitorDockerNetworkAliases, stopMonitoringDockerNetworkAliases } from './docker-networking';
 import { ensureDockerProxyRunning, stopDockerProxy } from './docker-proxy';
 
+export const isDockerAvailable = () => new Docker().ping().then(() => true).catch(() => false);
+
 // On shutdown, clean up every container & image that we created, disappearing
 // into the mist as if we were never here...
 // (Those images/containers are unusable without us, so leaving them breaks things).
-addShutdownHandler(() =>
-    deleteAllInterceptedDockerData('all')
-);
+addShutdownHandler(async () => {
+    if (!await isDockerAvailable()) return;
+    await deleteAllInterceptedDockerData('all')
+});
 
 export function startDockerInterceptionServices(
     proxyPort: number,
