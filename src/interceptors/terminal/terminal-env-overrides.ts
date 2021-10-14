@@ -131,7 +131,9 @@ export function getTerminalEnvVars(
         ...(options.dockerEnabled
             ? {
                 // Run all Docker operations through our Docker-hooking proxy:
-                'DOCKER_HOST': dockerHost
+                'DOCKER_HOST': dockerHost,
+                // For now, we don't support intercepting BuildKit builds - disable them:
+                'DOCKER_BUILDKIT': '0'
             } : {}
         )
     };
