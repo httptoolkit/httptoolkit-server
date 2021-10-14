@@ -8,7 +8,7 @@ import * as Dockerode from 'dockerode';
 import * as getRawBody from 'raw-body';
 import { AbortController } from 'node-abort-controller';
 
-import { deleteFile, readDir } from '../../util/fs';
+import { chmod, deleteFile, readDir } from '../../util/fs';
 import { rawHeadersToHeaders } from '../../util/http';
 import { destroyable, DestroyableServer } from '../../destroyable-server';
 import { reportError } from '../../error-tracking';
@@ -344,6 +344,12 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
         server.listen(proxyListenPath, resolve);
         server.on('error', reject);
     });
+
+    if (process.platform !== 'win32') {
+        // This socket lets you directly access Docker with the permissions of the current
+        // process, which is pretty powerful - access should be limited to this user only.
+        await chmod(proxyListenPath, 0o700);
+    }
 
     return destroyable(server);
 };
