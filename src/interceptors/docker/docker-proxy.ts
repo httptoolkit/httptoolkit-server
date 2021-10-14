@@ -32,6 +32,7 @@ export const getDockerPipePath = (proxyPort: number, targetPlatform: NodeJS.Plat
 
 const API_VERSION_MATCH = /^\/v?([\.\d]+)\//;
 const CREATE_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/create/;
+const START_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/([^\/]+)\/start/;
 const BUILD_IMAGE_MATCHER = /^\/[^\/]+\/build/;
 const ATTACH_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/([^\/]+)\/attach/;
 const CONTAINER_LIST_MATCHER = /^\/[^\/]+\/containers\/json/;
@@ -157,6 +158,18 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
             }
         }
 
+        // Intercept container creation (e.g. docker start):
+        const startContainerMatch = START_CONTAINER_MATCHER.exec(reqPath);
+        if (startContainerMatch) {
+            const containerId = startContainerMatch[1];
+            if (!isInterceptedContainer(await docker.getContainer(containerId).inspect(), proxyPort)) {
+                res.writeHead(400).end(
+                    "HTTP Toolkit cannot intercept startup of preexisting non-intercepted containers. " +
+                    "The container must be recreated here first - try `docker run <image>` instead."
+                );
+            }
+        }
+
         if (reqPath.match(CONTAINER_LIST_MATCHER)) {
             const filterString = reqUrl.searchParams.get('filters') ?? '{}';
 
@@ -179,7 +192,7 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
                             // By excluding non-intercepted containers, we force DC to recreate, so we can then
                             // intercept the container creation itself and inject what we need.
                             ...filters.label.filter((label) => label !== projectFilter),
-                            `${projectFilter}_HTK:${proxyPort}`
+                            `com.docker.compose.project=${project}_HTK:${proxyPort}`
                         ]
                     }));
                     req.url = reqUrl.toString();
