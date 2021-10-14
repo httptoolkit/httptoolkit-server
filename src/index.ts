@@ -112,7 +112,8 @@ export async function runHTK(options: {
             strict: true, // For the standalone admin API, require valid CORS headers
             origin: ALLOWED_ORIGINS, // Only allow requests from our origins, to avoid XSRF
             maxAge: 86400 // Cache CORS responses for as long as possible
-        }
+        },
+        webSocketKeepAlive: 20000 // Send a keep-alive ping to Mockttp clients every minute
     });
 
     manageBackgroundServices(standalone, httpsConfig);
