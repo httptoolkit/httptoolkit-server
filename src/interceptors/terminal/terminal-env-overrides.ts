@@ -56,9 +56,9 @@ export function getTerminalEnvVars(
             : nodePrependScript
     }`;
 
-    const javaAgentOption = `-javaagent:${
+    const javaAgentOption = `-javaagent:"${
         joinPath(overridePath, JAVA_AGENT_JAR)
-    }=${httpToolkitIp}|${proxyPort}|${httpsConfig.certPath}`;
+    }"=${httpToolkitIp}|${proxyPort}|${httpsConfig.certPath}`;
 
     const binPath = joinPath(overridePath, BIN_OVERRIDE_DIR);
 
