@@ -221,10 +221,14 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
         let extraDockerCommandCount: Promise<number> | undefined;
         if (reqPath.match(BUILD_IMAGE_MATCHER)) {
             if (reqUrl.searchParams.get('remote')) {
-                res.writeHead(400, "Remote parameter is not supported").end();
+                res.writeHead(400);
                 reportError("Build interception failed due to unsupported 'remote' param");
-                // Note that this also blocks buildkit (which passes 'remote=client-session;, then opens
-                // a gRPC session, and streams context on-demand). That's OK - that's not supported either.
+
+                if (reqUrl.searchParams.get('remote') === 'client-session') {
+                    res.end("HTTP Toolkit does not yet support BuildKit-powered builds");
+                } else {
+                    res.end("HTTP Toolkit does not support intercepting remote build sources");
+                }
                 return;
             }
 
