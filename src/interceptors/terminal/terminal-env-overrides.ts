@@ -91,6 +91,8 @@ export function getTerminalEnvVars(
         'GIT_SSL_CAINFO': httpsConfig.certPath,
         // Trust cert in Rust's Cargo:
         'CARGO_HTTP_CAINFO': httpsConfig.certPath,
+        // Trust cert in CURL (only required when not using OpenSSL):
+        'CURL_CA_BUNDLE': httpsConfig.certPath,
 
         // Flag used by subprocesses to check they're running in an intercepted env
         'HTTP_TOOLKIT_ACTIVE': 'true',
