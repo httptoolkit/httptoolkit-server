@@ -1,0 +1,50 @@
+version: '3.3'
+
+# This compose file tests every network configuration I can think of, starting the same HTTP
+# app and checking self, remote & neighbour connectivity & interception. This is in addition
+# to the non-network compose file in this folder, which tests default docker-compose networks.
+
+services:
+  host:
+    build: .
+    network_mode: 'host'
+
+  none:
+    build: .
+    network_mode: 'none'
+    environment:
+      SKIP_REQUESTS: 'true'
+
+  default-service-a:
+    build: .
+    network_mode: 'bridge' # Docker's default bridge network
+
+  default-linked-service-b:
+    build: .
+    network_mode: 'bridge' # Docker's default bridge network
+    environment:
+      EXTRA_TARGET: 'http://a:9876'
+    # Links are deprecated, but should still work:
+    links:
+      - "default-service-a:a"
+
+  multi-network-a:
+    build: .
+    networks:
+      - custom_net_1
+      - custom_net_2
+    environment:
+      EXTRA_TARGET: 'http://host.docker.internal:9876' # The host container
+
+  multi-network-b:
+    build: .
+    networks:
+      - custom_net_2
+      - custom_net_3
+    environment:
+      EXTRA_TARGET: 'http://multi-network-a:9876' # Container on some shared networks
+
+networks:
+  custom_net_1:
+  custom_net_2:
+  custom_net_3:

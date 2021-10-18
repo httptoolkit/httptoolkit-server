@@ -61,7 +61,7 @@ class DnsServer extends dns2.UDPServer {
         const answers = this.getHostAddresses(question.name);
 
         if (answers.size > 1) {
-            console.log(`Multiple hosts in internal DNS for hostname ${question.name}: ${answers}`);
+            console.log(`Multiple hosts in internal DNS for hostname ${question.name}:`, answers);
         }
 
         if (answers) {

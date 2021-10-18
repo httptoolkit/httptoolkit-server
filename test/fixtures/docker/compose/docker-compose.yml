@@ -4,8 +4,8 @@ services:
   service-a:
     build: .
     environment:
-      - TARGET=service-b
+      - EXTRA_TARGET=http://service-b:9876
   service-b:
     build: .
     environment:
-      - TARGET=service-a
+      - EXTRA_TARGET=http://service-a:9876

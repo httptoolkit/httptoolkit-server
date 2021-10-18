@@ -184,12 +184,20 @@ Successfully built <hash>
         this.timeout(30000);
 
         const { server, httpsConfig, getPassThroughOptions } = await testSetup;
-        const externalRule = await server.get("https://example.test").thenReply(200, "Mock response");
-        const internalRule = await server.post().thenPassThrough(await getPassThroughOptions());
+        const externalRule = await server.anyRequest()
+            .forHost("example.test")
+            .thenReply(200, "Mock response");
+        const internalRule = await server
+            .unmatchedRequest()
+            .thenPassThrough(await getPassThroughOptions());
 
         // Create non-intercepted docker-compose containers, like normal use:
         const composeRoot = path.join(__dirname, '..', 'fixtures', 'docker', 'compose');
-        await spawnToResult('docker-compose', ['create', '--force-recreate', '--build'], { cwd: composeRoot }, true);
+        await spawnToResult(
+            'docker-compose', ['create', '--force-recreate', '--build'],
+            { cwd: composeRoot },
+            true
+        );
 
         const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env, {}, {
             dockerEnabled: true
@@ -214,9 +222,62 @@ Successfully built <hash>
 
         const seenInternalRequests = await internalRule.getSeenRequests();
         const seenInternalUrls = seenInternalRequests.map(r => r.url);
-        expect(seenInternalUrls).to.include("http://service-a:8000/");
-        expect(seenInternalUrls).to.include("http://service-b:8000/");
-        expect(seenInternalUrls).to.include("http://localhost:8000/");
+        expect(seenInternalUrls).to.include("http://service-a:9876/");
+        expect(seenInternalUrls).to.include("http://service-b:9876/");
+        expect(seenInternalUrls).to.include("http://localhost:9876/");
+        expect(seenInternalUrls).to.include("http://127.0.0.1:9876/");
+    });
+
+    it("should intercept all network modes", async function () {
+        this.timeout(30000);
+
+        const { server, httpsConfig, getPassThroughOptions } = await testSetup;
+        const externalRule = await server.anyRequest()
+            .forHost("example.test")
+            .thenReply(200, "Mock response");
+        const internalRule = await server
+            .unmatchedRequest()
+            .thenPassThrough(await getPassThroughOptions());
+
+        // Create non-intercepted docker-compose containers, like normal use:
+        const composeRoot = path.join(__dirname, '..', 'fixtures', 'docker', 'compose');
+        await spawnToResult(
+            'docker-compose', ['-f', 'docker-compose.networks.yml', 'create', '--force-recreate', '--build'],
+            { cwd: composeRoot },
+            true
+        );
+
+        const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env, {}, {
+            dockerEnabled: true
+        });
+
+        // "DC Up" the same project, but in an intercepted env. Should ignore the existing containers,
+        // create new intercepted containers, and then up those as normal.
+        const { exitCode, stdout } = await spawnToResult(
+            'docker-compose', ['-f', 'docker-compose.networks.yml', 'up'],
+            {
+                env: { ...process.env, ...terminalEnvOverrides },
+                cwd: composeRoot
+            },
+            true
+        );
+
+        expect(exitCode).to.equal(0);
+
+        const dcOutput = stdout
+            .replace(/\u001b\[\d+m/g, '') // Strip terminal colour commands
+            .replace(/\s+\|/g, ' |'); // Strip container name variable whitespace
+
+        [
+            `compose_host_1_HTK${server.port}`,
+            `compose_default-service-a_1_HTK${server.port}`,
+            `compose_default-linked-service-b_1_HTK${server.port}`,
+            `compose_multi-network-a_1_HTK${server.port}`,
+            `compose_multi-network-b_1_HTK${server.port}`
+        ].forEach((container) => {
+            expect(dcOutput).to.include(`${container} | All requests ok`);
+        });
+        expect(dcOutput).to.include(`compose_none_1_HTK${server.port} | Skipping`);
     });
 
     it("should clean up containers after shutdown", async () => {
