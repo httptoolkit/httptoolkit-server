@@ -226,13 +226,11 @@ class DockerNetworkMonitor {
     }
 
     private async refreshContainerHosts(container: Docker.ContainerInspectInfo) {
-        this.setContainerMapping(container.Id, {
-            // The container can send itself requests to its own hostname:
-            [container.Config.Hostname]: new Set(container.NetworkSettings.IPAddress),
-            // It can also have hosts configured via --add-host=host:ip, which adds them to
+        this.setContainerMapping(container.Id,
+            // Containers may have hosts configured via --add-host=host:ip, which adds them to
             // /etc/hosts. Note that we ignore conflicts here, and just pick the first result,
             // which seems to match how resolution against /etc/hosts works in general.
-            ...(_(container.HostConfig.ExtraHosts ?? [])
+            _(container.HostConfig.ExtraHosts ?? [])
                 .reverse() // We want first conflict to win, not last
                 .map((hostPair) => hostPair.split(':'))
                 .keyBy((hostParts) => hostParts[0])
@@ -245,8 +243,7 @@ class DockerNetworkMonitor {
                         : new Set([address])
                 )
                 .valueOf()
-            )
-        });
+        );
     }
 
     private async refreshAllNetworks() {
@@ -273,34 +270,70 @@ class DockerNetworkMonitor {
             return {};
         }
 
-        // Build a map of each container's aliases to its IP on this network
-        return networkContainers.reduce((aliasMap, container) => {
-            const networkConfig: Docker.EndpointSettings | undefined =
-                _.find(container.NetworkSettings.Networks, { NetworkID: networkId });
+        /*
+         * So, what names are resolveable on a network?
+         *
+         * On a default bridge network: hostnames are self-resolveable,
+         * and that's it unless links are used. No aliases are defined.
+         *
+         * On a custom bridge network: hostnames are fully resolveable, as are container
+         * ids, plus any custom aliases defined in network config. All defined in Aliases.
+         *
+         * On a host network: everything resolves as on the host (so we do nothing). Since
+         * there's no actual network involved, we never get here anyway.
+         *
+         * On any network: linked containers can be referenced by their real name or by
+         * their link alias name.
+         *
+         * Overlay etc out of scope for now.
+         */
 
-            if (!networkConfig || !networkConfig.IPAddress) return aliasMap;
+        const aliasPairs = await Promise.all(
+            networkContainers.map(async (container): Promise<Array<readonly [string, string]>> => {
+                const networkConfig: Docker.EndpointSettings | undefined =
+                    _.find(container.NetworkSettings.Networks, { NetworkID: networkId });
 
-            /*
-             * What names are resolveable on a network?
-             *
-             * On a default bridge network: hostnames are self-resolveable (handled by
-             * refreshContainerHosts), and that's it unless links are used. No aliases are defined.
-             *
-             * On a custom bridge network: hostnames are fully resolveable, as are container
-             * ids, plus any custom aliases defined in network config. All defined in Aliases.
-             *
-             * On a host network: everything resolves as on the host (so we do nothing). Since
-             * there's no actual network involved, we never get here anyway.
-             *
-             * Overlay etc out of scope for now.
-             */
+                if (!networkConfig || !networkConfig.IPAddress) return [];
 
-            const aliases = networkConfig.Aliases ?? [];
+                const aliasNames = [
+                    ...(networkConfig.Aliases || []),
+                    // We resolve hostnames here, not on container creation, because the IP isn't
+                    // set at container creation time.
+                    container.Config.Hostname
+                ];
 
-            aliases.forEach((alias) => {
-                if (!aliasMap[alias]) aliasMap[alias] = new Set();
-                aliasMap[alias].add(networkConfig.IPAddress!);
-            });
+                const aliasMap = aliasNames.map((alias) => [alias, networkConfig.IPAddress!] as const);
+
+                // This queries afresh for each linked container's info. Ignoring for now, since it's very cheap
+                // and container links are a legacy Docker feature anyway.
+                const linkStrings: string[] = container.HostConfig.Links || [];
+                const linkMap = await Promise.all(linkStrings.map(async (link) => {
+                    // Aliases are of the form:
+                    // /compose_default-service-a_1_HTK8000:/compose_linked-service-b_1_HTK8000/a
+                    // I.e. service-a is linked by service-b with alias 'a'.
+                    const endOfContainerName = link.indexOf(':/');
+                    const aliasIndex = link.lastIndexOf('/');
+
+                    const linkedContainerName = link.slice(1, endOfContainerName);
+                    const linkAlias = link.slice(aliasIndex + 1); // +1 to drop leading slash
+
+                    const linkedContainer = await this.docker.getContainer(linkedContainerName).inspect();
+                    const linkedContainerIp = linkedContainer.NetworkSettings.Networks[networkId]?.IPAddress ||
+                        linkedContainer.NetworkSettings.IPAddress;
+                    return [linkAlias, linkedContainerIp] as const;
+                }));
+
+                return [
+                    ...aliasMap,
+                    ...linkMap
+                ];
+            })
+        );
+
+        // Turn those arrays of pairs into a single string -> set map.
+        return _.flatten(aliasPairs).reduce((aliasMap, [alias, target]) => {
+            if (!aliasMap[alias]) aliasMap[alias] = new Set();
+            aliasMap[alias].add(target);
             return aliasMap;
         }, {} as { [alias: string]: Set<string> });
     }
