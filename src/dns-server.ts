@@ -37,17 +37,18 @@ class DnsServer extends dns2.UDPServer {
 
     private hostMaps: {
         [sourceId: string]: {
-            [host: string]: string[] | undefined
+            [host: string]: Set<string> | undefined
         }
     } = {};
 
-    setSourceHosts(sourceId: string, hosts: { [hostname: string]: string[] }) {
+    setSourceHosts(sourceId: string, hosts: { [hostname: string]: Set<string> }) {
         this.hostMaps[sourceId] = hosts;
     }
 
-    private getHostAddresses(hostname: string) {
+    private getHostAddresses(hostname: string): Set<string> {
         return _.flatMap(this.hostMaps, (hostMap) => hostMap[hostname])
-            .filter(h => !!h) as string[];
+            .filter(h => !!h)
+            .reduce<Set<string>>((result, set) => new Set([...result!, ...set!]), new Set());
     }
 
     handleQuery(request: dns2.DnsRequest, sendResponse: (response: dns2.DnsResponse) => void) {
@@ -59,7 +60,7 @@ class DnsServer extends dns2.UDPServer {
 
         const answers = this.getHostAddresses(question.name);
 
-        if (answers.length > 1) {
+        if (answers.size > 1) {
             console.log(`Multiple hosts in internal DNS for hostname ${question.name}: ${answers}`);
         }
 

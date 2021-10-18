@@ -135,7 +135,7 @@ class DockerNetworkMonitor {
         private docker: Docker,
         private proxyPort: number,
         private dockerEventStream: NodeJS.ReadableStream,
-        private updateCallback: (aliases: { [hostname: string]: string[] }) => void
+        private updateCallback: (aliases: { [hostname: string]: Set<string> }) => void
     ) {
         dockerEventStream.on('data', this.onEvent);
 
@@ -174,10 +174,10 @@ class DockerNetworkMonitor {
         // Merge the sets for the same hostname in multiple networks together, to create
         // a single mapping from hostnames to all possible addresses. This isn't great,
         // but hopefully in practice there will be few or zero conflicts regardless.
-        return _.assignWith<{ [hostname: string]: string [] }>({},
+        return _.assignWith<{ [hostname: string]: Set<string> }>({},
             ...Object.values(this.aliasMappings),
-            (existingIps: string[] = [], nextIps: Set<string> = new Set()) => {
-                return [...existingIps, ...nextIps.values()];
+            (existingIps: Set<string> = new Set(), nextIps: Set<string> = new Set()) => {
+                return new Set([...existingIps, ...nextIps]);
             }
         );
     }
