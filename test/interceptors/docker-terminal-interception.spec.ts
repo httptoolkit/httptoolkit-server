@@ -1,5 +1,6 @@
 import * as _ from 'lodash';
 import * as path from 'path';
+import * as childProc from 'child_process';
 import * as Docker from 'dockerode';
 
 import { expect } from 'chai';
@@ -31,7 +32,59 @@ describe('Docker CLI interception', function () {
         await server.stop();
     });
 
-    it("should intercept 'docker run'", async () => {
+    [
+        'JS',
+        'Java',
+        'Python',
+        'Ruby',
+        'Go'
+    ].forEach((target) => {
+        it(`should intercept 'docker run' of local ${target} containers`, async function () {
+            this.timeout(60000);
+
+            // Build the target image (may already have been built by the attachment tests)
+            const { exitCode: buildExitCode, stdout: buildStdout } = await spawnToResult(
+                'docker', ['build', '.', '-q'],
+                { cwd: path.join(__dirname, '..', 'fixtures', 'docker', target.toLowerCase()) },
+                true
+            );
+
+            expect(buildExitCode).to.equal(0);
+            const imageId = buildStdout.trim();
+
+            // Run the resulting container via the intercepting Docker proxy:
+            const { server, httpsConfig} = await testSetup;
+            const mainRule = await server.get('https://example.test').thenReply(200);
+
+            const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env, {}, {
+                dockerEnabled: true
+            });
+
+            childProc.spawn(
+                'docker', ['run', '--rm', imageId, 'https://example.test'],
+                {
+                    env: { ...process.env, ...terminalEnvOverrides },
+                    stdio: 'inherit'
+                }
+            );
+
+            await new Promise((resolve) => server.on('response', resolve));
+
+            const seenRequests = await mainRule.getSeenRequests();
+            expect(seenRequests.map(r => r.url)).to.include('https://example.test/');
+
+            // Clean up the container (which will otherwise run forever):
+            const docker = new Docker();
+            const containers = await docker.listContainers({
+                filters: JSON.stringify({ ancestor: [imageId] })
+            });
+            await Promise.all(
+                containers.map((container) => docker.getContainer(container.Id).kill())
+            );
+        });
+    });
+
+    it("should intercept 'docker run' launching a remote image", async () => {
         const { server, httpsConfig } = await testSetup;
 
         const mainRule = await server.get("https://example.test").thenReply(200);
