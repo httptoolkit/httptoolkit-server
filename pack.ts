@@ -36,6 +36,7 @@ const packageApp = async () => {
     await Promise.all([
         // Include the packaging & build scripts:
         'build-release.sh',
+        'prepare.ts',
         // Include package-lock.json, to keep dependencies locked:
         'package-lock.json',
         // Add the fully bundled source (not normally packaged by npm):
