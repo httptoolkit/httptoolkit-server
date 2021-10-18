@@ -17,7 +17,7 @@ import { addShutdownHandler } from '../../shutdown';
 import {
     isInterceptedContainer,
     transformContainerCreationConfig,
-    DOCKER_HOST_HOSTNAME,
+    HTTP_TOOLKIT_DOCKER_HOSTNAME,
     getDockerHostIp
 } from './docker-commands';
 import { injectIntoBuildStream, getBuildOutputPipeline } from './docker-build-injection';
@@ -247,7 +247,7 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
             if (process.platform === 'linux') {
                 reqUrl.searchParams.append(
                     'extrahosts',
-                    `${DOCKER_HOST_HOSTNAME}:${getDockerHostIp(process.platform, dockerVersion)}`
+                    `${HTTP_TOOLKIT_DOCKER_HOSTNAME}:${getDockerHostIp(process.platform, dockerVersion)}`
                 );
                 req.url = reqUrl.toString();
             }

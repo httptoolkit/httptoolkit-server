@@ -31,7 +31,7 @@ const HTTP_TOOLKIT_INJECTED_CA_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH
  *
  * On Linux this is _not_ supported, so we add it ourselves with (--add-host).
  */
-export const DOCKER_HOST_HOSTNAME = "host.docker.internal";
+export const HTTP_TOOLKIT_DOCKER_HOSTNAME = "http-toolkit-host.docker.internal";
 
 /**
  * To make the above hostname work on Linux, where it's not supported by default, we need to map it to the
@@ -41,7 +41,7 @@ export const getDockerHostIp = (platform: typeof process.platform, dockerVersion
     if (platform !== 'linux') {
         // On non-linux platforms this method isn't necessary - host.docker.internal is always supported
         // so we can just use that.
-        return DOCKER_HOST_HOSTNAME;
+        return "host.docker.internal";
     } else if (dockerVersion &&
         semver.satisfies(semver.coerce(dockerVersion)?.version ?? '0.0.0', '>=1.21')
     ) {
@@ -162,17 +162,11 @@ export function transformContainerCreationConfig(
             }
             : {}
         ),
-        ...(process.platform === 'linux'
-            // On Linux only, we need to add an explicit host to make host.docker.internal work:
-            ? {
-                ExtraHosts: [
-                    `${DOCKER_HOST_HOSTNAME}:${proxyHost}`,
-                    // Seems that first host wins conflicts, so we go before existing values
-                    ...(currentConfig.HostConfig?.ExtraHosts ?? [])
-                ]
-            }
-            : {}
-        )
+        ExtraHosts: [
+            `${HTTP_TOOLKIT_DOCKER_HOSTNAME}:${proxyHost}`,
+            // Seems that first host wins conflicts, so we go before existing values
+            ...(currentConfig.HostConfig?.ExtraHosts ?? [])
+        ]
     };
 
     // Extend that config, injecting our custom overrides:
@@ -187,7 +181,7 @@ export function transformContainerCreationConfig(
                     { certPath: HTTP_TOOLKIT_INJECTED_CA_PATH },
                     envArrayToObject(currentConfig.Env),
                     {
-                        httpToolkitIp: DOCKER_HOST_HOSTNAME,
+                        httpToolkitIp: HTTP_TOOLKIT_DOCKER_HOSTNAME,
                         overridePath: HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH,
                         targetPlatform: 'linux'
                     }
