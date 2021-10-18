@@ -174,12 +174,18 @@ class DockerNetworkMonitor {
         // Merge the sets for the same hostname in multiple networks together, to create
         // a single mapping from hostnames to all possible addresses. This isn't great,
         // but hopefully in practice there will be few or zero conflicts regardless.
-        return _.assignWith<{ [hostname: string]: Set<string> }>({},
+        const aliasMapping = _.assignWith<{ [hostname: string]: Set<string> }>({},
             ...Object.values(this.aliasMappings),
             (existingIps: Set<string> = new Set(), nextIps: Set<string> = new Set()) => {
                 return new Set([...existingIps, ...nextIps]);
             }
         );
+
+        return {
+            ...aliasMapping,
+            // Host.docker.internal is always supported as an alias for us, the host OS
+            'host.docker.internal': new Set(['127.0.0.1'])
+        };
     }
 
     onEvent = async (event: DockerEvent) => {
