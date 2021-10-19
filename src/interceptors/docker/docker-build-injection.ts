@@ -13,7 +13,7 @@ import {
     OVERRIDES_DIR
 } from '../terminal/terminal-env-overrides';
 import { getDeferred } from '../../util/promise';
-import { HTTP_TOOLKIT_DOCKER_HOSTNAME } from './docker-commands';
+import { DOCKER_HOST_HOSTNAME } from './docker-commands';
 
 const HTTP_TOOLKIT_INJECTED_PATH = '/http-toolkit-injections';
 const HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'overrides');
@@ -46,7 +46,7 @@ export function injectIntoBuildStream(
             { certPath: HTTP_TOOLKIT_INJECTED_CA_PATH },
             'runtime-inherit', // Dockerfile commands can reference vars directly
             {
-                httpToolkitIp: HTTP_TOOLKIT_DOCKER_HOSTNAME,
+                httpToolkitIp: DOCKER_HOST_HOSTNAME,
                 overridePath: HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH,
                 targetPlatform: 'linux'
             }
