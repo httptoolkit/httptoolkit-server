@@ -37,14 +37,28 @@ export const DOCKER_HOST_HOSTNAME = "host.docker.internal";
  * To make the above hostname work on Linux, where it's not supported by default, we need to map it to the
  * host ip. This method works out the host IP to use to do so.
  */
-export const getDockerHostIp = (platform: typeof process.platform, dockerVersion: string | undefined, containerMetadata?: Docker.ContainerInspectInfo) => {
+export const getDockerHostIp = (
+    platform: typeof process.platform,
+    dockerVersion: { apiVersion: string } | { engineVersion: string },
+    containerMetadata?: Docker.ContainerInspectInfo
+) => {
+    const semverVersion = semver.coerce(
+        'apiVersion' in dockerVersion
+        ? dockerVersion.apiVersion
+        : dockerVersion.engineVersion
+    );
+
     if (platform !== 'linux') {
         // On non-linux platforms this method isn't necessary - host.docker.internal is always supported
         // so we can just use that.
         return DOCKER_HOST_HOSTNAME;
-    } else if (dockerVersion &&
-        semver.satisfies(semver.coerce(dockerVersion)?.version ?? '0.0.0', '>=1.21')
+    } else if (
+        semver.satisfies(
+            semverVersion ?? '0.0.0',
+            'apiVersion' in dockerVersion ? '>=1.41' : '>=20.10'
+        )
     ) {
+        // This is supported in Docker Engine 20.10, so always supported at least in API 1.41+
         // Special name defined in new Docker versions, that refers to the host gateway
         return 'host-gateway';
     } else if (containerMetadata) {
@@ -271,7 +285,7 @@ export async function restartAndInjectContainer(
 
     const proxyHost = getDockerHostIp(
         process.platform,
-        (await docker.version()).ApiVersion,
+        { engineVersion: (await docker.version()).Version },
         containerDetails
     );
 

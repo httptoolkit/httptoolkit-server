@@ -111,7 +111,7 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
         const reqUrl = new URL(req.url!, 'http://localhost');
         const reqPath = reqUrl.pathname;
 
-        const dockerVersion = API_VERSION_MATCH.exec(reqPath)?.[1];
+        const dockerApiVersion = API_VERSION_MATCH.exec(reqPath)?.[1];
 
         monitorDockerNetworkAliases(proxyPort);
 
@@ -127,7 +127,7 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
 
             const proxyHost = getDockerHostIp(
                 process.platform,
-                dockerVersion ?? imageConfig?.DockerVersion,
+                { apiVersion: dockerApiVersion! },
             );
 
             const transformedConfig = transformContainerCreationConfig(
@@ -247,7 +247,10 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
             if (process.platform === 'linux') {
                 reqUrl.searchParams.append(
                     'extrahosts',
-                    `${DOCKER_HOST_HOSTNAME}:${getDockerHostIp(process.platform, dockerVersion)}`
+                    `${DOCKER_HOST_HOSTNAME}:${getDockerHostIp(
+                        process.platform,
+                        { apiVersion: dockerApiVersion! }
+                    )}`
                 );
                 req.url = reqUrl.toString();
             }
