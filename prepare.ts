@@ -28,7 +28,7 @@ const OVERRIDES_DIR = path.join(__dirname, 'overrides');
 (async () => {
     console.log('Installing override npm dependencies...');
 
-    await spawn('npm', ['install', '--production'], {
+    await spawn(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['install', '--production'], {
         cwd: path.join(OVERRIDES_DIR, 'js'),
         stdio: 'inherit'
     });
