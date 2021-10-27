@@ -50,7 +50,6 @@ type InterceptorSetup = TestSetup & {
 export async function setupInterceptor(interceptor: string): Promise<InterceptorSetup> {
     const testSetup = await setupTest();
     const interceptors = buildInterceptors({
-        appName: "HTTP Toolkit",
         configPath: testSetup.configPath,
         https: testSetup.httpsConfig
     });

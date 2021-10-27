@@ -1,5 +1,4 @@
 export interface HtkConfig {
-    appName: string;
     configPath: string;
     authToken?: string;
     https: {

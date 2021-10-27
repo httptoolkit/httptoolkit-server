@@ -128,7 +128,6 @@ export async function runHTK(options: {
 
     // Start the HTK server API
     const apiServer = new HttpToolkitServerApi({
-        appName: APP_NAME,
         configPath,
         authToken: options.authToken,
         https: httpsConfig

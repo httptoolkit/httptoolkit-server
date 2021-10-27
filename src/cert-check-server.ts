@@ -6,7 +6,7 @@ import { getDeferred } from './util/promise';
 const buildPage = (config: HtkConfig, style: string, script?: string, body?: string) =>
 `<html>
     <head>
-        <title>${config.appName} HTTPS Test</title>
+        <title>HTTP Toolkit HTTPS Test</title>
         <meta charset="UTF-8" />
         <link href="http://fonts.googleapis.com/css?family=Lato" rel="stylesheet" />
         <style>

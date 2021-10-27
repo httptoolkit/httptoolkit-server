@@ -27,7 +27,7 @@ export class MessageServer {
                     statusCode: 200,
                     body: `
                         <html>
-                            <title>${this.config.appName}</title>
+                            <title>HTTP Toolkit</title>
                             <meta charset="UTF-8" />
                             <link href="http://fonts.googleapis.com/css?family=Lato" rel="stylesheet" />
                             <style>

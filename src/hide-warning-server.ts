@@ -28,7 +28,7 @@ export class HideWarningServer {
 
         await this.server.get('/hide-warning').thenReply(200, `
             <html>
-                <title>${this.config.appName} Warning Fix</title>
+                <title>HTTP Toolkit Warning Fix</title>
                 <meta charset="UTF-8" />
                 <style>
                     body { background-color: #d8e2e6; }

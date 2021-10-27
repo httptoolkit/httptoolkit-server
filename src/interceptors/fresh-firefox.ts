@@ -187,7 +187,7 @@ export class FreshFirefox implements Interceptor {
     async setupFirefoxProfile() {
         const messageServer = new MessageServer(
             this.config,
-            `${this.config.appName} is preparing a Firefox profile, please wait...`
+            `HTTP Toolkit is preparing a Firefox profile, please wait...`
         );
         await messageServer.start();
 
