@@ -87,7 +87,7 @@ const pollInterval = setInterval(async () => {
         // Exit OK, but after a delay, so the other container can still make requests to us.
         setTimeout(() => {
             process.exit(0);
-        }, 1000);
+        }, 2000);
     } else {
         console.log("Requests failed with", responses.map(r => r.message || r.statusCode));
     }

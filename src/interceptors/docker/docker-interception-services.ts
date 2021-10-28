@@ -1,4 +1,5 @@
 import * as Docker from 'dockerode';
+import { ProxySettingCallback } from 'mockttp';
 
 import { addShutdownHandler } from '../../shutdown';
 
@@ -7,6 +8,7 @@ import { DOCKER_CONTAINER_LABEL } from './docker-commands';
 
 import { monitorDockerNetworkAliases, stopMonitoringDockerNetworkAliases } from './docker-networking';
 import { ensureDockerProxyRunning, stopDockerProxy } from './docker-proxy';
+import { prepareDockerTunnel, getDockerTunnelPort, stopDockerTunnel } from './docker-tunnel-proxy';
 
 export const isDockerAvailable = () => new Docker().ping().then(() => true).catch(() => false);
 
@@ -15,25 +17,41 @@ export const isDockerAvailable = () => new Docker().ping().then(() => true).catc
 // (Those images/containers are unusable without us, so leaving them breaks things).
 addShutdownHandler(async () => {
     if (!await isDockerAvailable()) return;
-    await deleteAllInterceptedDockerData('all')
+    await deleteAllInterceptedDockerData('all');
 });
 
-export function startDockerInterceptionServices(
+export async function startDockerInterceptionServices(
     proxyPort: number,
-    httpsConfig: { certPath: string, certContent: string }
+    httpsConfig: { certPath: string, certContent: string },
+    ruleParameters: { [key: `docker-tunnel-proxy-${number}`]: ProxySettingCallback }
 ) {
-    return Promise.all([
+    prepareDockerTunnel();
+    const networkMonitor = monitorDockerNetworkAliases(proxyPort);
+
+    ruleParameters[`docker-tunnel-proxy-${proxyPort}`] = async ({ hostname }: { hostname: any }) => {
+        if ((await networkMonitor)?.interceptionTargetAliases.has(hostname)) {
+            return {
+                proxyUrl: `socks5h://127.0.0.1:${await getDockerTunnelPort(proxyPort)}`
+            };
+        }
+    };
+
+    await Promise.all([
         // Proxy all terminal Docker API requests, to rewrite & add injection:
         ensureDockerProxyRunning(proxyPort, httpsConfig),
         // Monitor the intercepted containers, to resolve their names in our DNS:
-        monitorDockerNetworkAliases(proxyPort)
+        networkMonitor
     ]);
 }
 
-export async function stopDockerInterceptionServices(proxyPort: number) {
+export async function stopDockerInterceptionServices(
+    proxyPort: number,
+    ruleParameters: { [key: `docker-tunnel-proxy-${number}`]: ProxySettingCallback }
+) {
     stopDockerProxy(proxyPort);
     stopMonitoringDockerNetworkAliases(proxyPort);
     await deleteAllInterceptedDockerData(proxyPort);
+    delete ruleParameters[`docker-tunnel-proxy-${proxyPort}`];
 }
 
 // Batch deactivations - if we're already shutting down, don't shut down again until
@@ -51,6 +69,8 @@ export async function deleteAllInterceptedDockerData(proxyPort: number | 'all') 
 
     return pendingDeactivations[proxyPort] = (async () => {
         const docker = new Docker();
+
+        await stopDockerTunnel(proxyPort);
 
         const containers = await docker.listContainers({
             all: true,

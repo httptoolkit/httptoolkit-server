@@ -2,6 +2,7 @@ import * as _ from 'lodash';
 import * as path from 'path';
 import * as childProc from 'child_process';
 import * as Docker from 'dockerode';
+import { ProxySettingCallback } from 'mockttp';
 
 import { expect } from 'chai';
 
@@ -20,15 +21,20 @@ const testSetup = setupTest();
 describe('Docker CLI interception', function () {
     this.timeout(20000);
 
+    // We simulate standalone rule param config, by just writing & reading from this mutable object:
+    const ruleParams: {
+        [key: `docker-tunnel-proxy-${number}`]: ProxySettingCallback
+    } = {};
+
     beforeEach(async () => {
         const { server, httpsConfig } = await testSetup;
         await server.start();
-        await startDockerInterceptionServices(server.port, httpsConfig);
+        await startDockerInterceptionServices(server.port, httpsConfig, ruleParams);
     });
 
     afterEach(async () => {
         const { server } = await testSetup;
-        await stopDockerInterceptionServices(server.port);
+        await stopDockerInterceptionServices(server.port, ruleParams);
         await server.stop();
     });
 
@@ -183,13 +189,15 @@ Successfully built <hash>
     it("should intercept 'docker-compose up'", async function () {
         this.timeout(30000);
 
-        const { server, httpsConfig, getPassThroughOptions } = await testSetup;
+        const { server, httpsConfig } = await testSetup;
         const externalRule = await server.anyRequest()
             .forHost("example.test")
             .thenReply(200, "Mock response");
         const internalRule = await server
             .unmatchedRequest()
-            .thenPassThrough(await getPassThroughOptions());
+            .thenPassThrough({
+                proxyConfig: ruleParams[`docker-tunnel-proxy-${server.port}`]
+            });
 
         // Create non-intercepted docker-compose containers, like normal use:
         const composeRoot = path.join(__dirname, '..', 'fixtures', 'docker', 'compose');
@@ -231,13 +239,15 @@ Successfully built <hash>
     it("should intercept all network modes", async function () {
         this.timeout(30000);
 
-        const { server, httpsConfig, getPassThroughOptions } = await testSetup;
-        const externalRule = await server.anyRequest()
+        const { server, httpsConfig } = await testSetup;
+        await server.anyRequest()
             .forHost("example.test")
             .thenReply(200, "Mock response");
-        const internalRule = await server
+        await server
             .unmatchedRequest()
-            .thenPassThrough(await getPassThroughOptions());
+            .thenPassThrough({
+                proxyConfig: ruleParams[`docker-tunnel-proxy-${server.port}`]
+            });
 
         // Create non-intercepted docker-compose containers, like normal use:
         const composeRoot = path.join(__dirname, '..', 'fixtures', 'docker', 'compose');
@@ -311,7 +321,7 @@ Successfully built <hash>
         const uninterceptedContainer = await docker.getContainer(uninterceptedContainerId).inspect();
         expect(uninterceptedContainer.Config.Image).to.equal('node:14');
 
-        await stopDockerInterceptionServices(server.port);
+        await stopDockerInterceptionServices(server.port, ruleParams);
 
         const inspectResultAfterShutdown: unknown = await docker.getContainer(interceptedContainerId).inspect().catch(e => e);
         expect(inspectResultAfterShutdown).to.be.instanceOf(Error)

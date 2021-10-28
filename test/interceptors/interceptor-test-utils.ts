@@ -5,10 +5,9 @@ import * as tmp from 'tmp';
 
 import { expect } from 'chai';
 
-import { getLocal, generateCACertificate, Mockttp, requestHandlers } from 'mockttp';
+import { getLocal, generateCACertificate, Mockttp } from 'mockttp';
 
 import { buildInterceptors, Interceptor } from '../../src/interceptors';
-import { getDnsServer } from '../../src/dns-server';
 
 const getCertificateDetails = _.memoize(async (configPath: string) => {
     const keyPath = path.join(configPath, 'ca.key');
@@ -26,7 +25,6 @@ type TestSetup = {
     server: Mockttp,
     configPath: string,
     httpsConfig: { certPath: string, keyPath: string, certContent: string, keyLength: number }
-    getPassThroughOptions(): Promise<requestHandlers.PassThroughHandlerOptions>;
 };
 
 export async function setupTest(): Promise<TestSetup> {
@@ -34,13 +32,7 @@ export async function setupTest(): Promise<TestSetup> {
     const httpsConfig = await getCertificateDetails(configPath);
     const server = getLocal({ https: httpsConfig });
 
-    const getPassThroughOptions = async (): Promise<requestHandlers.PassThroughHandlerOptions> => ({
-        lookupOptions: {
-            servers: [`127.0.0.1:${(await getDnsServer(server.port)).address().port}`]
-        }
-    });
-
-    return { server, configPath, httpsConfig, getPassThroughOptions };
+    return { server, configPath, httpsConfig };
 }
 
 type InterceptorSetup = TestSetup & {

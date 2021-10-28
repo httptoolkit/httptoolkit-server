@@ -322,3 +322,28 @@ export async function restartAndInjectContainer(
     // Start everything up!
     await newContainer.start();
 }
+
+export async function execInContainer(docker: Docker, id: string, options: Docker.ExecCreateOptions) {
+    const commandName = options.Cmd?.[0].split(' ')[0];
+
+    const execProc = await docker.getContainer(id).exec({
+        ...options,
+        // Very useful for debugging the output itself:
+        AttachStdout: true,
+        AttachStderr: true
+    });
+
+    const execStream = await execProc.start({});
+    await new Promise((resolve, reject) => {
+        execStream.on('end', resolve);
+        execStream.on('error', reject);
+        execStream.pipe(process.stdout);
+    });
+
+    const result = await execProc.inspect();
+    if (result.ExitCode !== 0) {
+        throw new Error(`Docker exec '${commandName}' command failed with code ${result.ExitCode}`);
+    } else if (result.Running) {
+        throw new Error(`Docker exec '${commandName}' did not exit as expected`);
+    }
+}
