@@ -21,8 +21,7 @@ import {
     getDockerHostIp
 } from './docker-commands';
 import { injectIntoBuildStream, getBuildOutputPipeline } from './docker-build-injection';
-import { monitorDockerNetworkAliases } from './docker-networking';
-import { isDockerAvailable } from './docker-interception-services';
+import { ensureDockerServicesRunning, isDockerAvailable } from './docker-interception-services';
 
 export const getDockerPipePath = (proxyPort: number, targetPlatform: NodeJS.Platform = process.platform) => {
     if (targetPlatform === 'win32') {
@@ -113,7 +112,7 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
 
         const dockerApiVersion = API_VERSION_MATCH.exec(reqPath)?.[1];
 
-        monitorDockerNetworkAliases(proxyPort);
+        ensureDockerServicesRunning(proxyPort);
 
         // Intercept container creation (e.g. docker run):
         if (reqPath.match(CREATE_CONTAINER_MATCHER)) {

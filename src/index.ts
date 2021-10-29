@@ -19,7 +19,6 @@ import { readFile, checkAccess, writeFile, ensureDirectoryExists } from './util/
 import { registerShutdownHandler } from './shutdown';
 import { getTimeToCertExpiry, parseCert } from './certificates';
 
-import { getDnsServer, stopDnsServer } from './dns-server';
 import {
     startDockerInterceptionServices,
     stopDockerInterceptionServices
@@ -71,15 +70,20 @@ function manageBackgroundServices(
     httpsConfig: { certPath: string, certContent: string }
 ) {
     standalone.on('mock-server-started', async (server) => {
-        getDnsServer(server.port);
-        startDockerInterceptionServices(server.port, httpsConfig);
+        startDockerInterceptionServices(server.port, httpsConfig, ruleParameters);
     });
 
     standalone.on('mock-server-stopping', (server) => {
-        stopDnsServer(server.port);
-        stopDockerInterceptionServices(server.port);
+        stopDockerInterceptionServices(server.port, ruleParameters);
     });
 }
+
+// A map of rule parameters, which may be referenced by the UI, to pass configuration
+// set here directly within the Node process to Mockttp (e.g. to set callbacks etc that
+// can't be transferred through the API or which need access to server internals).
+// This is a constant but mutable dictionary, which will be modified as the appropriate
+// parameters change. Mockttp reads from the dictionary each time rules are configured.
+const ruleParameters: { [key: string]: any } = {};
 
 export async function runHTK(options: {
     configPath?: string
@@ -113,7 +117,8 @@ export async function runHTK(options: {
             origin: ALLOWED_ORIGINS, // Only allow requests from our origins, to avoid XSRF
             maxAge: 86400 // Cache CORS responses for as long as possible
         },
-        webSocketKeepAlive: 20000 // Send a keep-alive ping to Mockttp clients every minute
+        webSocketKeepAlive: 20000, // Send a keep-alive ping to Mockttp clients every minute
+        ruleParameters // Rule parameter dictionary
     });
 
     manageBackgroundServices(standalone, httpsConfig);
@@ -131,7 +136,7 @@ export async function runHTK(options: {
         configPath,
         authToken: options.authToken,
         https: httpsConfig
-    });
+    }, standalone);
 
     const updateMutex = new Mutex();
     apiServer.on('update-requested', () => {

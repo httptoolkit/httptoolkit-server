@@ -8,7 +8,7 @@ import { makeExecutableSchema } from '@graphql-tools/schema';
 import { GraphQLScalarType } from 'graphql';
 import { graphqlHTTP } from 'express-graphql';
 
-import { generateSPKIFingerprint } from 'mockttp';
+import { generateSPKIFingerprint, MockttpStandalone } from 'mockttp';
 import { getSystemProxy } from 'os-proxy-config';
 
 import { HtkConfig } from './config';
@@ -49,6 +49,7 @@ const typeDefs = `
         networkInterfaces: Json
         systemProxy: Proxy
         dnsServers(proxyPort: Int!): [String!]!
+        ruleParameterKeys: [String!]!
     }
 
     type Mutation {
@@ -112,6 +113,7 @@ const INTERCEPTOR_TIMEOUT = 1000;
 const buildResolvers = (
     config: HtkConfig,
     interceptors: _.Dictionary<Interceptor>,
+    mockttpStandalone: MockttpStandalone,
     eventEmitter: events.EventEmitter
 ) => {
     return {
@@ -135,6 +137,9 @@ const buildResolvers = (
             dnsServers: async (__: void, { proxyPort }: { proxyPort: number }): Promise<string[]> => {
                 const dnsServer = await getDnsServer(proxyPort);
                 return [`127.0.0.1:${dnsServer.address().port}`];
+            },
+            ruleParameterKeys: async (): Promise<String[]> => {
+                return mockttpStandalone.ruleParameterKeys;
             }
         },
 
@@ -270,14 +275,14 @@ export class HttpToolkitServerApi extends events.EventEmitter {
 
     private server: express.Application;
 
-    constructor(config: HtkConfig) {
+    constructor(config: HtkConfig, mockttpStandalone: MockttpStandalone) {
         super();
 
         let interceptors = buildInterceptors(config);
 
         const schema = makeExecutableSchema({
             typeDefs,
-            resolvers: buildResolvers(config, interceptors, this)
+            resolvers: buildResolvers(config, interceptors, mockttpStandalone, this)
         });
 
         this.server = express();

@@ -29,26 +29,24 @@ export async function stopDnsServer(mockServerPort: number) {
     dnsServer.stop();
 }
 
+const EMPTY_SET: ReadonlySet<string> = new Set();
+
 class DnsServer extends dns2.UDPServer {
 
     constructor() {
         super((req, sendResponse) => this.handleQuery(req, sendResponse));
     }
 
-    private hostMaps: {
-        [sourceId: string]: {
-            [host: string]: Set<string> | undefined
-        }
+    private hosts: {
+        [host: string]: ReadonlySet<string> | undefined
     } = {};
 
-    setSourceHosts(sourceId: string, hosts: { [hostname: string]: Set<string> }) {
-        this.hostMaps[sourceId] = hosts;
+    setHosts(hosts: { [hostname: string]: ReadonlySet<string> }) {
+        this.hosts = hosts;
     }
 
-    private getHostAddresses(hostname: string): Set<string> {
-        return _.flatMap(this.hostMaps, (hostMap) => hostMap[hostname])
-            .filter(h => !!h)
-            .reduce<Set<string>>((result, set) => new Set([...result!, ...set!]), new Set());
+    private getHostAddresses(hostname: string): ReadonlySet<string> {
+        return this.hosts[hostname] ?? EMPTY_SET;
     }
 
     handleQuery(request: dns2.DnsRequest, sendResponse: (response: dns2.DnsResponse) => void) {
@@ -81,6 +79,7 @@ class DnsServer extends dns2.UDPServer {
 
     start() {
         return new Promise<void>((resolve, reject) => {
+            // Only listens on localhost, only used by Mockttp itself.
             this.listen(0, '127.0.0.1');
             this.once('listening', () => resolve());
             this.once('error', reject);

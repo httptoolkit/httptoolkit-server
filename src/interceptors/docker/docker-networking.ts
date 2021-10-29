@@ -2,12 +2,14 @@ import * as _ from 'lodash';
 import * as stream from 'stream';
 import * as Docker from 'dockerode';
 import * as EventStream from 'event-stream';
+import * as mobx from 'mobx';
 
 import { reportError } from '../../error-tracking';
 
-import { getDnsServer } from '../../dns-server';
-import { isInterceptedContainer } from './docker-commands';
+import { DOCKER_HOST_HOSTNAME, isInterceptedContainer } from './docker-commands';
 import { isDockerAvailable } from './docker-interception-services';
+import { ensureDockerTunnelRunning, updateDockerTunnelledNetworks } from './docker-tunnel-proxy';
+import { getDnsServer } from '../../dns-server';
 
 interface DockerEvent {
     Type: string;
@@ -65,23 +67,25 @@ const dockerNetworkMonitors: { [proxyPort: string]: DockerNetworkMonitor | undef
 
 /**
  * Activate the network monitor for this proxy port, which will subscribe to Docker events,
- * and ensure the DNS server for this proxy port can resolve the relevant Docker container aliases.
+ * track the aliases for Docker containers that our intercepted containers might want to
+ * talk to, and ensure the DNS & tunnel for this proxy port are configured correctly for each
+ * network where we need to route & tunnel that traffic.
  *
- * This has no effect (and no downside) if the monitor is already running, so it's expected
- * that this will be called whenever a user interacts with Docker in a way related to
- * HTTP Toolkit interception for this port. It's useful to call this often, because its
- * dependent on the events stream from Docker that may be fragile and need reseting, in a way
- * that other background services (like the proxy or DNS server) are not.
+ * This method has no effect (and no downside) if the monitor is already running, so it's
+ * expected that this will be called whenever a user interacts with Docker in a way related
+ * to HTTP Toolkit interception for this port. It's useful to call this often, because its
+ * dependent on the events stream connection from Docker that may be fragile and need resetting,
+ * in a way that other background services (like the proxy or tunnel container) are not.
  *
  * Network monitors are cached and run in the background, staying alive until either the
  * the Docker event stream shuts down (i.e. Docker engine disappears or similar) or it's
  * explicitly shut down with stopMonitoringDockerNetworkAliases for this proxy port.
  */
-export async function monitorDockerNetworkAliases(proxyPort: number) {
-    if (await isDockerAvailable() && !dockerNetworkMonitors[proxyPort]) {
-        const docker = new Docker();
+export async function monitorDockerNetworkAliases(proxyPort: number): Promise<DockerNetworkMonitor | undefined> {
+    if (!await isDockerAvailable()) return undefined;
 
-        const dnsSourceId = `docker-${proxyPort}`;
+    if (!dockerNetworkMonitors[proxyPort]) {
+        const docker = new Docker();
 
         const stream = getDockerEventStream(docker);
         stream.on('error', (e) => {
@@ -89,12 +93,17 @@ export async function monitorDockerNetworkAliases(proxyPort: number) {
             reportError(e);
         });
 
-        const networkMonitor = new DockerNetworkMonitor(docker, proxyPort, stream, async (aliases) => {
-            // Any time the network changes, update our DNS server to map all the
-            // relevant aliases appropriately:
-            const dnsServer = await getDnsServer(proxyPort);
-            dnsServer.setSourceHosts(dnsSourceId, aliases);
-        });
+        ensureDockerTunnelRunning(proxyPort);
+        const dnsServer = await getDnsServer(proxyPort);
+
+        const networkMonitor = new DockerNetworkMonitor(docker, proxyPort, stream);
+        mobx.autorun(() =>
+            updateDockerTunnelledNetworks(proxyPort, networkMonitor.interceptedNetworks)
+            .catch(console.warn)
+        );
+        mobx.autorun(() =>
+            dnsServer.setHosts(networkMonitor.aliasIpMap)
+        );
 
         dockerNetworkMonitors[proxyPort] = networkMonitor;
 
@@ -106,15 +115,15 @@ export async function monitorDockerNetworkAliases(proxyPort: number) {
                 // reactivate (any hopefully the Docker stream will be usable again then)
                 delete dockerNetworkMonitors[proxyPort];
 
-                // Remove all our entries from this proxy's DNS server
-                const dnsServer = await getDnsServer(proxyPort);
-                dnsServer.setSourceHosts(dnsSourceId, {});
+                // We don't touch the tunnel container - that needs to be shut down separately.
 
                 // Unsubscribe from all events
                 networkMonitor.stop();
             }
         });
     }
+
+    return dockerNetworkMonitors[proxyPort];
 }
 
 export function stopMonitoringDockerNetworkAliases(proxyPort: number) {
@@ -125,105 +134,130 @@ export function stopMonitoringDockerNetworkAliases(proxyPort: number) {
     monitor.stop();
 }
 
+function combineSets<T>(...sets: ReadonlySet<T>[]): ReadonlySet<T> {
+    const result: T[] = [];
+    for (let set of sets) {
+        result.push(...set);
+    }
+    return new Set(result);
+}
+
+function combineSetMaps<T>(...setMaps: Array<{ [key: string]: ReadonlySet<T> }>): { [key: string]: ReadonlySet<T> } {
+    const keys = _.uniq(_.flatMap(setMaps, (mapping) => Object.keys(mapping)));
+
+    return _.fromPairs(
+        keys.map((key) =>
+            [key, combineSets(
+                ...setMaps.map((mapping) => mapping[key]).filter(set => !!set)
+            )]
+        )
+    );
+}
+
 /**
- * Network monitors track the network aliases required to resolve requests from all
- * containers that a proxy is currently intercepting.
+ * Network monitors tracks which networks the intercepted containers are connected to, and
+ * monitors the network aliases & IPs accessible on those networks.
  */
 class DockerNetworkMonitor {
 
     constructor(
         private docker: Docker,
         private proxyPort: number,
-        private dockerEventStream: NodeJS.ReadableStream,
-        private updateCallback: (aliases: { [hostname: string]: Set<string> }) => void
+        private dockerEventStream: NodeJS.ReadableStream
     ) {
-        dockerEventStream.on('data', this.onEvent);
+        // We use mobx here to automatically propagate updates whilst avoiding
+        // unnecessary updates when nothing changes.
+        mobx.makeObservable(this, {
+            'interceptedNetworks': mobx.computed.struct,
+            'dockerRoutedAliases': mobx.computed.struct,
+            'aliasIpMap': mobx.computed.struct
+        });
 
-        this.refreshAllNetworks().then(() =>
-            this.updateCallback(this.getAliasMapping())
-        );
+        dockerEventStream.on('data', this.onEvent);
+        this.refreshAllNetworks();
     }
 
     async stop() {
         this.dockerEventStream.removeListener('data', this.onEvent);
     }
 
-    private aliasMappings: {
-        [aliasSourceId: string]: { // Either network-${networkId} or container-${containerId}
-            [hostname: string]: Set<string>
+    private readonly networkTargets: {
+        [networkId: string]: {
+            [hostname: string]: ReadonlySet<string>
         }
-    } = {};
+    } = mobx.observable({});
 
-    private setContainerMapping(containerId: string, mapping: { [hostname: string]: Set<string> }) {
-        this.aliasMappings[`container-${containerId}`] = mapping;
+    // The list of networks where interception is currently active:
+    get interceptedNetworks(): string[] {
+        return Object.keys(this.networkTargets);
     }
 
-    private clearContainerMapping(containerId: string) {
-        delete this.aliasMappings[`container-${containerId}`];
+    // The list of aliases that should be resolvable by intercepted containers:
+    get dockerRoutedAliases(): ReadonlySet<string> {
+        return new Set([
+            ..._.flatten(
+                Object.values(this.networkTargets)
+                    .map((networkMap) => Object.keys(networkMap))
+            ).filter((host) =>
+                // We don't reroute the host hostname - the host is accessible from the host already
+                host !== DOCKER_HOST_HOSTNAME
+            )
+        ]);
     }
 
-    private setNetworkMapping(networkId: string, mapping: { [hostname: string]: Set<string> }) {
-        this.aliasMappings[`network-${networkId}`] = mapping;
-    }
-
-    private clearNetworkMapping(networkId: string) {
-        delete this.aliasMappings[`network-${networkId}`];
-    }
-
-    private getAliasMapping() {
-        // Merge the sets for the same hostname in multiple networks together, to create
-        // a single mapping from hostnames to all possible addresses. This isn't great,
-        // but hopefully in practice there will be few or zero conflicts regardless.
-        const aliasMapping = _.assignWith<{ [hostname: string]: Set<string> }>({},
-            ...Object.values(this.aliasMappings),
-            (existingIps: Set<string> = new Set(), nextIps: Set<string> = new Set()) => {
-                return new Set([...existingIps, ...nextIps]);
-            }
-        );
-
-        return {
-            ...aliasMapping,
-            // Host.docker.internal is always supported as an alias for us, the host OS
-            'host.docker.internal': new Set(['127.0.0.1'])
-        };
+    // The list of mappings per-network, binding aliases to their (0+) target IPs
+    get aliasIpMap(): { [host: string]: ReadonlySet<string> } {
+        return combineSetMaps(...Object.values(this.networkTargets));
     }
 
     onEvent = async (event: DockerEvent) => {
-        if (event.Type === 'network') {
-            if (event.Action === 'destroy') {
-                // If the network is deleted, we definitely don't need its aliases anymore.
-                this.clearNetworkMapping(event.Actor.ID);
-            } else {
-                // If anything else happens to any network (connecting a container, disconnecting,
-                // whatever) then it could change our aliases, so we refresh it.
-                await this.refreshNetwork(event.Actor.ID);
+        if (event.Type !== 'network') return;
+
+        if (event.Action === 'destroy') {
+            // If the network is deleted, we definitely don't need its aliases anymore.
+            const networkId = event.Actor.ID;
+            if (networkId in this.networkTargets) {
+                mobx.runInAction(() => {
+                    delete this.networkTargets[event.Actor.ID];
+                });
             }
-        }
+        } else if (event.Action === 'connect' || event.Action === 'disconnect') {
+            // If any containers are attached to the network, or removed from the network
+            // then we just update all aliases. Exact changes are a little unpredictable,
+            // and this is cheap enough to do every time:
+            const networkAliases = await this.getNetworkAliases(event.Actor.ID);
 
-        if (event.Type === 'container') {
-            if (event.Action === 'create') {
-                const container = await this.docker.getContainer(event.Actor.ID).inspect();
-                if (this.isInterceptedContainer(container)) {
-                    // When an intercepted container is started, we refresh everything, to ensure
-                    // that all network data is available. Don't need to worry about other
-                    // containers, since we get a network event for each connection change anyway.
-                    await this.refreshAllNetworks();
-
-                    // In addition to the container's network, we need to load its own locally-resolvable
-                    // addresses - i.e. localhost name & Docker-added /etc/hosts values.
-                    this.refreshContainerHosts(container);
+            mobx.runInAction(() => {
+                if (networkAliases) {
+                    this.networkTargets[event.Actor.ID] = networkAliases;
+                } else {
+                    delete this.networkTargets[event.Actor.ID];
                 }
-            }
-
-            if (event.Action === 'destroy') {
-                // Update all networks - this might enable us to remove aliases
-                // for one of our networks entirely.
-                await this.refreshAllNetworks();
-                this.clearContainerMapping(event.Actor.ID);
-            }
+            });
         }
+    }
 
-        this.updateCallback(this.getAliasMapping());
+    private async refreshAllNetworks() {
+        const networks = await this.docker.listNetworks();
+
+        const networkMap = await Promise.all(
+            networks.map(async (network) => {
+                const aliases = await this.getNetworkAliases(network.Id);
+                return [network.Id, aliases] as const;
+            })
+        );
+
+        // We update the network targets in a batch action, to avoid churn in updating
+        // the tunnel configuration later.
+        mobx.runInAction(() => {
+            networkMap.forEach(([networkId, networkAliases]) => {
+                if (networkAliases) {
+                    this.networkTargets[networkId] = networkAliases;
+                } else {
+                    delete this.networkTargets[networkId];
+                }
+            })
+        });
     }
 
     private isInterceptedContainer(container: Docker.ContainerInspectInfo) {
@@ -231,40 +265,10 @@ class DockerNetworkMonitor {
         return isInterceptedContainer(container, this.proxyPort);
     }
 
-    private async refreshContainerHosts(container: Docker.ContainerInspectInfo) {
-        this.setContainerMapping(container.Id,
-            // Containers may have hosts configured via --add-host=host:ip, which adds them to
-            // /etc/hosts. Note that we ignore conflicts here, and just pick the first result,
-            // which seems to match how resolution against /etc/hosts works in general.
-            _(container.HostConfig.ExtraHosts ?? [])
-                .reverse() // We want first conflict to win, not last
-                .map((hostPair) => hostPair.split(':'))
-                .keyBy((hostParts) => hostParts[0])
-                .mapValues<string[], string>((hostParts) =>
-                    hostParts.slice(1).join(':')
-                )
-                .mapValues((address) =>
-                    address === 'host-gateway' // Special Docker name for the host IP
-                        ? new Set(['127.0.0.1'])
-                        : new Set([address])
-                )
-                .valueOf()
-        );
-    }
-
-    private async refreshAllNetworks() {
-        const networks = await this.docker.listNetworks();
-        return Promise.all(
-            networks.map((network) => this.refreshNetwork(network.Id))
-        );
-    }
-
-    private async refreshNetwork(networkId: string) {
-        this.setNetworkMapping(networkId, await this.getNetworkAliases(networkId));
-    }
-
-    private async getNetworkAliases(networkId: string) {
+    private async getNetworkAliases(networkId: string): Promise<{ [host: string]: ReadonlySet<string> } | undefined> {
         const networkDetails: Docker.NetworkInspectInfo = await this.docker.getNetwork(networkId).inspect();
+        const isDefaultBridge = networkDetails.Options?.['com.docker.network.bridge.default_bridge'] === 'true';
+
         const networkContainers = await Promise.all(
             Object.values(networkDetails.Containers ?? {}).map((networkContainer) =>
                 this.docker.getContainer(networkContainer.Name).inspect()
@@ -273,14 +277,16 @@ class DockerNetworkMonitor {
 
         if (!networkContainers.find((container) => this.isInterceptedContainer(container))) {
             // If we're not tracking any containers in this network, we don't need its aliases.
-            return {};
+            return undefined;
         }
+
+        const aliases: Array<readonly [alias: string, targetIp: string]> = [];
 
         /*
          * So, what names are resolveable on a network?
          *
          * On a default bridge network: hostnames are self-resolveable,
-         * and that's it unless links are used. No aliases are defined.
+         * and that's it unless links are used. No aliases are defined by default.
          *
          * On a custom bridge network: hostnames are fully resolveable, as are container
          * ids, plus any custom aliases defined in network config. All defined in Aliases.
@@ -288,32 +294,65 @@ class DockerNetworkMonitor {
          * On a host network: everything resolves as on the host (so we do nothing). Since
          * there's no actual network involved, we never get here anyway.
          *
-         * On any network: linked containers can be referenced by their real name or by
-         * their link alias name.
+         * On any network: linked containers can be referenced by their real name, their
+         * their link alias name (if different), and their hostname.
          *
          * Overlay etc out of scope for now.
          */
 
-        const aliasPairs = await Promise.all(
-            networkContainers.map(async (container): Promise<Array<readonly [string, string]>> => {
-                const networkConfig: Docker.EndpointSettings | undefined =
-                    _.find(container.NetworkSettings.Networks, { NetworkID: networkId });
+        // Get each containers aliases, and the mapping for each containers custom-mapping
+        // targets (links & ExtraHosts config)
+        await Promise.all(networkContainers.map(async (container) => {
+            const networkConfig: Docker.EndpointSettings | undefined =
+                _.find(container.NetworkSettings.Networks, { NetworkID: networkId });
+            const containerIp = networkConfig?.IPAddress;
 
-                if (!networkConfig || !networkConfig.IPAddress) return [];
+            // If this container somehow isn't connected, we don't care about it - drop it
+            if (!networkConfig || !containerIp) return;
 
-                const aliasNames = [
-                    ...(networkConfig.Aliases || []),
-                    // We resolve hostnames here, not on container creation, because the IP isn't
-                    // set at container creation time.
-                    container.Config.Hostname
-                ];
+            // Every container can be accessed by its IP address directly:
+            aliases.push([containerIp, containerIp]);
 
-                const aliasMap = aliasNames.map((alias) => [alias, networkConfig.IPAddress!] as const);
+            // Every container can be accessed (at least by itself) by its hostname:
+            if (isDefaultBridge) {
+                // On the default bridge, that's only true for traffic coming from that same container:
+                if (this.isInterceptedContainer(container)) {
+                    aliases.push([container.Config.Hostname, containerIp]);
+                }
+            } else {
+                // Elsewhere it's true for *all* traffic:
+                aliases.push([container.Config.Hostname, containerIp]);
+            }
 
-                // This queries afresh for each linked container's info. Ignoring for now, since it's very cheap
-                // and container links are a legacy Docker feature anyway.
+            // Every container can be accessed by any configured aliases on this network:
+            aliases.push(...(networkConfig.Aliases || []).map((alias) =>
+                [alias, containerIp] as const
+            ));
+
+            if (this.isInterceptedContainer(container)) {
+                // Containers may have hosts configured via --add-host=host:ip, which adds them to
+                // /etc/hosts. Note that we ignore conflicts here, and just pick the first result,
+                // which seems to match how resolution against /etc/hosts works in general.
+                aliases.push(
+                    ..._(container.HostConfig.ExtraHosts ?? [])
+                    .reverse() // We want first conflict to win, not last
+                    .map((hostPair) => {
+                        const hostParts = hostPair.split(':')
+                        const alias = hostParts[0];
+                        const target = hostParts.slice(1).join(':');
+                        const targetIp = target === 'host-gateway'
+                            ? '127.0.0.1'
+                            : target;
+                        return [alias, targetIp] as const
+                    })
+                    // Drop all but the first result for each ExtraHosts alias:
+                    .uniqBy(([alias]) => alias)
+                    .valueOf()
+                );
+
+                // Containers also may have links configured (legacy, but still supported & used I think):
                 const linkStrings: string[] = container.HostConfig.Links || [];
-                const linkMap = await Promise.all(linkStrings.map(async (link) => {
+                const linkAliases = await Promise.all(linkStrings.map(async (link) => {
                     // Aliases are of the form:
                     // /compose_default-service-a_1_HTK8000:/compose_linked-service-b_1_HTK8000/a
                     // I.e. service-a is linked by service-b with alias 'a'.
@@ -323,21 +362,25 @@ class DockerNetworkMonitor {
                     const linkedContainerName = link.slice(1, endOfContainerName);
                     const linkAlias = link.slice(aliasIndex + 1); // +1 to drop leading slash
 
-                    const linkedContainer = await this.docker.getContainer(linkedContainerName).inspect();
+                    const linkedContainer = networkContainers.find(c => c.Name === linkedContainerName)
+                        // Container should always be in the same network AFAICT, but fallback to lookup just in case:
+                        ?? await this.docker.getContainer(linkedContainerName).inspect();
+
                     const linkedContainerIp = linkedContainer.NetworkSettings.Networks[networkId]?.IPAddress ||
                         linkedContainer.NetworkSettings.IPAddress;
-                    return [linkAlias, linkedContainerIp] as const;
+
+                    return [
+                        [ linkAlias, linkedContainerIp ] as const,
+                        [ linkedContainer.Name, linkedContainerIp ] as const,
+                        [ linkedContainer.Config.Hostname, linkedContainerIp ] as const
+                    ] as const;
                 }));
 
-                return [
-                    ...aliasMap,
-                    ...linkMap
-                ];
-            })
-        );
+                aliases.push(..._.flatten(linkAliases));
+            }
+        }));
 
-        // Turn those arrays of pairs into a single string -> set map.
-        return _.flatten(aliasPairs).reduce((aliasMap, [alias, target]) => {
+        return aliases.reduce((aliasMap, [alias, target]) => {
             if (!aliasMap[alias]) aliasMap[alias] = new Set();
             aliasMap[alias].add(target);
             return aliasMap;

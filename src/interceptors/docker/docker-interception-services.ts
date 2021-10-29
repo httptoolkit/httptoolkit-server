@@ -1,39 +1,82 @@
 import * as Docker from 'dockerode';
+import { ProxySettingCallback } from 'mockttp';
+import { getDnsServer } from '../../dns-server';
 
 import { addShutdownHandler } from '../../shutdown';
 
 import { DOCKER_BUILD_LABEL } from './docker-build-injection';
 import { DOCKER_CONTAINER_LABEL } from './docker-commands';
 
-import { monitorDockerNetworkAliases, stopMonitoringDockerNetworkAliases } from './docker-networking';
+import {
+    monitorDockerNetworkAliases,
+    stopMonitoringDockerNetworkAliases
+} from './docker-networking';
 import { ensureDockerProxyRunning, stopDockerProxy } from './docker-proxy';
+import {
+    prepareDockerTunnel,
+    getDockerTunnelPort,
+    ensureDockerTunnelRunning,
+    stopDockerTunnel,
+} from './docker-tunnel-proxy';
 
 export const isDockerAvailable = () => new Docker().ping().then(() => true).catch(() => false);
+
+const IPv4_IPv6_PREFIX = "::ffff:";
 
 // On shutdown, clean up every container & image that we created, disappearing
 // into the mist as if we were never here...
 // (Those images/containers are unusable without us, so leaving them breaks things).
 addShutdownHandler(async () => {
     if (!await isDockerAvailable()) return;
-    await deleteAllInterceptedDockerData('all')
+    await deleteAllInterceptedDockerData('all');
 });
 
-export function startDockerInterceptionServices(
+export async function startDockerInterceptionServices(
     proxyPort: number,
-    httpsConfig: { certPath: string, certContent: string }
+    httpsConfig: { certPath: string, certContent: string },
+    ruleParameters: { [key: `docker-tunnel-proxy-${number}`]: ProxySettingCallback }
 ) {
-    return Promise.all([
+    prepareDockerTunnel();
+    const networkMonitor = monitorDockerNetworkAliases(proxyPort);
+
+    ruleParameters[`docker-tunnel-proxy-${proxyPort}`] = async ({ hostname }: { hostname: any }) => {
+        hostname = hostname.startsWith(IPv4_IPv6_PREFIX)
+            ? hostname.slice(IPv4_IPv6_PREFIX.length)
+            : hostname;
+
+        if ((await networkMonitor)?.dockerRoutedAliases.has(hostname)) {
+            return {
+                proxyUrl: `socks5://127.0.0.1:${await getDockerTunnelPort(proxyPort)}`
+            };
+        }
+    };
+
+    await Promise.all([
         // Proxy all terminal Docker API requests, to rewrite & add injection:
         ensureDockerProxyRunning(proxyPort, httpsConfig),
+        // Ensure the DNS server is running to handle unresolvable container addresses:
+        getDnsServer(proxyPort),
         // Monitor the intercepted containers, to resolve their names in our DNS:
-        monitorDockerNetworkAliases(proxyPort)
+        networkMonitor
     ]);
 }
 
-export async function stopDockerInterceptionServices(proxyPort: number) {
+export async function ensureDockerServicesRunning(proxyPort: number) {
+    await Promise.all([
+        monitorDockerNetworkAliases(proxyPort),
+        ensureDockerTunnelRunning(proxyPort),
+        getDnsServer(proxyPort)
+    ]);
+}
+
+export async function stopDockerInterceptionServices(
+    proxyPort: number,
+    ruleParameters: { [key: `docker-tunnel-proxy-${number}`]: ProxySettingCallback }
+) {
     stopDockerProxy(proxyPort);
     stopMonitoringDockerNetworkAliases(proxyPort);
     await deleteAllInterceptedDockerData(proxyPort);
+    delete ruleParameters[`docker-tunnel-proxy-${proxyPort}`];
 }
 
 // Batch deactivations - if we're already shutting down, don't shut down again until
@@ -48,9 +91,12 @@ const pendingDeactivations: {
 // without us anyway, as they all depend on HTTP Toolkit for connectivity.
 export async function deleteAllInterceptedDockerData(proxyPort: number | 'all') {
     if (pendingDeactivations[proxyPort]) return pendingDeactivations[proxyPort];
+    if (!await isDockerAvailable()) return;
 
     return pendingDeactivations[proxyPort] = (async () => {
         const docker = new Docker();
+
+        await stopDockerTunnel(proxyPort);
 
         const containers = await docker.listContainers({
             all: true,
