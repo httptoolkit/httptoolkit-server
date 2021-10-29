@@ -5,8 +5,11 @@ import { Interceptor } from "..";
 import { HtkConfig } from '../../config';
 
 import { DOCKER_CONTAINER_LABEL, restartAndInjectContainer } from './docker-commands';
-import { monitorDockerNetworkAliases } from './docker-networking';
-import { deleteAllInterceptedDockerData, isDockerAvailable } from './docker-interception-services';
+import {
+    isDockerAvailable,
+    ensureDockerServicesRunning,
+    deleteAllInterceptedDockerData
+} from './docker-interception-services';
 
 export class DockerContainerInterceptor implements Interceptor {
 
@@ -66,7 +69,7 @@ export class DockerContainerInterceptor implements Interceptor {
             certPath: this.config.https.certPath,
         } as const;
 
-        monitorDockerNetworkAliases(proxyPort);
+        ensureDockerServicesRunning(proxyPort);
         await restartAndInjectContainer(this.docker, options.containerId, interceptionSettings);
     }
 

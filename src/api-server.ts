@@ -16,6 +16,7 @@ import { reportError, addBreadcrumb } from './error-tracking';
 import { buildInterceptors, Interceptor, ActivationError } from './interceptors';
 import { ALLOWED_ORIGINS } from './constants';
 import { delay } from './util/promise';
+import { getDnsServer } from './dns-server';
 
 const ENABLE_PLAYGROUND = false;
 
@@ -131,10 +132,9 @@ const buildResolvers = (
                 reportError(e);
                 return undefined;
             }),
-            dnsServers: async (): Promise<string[]> => {
-                // Briefly implemented as part of implementing Docker, but ultimately unnecessary. Kept
-                // for API compatibility and in case we do need custom DNS resolution capabilities in future.
-                return [];
+            dnsServers: async (__: void, { proxyPort }: { proxyPort: number }): Promise<string[]> => {
+                const dnsServer = await getDnsServer(proxyPort);
+                return [`127.0.0.1:${dnsServer.address().port}`];
             },
             ruleParameterKeys: async (): Promise<String[]> => {
                 return mockttpStandalone.ruleParameterKeys;

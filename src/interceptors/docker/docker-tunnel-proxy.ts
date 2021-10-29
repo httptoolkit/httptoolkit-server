@@ -3,7 +3,7 @@ import * as Docker from 'dockerode';
 import * as semver from 'semver';
 import { Mutex } from 'async-mutex';
 
-import { DOCKER_HOST_HOSTNAME, execInContainer } from './docker-commands';
+import { DOCKER_HOST_HOSTNAME } from './docker-commands';
 import { isDockerAvailable } from './docker-interception-services';
 
 const DOCKER_TUNNEL_IMAGE = "httptoolkit/docker-socks-tunnel:v1.1.0";
@@ -34,11 +34,8 @@ export async function ensureDockerTunnelRunning(proxyPort: number) {
         const docker = new Docker();
 
         // Make sure we have the image available (should've been pre-pulled, but just in case)
-        let image = await docker.getImage(DOCKER_TUNNEL_IMAGE)
-            .inspect().catch(() => undefined);
-        if (!image) {
+        if (!await docker.getImage(DOCKER_TUNNEL_IMAGE).inspect().catch(() => false)) {
             await docker.pull(DOCKER_TUNNEL_IMAGE);
-            image = await docker.getImage(DOCKER_TUNNEL_IMAGE).inspect();
         }
 
         // Ensure we have a ready-to-use container here:
@@ -60,7 +57,7 @@ export async function ensureDockerTunnelRunning(proxyPort: number) {
 
             await docker.createContainer({
                 name: containerName,
-                Image: image.Id,
+                Image: DOCKER_TUNNEL_IMAGE,
                 Labels: {
                     [DOCKER_TUNNEL_LABEL]: String(proxyPort)
                 },
@@ -99,12 +96,6 @@ export async function ensureDockerTunnelRunning(proxyPort: number) {
         // Make sure the tunneling container is running:
         if (!container.State.Running) {
             await docker.getContainer(container.Id).start();
-
-            // Back up the initial hosts file, so we can dynamically modify it later:
-            await execInContainer(docker, containerName, {
-                User: '0', // Run as root
-                Cmd: ['cp', '/etc/hosts', '/etc/hosts.initial']
-            });
         }
     });
 }
@@ -125,11 +116,9 @@ export async function updateDockerTunnelledNetworks(
     }).then(([builtinBridge]) => builtinBridge?.Id);
 
     const containerName = getDockerTunnelContainerName(proxyPort);
-    await docker.getContainer(containerName).inspect().catch((e) => {
-        if (e.statusCode === 404) {
-            return ensureDockerTunnelRunning(proxyPort);
-        }
-    });
+    await docker.getContainer(containerName).inspect().catch(() =>
+        ensureDockerTunnelRunning(proxyPort)
+    );
 
     await containerMutex.runExclusive(async () => {
         // Inspect() must happen inside the lock to avoid any possible races.
@@ -161,42 +150,6 @@ export async function updateDockerTunnelledNetworks(
                     .disconnect({ Container: container!.Id })
             ),
         ]);
-    });
-}
-
-// Update the tunnel's mapped network aliases. If the container isn't running, this
-// will automatically run ensureDockerTunnelRunning to bring it back up.
-export async function updateDockerTunnelledMappedAliases(
-    proxyPort: number,
-    mappedTargets: Array<{ alias: string, to: string }>
-) {
-    const docker = new Docker();
-
-    const containerName = getDockerTunnelContainerName(proxyPort);
-    let container = await docker.getContainer(containerName)
-        .inspect().catch(() => undefined);
-    if (!container) {
-        // Can't get the container - recreate it first, then continue.
-        await ensureDockerTunnelRunning(proxyPort);
-        container = await docker.getContainer(containerName).inspect();
-    }
-
-    const hostsString = mappedTargets.map(({ alias, to }) =>
-        `${to}	${alias}`
-    ).join('\n');
-
-    // Now we overwrite /etc/hosts with this mapping string. This is a bit hacky, but it's
-    // fairly quick and reliable, so let's just roll with it for a minute.
-    await containerMutex.runExclusive(async () => {
-        // Now we need to actually write this back into the container. That's difficult, because
-        // /etc/hosts is writable but not removable - so we can't copy a new file in or similar.
-        // Instead, we (ab)use bash's convenient goodies to modify it in place:
-        await execInContainer(docker, containerName, {
-            User: '0',
-            Cmd: ['/bin/sh', '-c',
-                `echo "${hostsString}" | cat - /etc/hosts.initial > /etc/hosts`
-            ]
-        });
     });
 }
 

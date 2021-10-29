@@ -1,14 +1,23 @@
 import * as Docker from 'dockerode';
 import { ProxySettingCallback } from 'mockttp';
+import { getDnsServer } from '../../dns-server';
 
 import { addShutdownHandler } from '../../shutdown';
 
 import { DOCKER_BUILD_LABEL } from './docker-build-injection';
 import { DOCKER_CONTAINER_LABEL } from './docker-commands';
 
-import { monitorDockerNetworkAliases, stopMonitoringDockerNetworkAliases } from './docker-networking';
+import {
+    monitorDockerNetworkAliases,
+    stopMonitoringDockerNetworkAliases
+} from './docker-networking';
 import { ensureDockerProxyRunning, stopDockerProxy } from './docker-proxy';
-import { prepareDockerTunnel, getDockerTunnelPort, stopDockerTunnel } from './docker-tunnel-proxy';
+import {
+    prepareDockerTunnel,
+    getDockerTunnelPort,
+    ensureDockerTunnelRunning,
+    stopDockerTunnel,
+} from './docker-tunnel-proxy';
 
 export const isDockerAvailable = () => new Docker().ping().then(() => true).catch(() => false);
 
@@ -30,8 +39,11 @@ export async function startDockerInterceptionServices(
 
     ruleParameters[`docker-tunnel-proxy-${proxyPort}`] = async ({ hostname }: { hostname: any }) => {
         if ((await networkMonitor)?.interceptionTargetAliases.has(hostname)) {
+            // We proxy with socks5, not socks5h, so that DNS resolution happens on the Mockttp side,
+            // using our DNS, which can resolve various names (container-only self-hostnames, links)
+            // that Docker cannot automatically resolve for us, even from within the tunnel.
             return {
-                proxyUrl: `socks5h://127.0.0.1:${await getDockerTunnelPort(proxyPort)}`
+                proxyUrl: `socks5://127.0.0.1:${await getDockerTunnelPort(proxyPort)}`
             };
         }
     };
@@ -39,8 +51,18 @@ export async function startDockerInterceptionServices(
     await Promise.all([
         // Proxy all terminal Docker API requests, to rewrite & add injection:
         ensureDockerProxyRunning(proxyPort, httpsConfig),
+        // Ensure the DNS server is running to handle unresolvable container addresses:
+        getDnsServer(proxyPort),
         // Monitor the intercepted containers, to resolve their names in our DNS:
         networkMonitor
+    ]);
+}
+
+export async function ensureDockerServicesRunning(proxyPort: number) {
+    await Promise.all([
+        monitorDockerNetworkAliases(proxyPort),
+        ensureDockerTunnelRunning(proxyPort),
+        getDnsServer(proxyPort)
     ]);
 }
 
@@ -66,6 +88,7 @@ const pendingDeactivations: {
 // without us anyway, as they all depend on HTTP Toolkit for connectivity.
 export async function deleteAllInterceptedDockerData(proxyPort: number | 'all') {
     if (pendingDeactivations[proxyPort]) return pendingDeactivations[proxyPort];
+    if (!await isDockerAvailable()) return;
 
     return pendingDeactivations[proxyPort] = (async () => {
         const docker = new Docker();
