@@ -5,16 +5,16 @@ type ShutdownHandler = () => Promise<unknown>;
 const shutdownHandlers: Array<ShutdownHandler> = [];
 
 export function registerShutdownHandler() {
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 export function addShutdownHandler(handler: ShutdownHandler) {
     shutdownHandlers.push(handler);
 }
 
-async function shutdown() {
-    console.log('Shutting down...');
+export async function shutdown(cause: string) {
+    console.log(`Shutting down after ${cause}...`);
 
     const shutdownPromises = Promise.all(shutdownHandlers.map(
         async (handler) => {

@@ -17,6 +17,7 @@ import { buildInterceptors, Interceptor, ActivationError } from './interceptors'
 import { ALLOWED_ORIGINS } from './constants';
 import { delay } from './util/promise';
 import { getDnsServer } from './dns-server';
+import { shutdown } from './shutdown';
 
 const ENABLE_PLAYGROUND = false;
 
@@ -61,6 +62,7 @@ const typeDefs = `
             proxyPort: Int!
         ): Boolean!
         triggerUpdate: Void
+        shutdown: Void
     }
 
     type InterceptionConfig {
@@ -177,6 +179,13 @@ const buildResolvers = (
             },
             triggerUpdate: () => {
                 eventEmitter.emit('update-requested');
+            },
+            // On Windows, there's no clean way to send signals between processes to trigger graceful
+            // shutdown. To handle that, we use HTTP from the desktop shell, instead of inter-process
+            // signals. This completely shuts down the server, not just a single proxy endpoint, and
+            // should only be called once the app is fully exiting.
+            shutdown: () => {
+                shutdown('API call');
             }
         },
 
