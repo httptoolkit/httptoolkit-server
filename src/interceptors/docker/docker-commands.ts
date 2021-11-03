@@ -70,6 +70,12 @@ export const getDockerHostIp = (
     }
 }
 
+export function isImageAvailable(docker: Docker, name: string) {
+    return docker.getImage(name).inspect()
+        .then(() => true)
+        .catch(() => false);
+}
+
 export function isInterceptedContainer(container: Docker.ContainerInspectInfo, port: string | number) {
     return container.Config.Labels[DOCKER_CONTAINER_LABEL] === port.toString();
 }

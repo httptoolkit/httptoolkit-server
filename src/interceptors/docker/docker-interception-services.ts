@@ -36,6 +36,9 @@ export async function startDockerInterceptionServices(
     httpsConfig: { certPath: string, certContent: string },
     ruleParameters: { [key: `docker-tunnel-proxy-${number}`]: ProxySettingCallback }
 ) {
+    // Prepare (pull) the tunnel image, but we don't actually start the tunnel itself until some
+    // Docker interception happens while HTTP Toolkit is running - e.g. proxy use, container attach,
+    // or an intercepted container connecting to a network.
     prepareDockerTunnel();
     const networkMonitor = monitorDockerNetworkAliases(proxyPort);
 
