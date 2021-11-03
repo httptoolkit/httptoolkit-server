@@ -269,6 +269,12 @@ class DockerNetworkMonitor {
         const networkDetails: Docker.NetworkInspectInfo = await this.docker.getNetwork(networkId).inspect();
         const isDefaultBridge = networkDetails.Options?.['com.docker.network.bridge.default_bridge'] === 'true';
 
+        if (networkDetails.Driver === 'null' || networkDetails.Driver === 'host') {
+            // We can't (and shouldn't - it's inaccessible) join and route into the null 'none' network
+            // We can't (and don't need to - it's always host-accessible) join and route into the 'host' network
+            return undefined;
+        }
+
         const networkContainers = await Promise.all(
             Object.values(networkDetails.Containers ?? {}).map((networkContainer) =>
                 this.docker.getContainer(networkContainer.Name).inspect()
