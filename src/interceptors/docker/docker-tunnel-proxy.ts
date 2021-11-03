@@ -97,6 +97,9 @@ export async function ensureDockerTunnelRunning(proxyPort: number) {
         if (!container.State.Running) {
             await docker.getContainer(container.Id).start();
         }
+
+        // Asynchronously, update the Docker port that's in use for this container.
+        portCache[proxyPort] = refreshDockerTunnelPortCache(proxyPort);
     });
 }
 
@@ -153,22 +156,59 @@ export async function updateDockerTunnelledNetworks(
     });
 }
 
-export async function getDockerTunnelPort(proxyPort: number): Promise<number> {
-    const docker = new Docker();
+// A map of proxy port (e.g. 8000) to the automatically mapped Docker tunnel port.
+// Refreshed if it's somehow missing, or on every call to ensureDockerTunnelRunning(), e.g.
+// async at every docker-proxy request & every container interception.
+const portCache: { [proxyPort: string]: number | Promise<number> | undefined } = {};
 
-    const containerName = getDockerTunnelContainerName(proxyPort);
-    let container = await docker.getContainer(containerName)
-        .inspect().catch(() => undefined);
-    if (!container) {
-        // Can't get the container - recreate it first, then continue.
-        await ensureDockerTunnelRunning(proxyPort);
-        container = await docker.getContainer(containerName).inspect();
+export async function getDockerTunnelPort(proxyPort: number): Promise<number> {
+    if (!portCache[proxyPort]) {
+        // Update the port and wait for the query to complete:
+        portCache[proxyPort] = refreshDockerTunnelPortCache(proxyPort);
     }
 
-    const portMappings = container.NetworkSettings.Ports['1080/tcp'];
-    const localPort = _.find(portMappings, ({ HostIp }) => HostIp === '127.0.0.1');
-    if (!localPort) throw new Error("No port mapped for Docker tunnel");
-    return parseInt(localPort.HostPort, 10);
+    return portCache[proxyPort]!;
+}
+
+export async function refreshDockerTunnelPortCache(proxyPort: number): Promise<number> {
+    try {
+        if (_.isObject(portCache[proxyPort])) {
+            // If there's an existing promise refreshing this data, then don't duplicate:
+            return portCache[proxyPort]!
+        }
+
+        const docker = new Docker();
+
+        const containerName = getDockerTunnelContainerName(proxyPort);
+        let container = await docker.getContainer(containerName)
+            .inspect().catch(() => undefined);
+        if (!container) {
+            // Can't get the container - recreate it (refreshing the port automatically)
+            return ensureDockerTunnelRunning(proxyPort)
+                .then(() => getDockerTunnelPort(proxyPort));
+        }
+
+        const portMappings = container.NetworkSettings.Ports['1080/tcp'];
+        const localPort = _.find(portMappings, ({ HostIp }) => HostIp === '127.0.0.1');
+
+        if (!localPort) {
+            // This can happen if the networks of the container are changed manually. In some cases
+            // this can result in the mapping being lots. Kill & restart the container.
+            return docker.getContainer(containerName).kill()
+                .then(() => ensureDockerTunnelRunning(proxyPort))
+                .then(() => getDockerTunnelPort(proxyPort));
+        }
+
+        const port = parseInt(localPort.HostPort, 10);
+
+        portCache[proxyPort] = port;
+        return port;
+    } catch (e) {
+        // If something goes wrong, reset the port cache, to ensure that future checks
+        // will query again from scratch:
+        portCache[proxyPort] = undefined;
+        throw e;
+    }
 }
 
 export async function stopDockerTunnel(proxyPort: number | 'all'): Promise<void> {
