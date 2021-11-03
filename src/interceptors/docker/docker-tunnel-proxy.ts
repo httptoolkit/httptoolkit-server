@@ -3,7 +3,7 @@ import * as Docker from 'dockerode';
 import * as semver from 'semver';
 import { Mutex } from 'async-mutex';
 
-import { DOCKER_HOST_HOSTNAME } from './docker-commands';
+import { DOCKER_HOST_HOSTNAME, isImageAvailable } from './docker-commands';
 import { isDockerAvailable } from './docker-interception-services';
 
 const DOCKER_TUNNEL_IMAGE = "httptoolkit/docker-socks-tunnel:v1.1.0";
@@ -22,7 +22,8 @@ export async function prepareDockerTunnel() {
 
     await containerMutex.runExclusive(async () => {
         const docker = new Docker();
-        await docker.pull(DOCKER_TUNNEL_IMAGE).catch(console.warn);
+        if (await isImageAvailable(docker, DOCKER_TUNNEL_IMAGE)) return;
+        else await docker.pull(DOCKER_TUNNEL_IMAGE).catch(console.warn);
     });
 }
 
@@ -234,7 +235,7 @@ export async function refreshDockerTunnelPortCache(proxyPort: number): Promise<n
 export async function stopDockerTunnel(proxyPort: number | 'all'): Promise<void> {
     const docker = new Docker();
 
-    containerMutex.runExclusive(async () => {
+    await containerMutex.runExclusive(async () => {
         const containers = await docker.listContainers({
             all: true,
             filters: JSON.stringify({

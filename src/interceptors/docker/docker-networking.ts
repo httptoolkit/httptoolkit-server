@@ -8,7 +8,7 @@ import { reportError } from '../../error-tracking';
 
 import { DOCKER_HOST_HOSTNAME, isInterceptedContainer } from './docker-commands';
 import { isDockerAvailable } from './docker-interception-services';
-import { ensureDockerTunnelRunning, updateDockerTunnelledNetworks } from './docker-tunnel-proxy';
+import { updateDockerTunnelledNetworks } from './docker-tunnel-proxy';
 import { getDnsServer } from '../../dns-server';
 
 interface DockerEvent {
@@ -93,16 +93,19 @@ export async function monitorDockerNetworkAliases(proxyPort: number): Promise<Do
             reportError(e);
         });
 
-        ensureDockerTunnelRunning(proxyPort);
         const dnsServer = await getDnsServer(proxyPort);
 
         const networkMonitor = new DockerNetworkMonitor(docker, proxyPort, stream);
-        mobx.autorun(() =>
-            updateDockerTunnelledNetworks(proxyPort, networkMonitor.interceptedNetworks)
-            .catch(console.warn)
-        );
-        mobx.autorun(() =>
-            dnsServer.setHosts(networkMonitor.aliasIpMap)
+
+        // We update DNS immediately, and on all changes:
+        mobx.autorun(() => dnsServer.setHosts(networkMonitor.aliasIpMap));
+
+        // We update tunnel _only_ once something is actually intercepted - once interceptedNetworks changes.
+        // We don't want to create the tunnel container unless Docker interception is actually used.
+        mobx.reaction(
+            () => networkMonitor.interceptedNetworks,
+            (interceptedNetworks) => updateDockerTunnelledNetworks(proxyPort, interceptedNetworks)
+                .catch(console.warn)
         );
 
         dockerNetworkMonitors[proxyPort] = networkMonitor;

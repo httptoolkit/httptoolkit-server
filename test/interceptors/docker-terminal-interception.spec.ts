@@ -8,6 +8,7 @@ import { expect } from 'chai';
 
 import { setupTest } from './interceptor-test-utils';
 import { spawnToResult } from '../../src/util/process-management';
+import { delay } from '../../src/util/promise';
 
 import { getTerminalEnvVars } from '../../src/interceptors/terminal/terminal-env-overrides';
 
@@ -325,12 +326,53 @@ Successfully built <hash>
 
         await stopDockerInterceptionServices(server.port, ruleParams);
 
+        // Intercepted container is removed:
         const inspectResultAfterShutdown: unknown = await docker.getContainer(interceptedContainerId).inspect().catch(e => e);
         expect(inspectResultAfterShutdown).to.be.instanceOf(Error)
         expect((inspectResultAfterShutdown as Error).message).to.include("no such container");
 
+        // Unintercepted container is not touched:
         const uninterceptedContainerAfterShutdown = await docker.getContainer(uninterceptedContainerId).inspect();
         expect(uninterceptedContainerAfterShutdown.Config.Image).to.equal('node:14');
+    });
+
+    it("should start & clean up tunnel automatically", async () => {
+        const { server, httpsConfig } = await testSetup;
+        const docker = new Docker();
+
+        const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env, {}, {
+            dockerEnabled: true
+        });
+
+        // Tunnel doesn't start preemptively:
+        await delay(500);
+        let tunnel = await docker.getContainer(`httptoolkit-docker-tunnel-${server.port}`).inspect().catch(e => e);
+        expect(tunnel).to.be.instanceOf(Error)
+        expect((tunnel as Error).message).to.include("no such container");
+
+        // Then launch an intercepted container:
+        const interceptedResult = await spawnToResult(
+            'docker', ['create', 'node:14'],
+            { env: { ...process.env, ...terminalEnvOverrides } },
+            true
+        );
+
+        expect(interceptedResult.exitCode).to.equal(0);
+        expect(interceptedResult.stderr).to.equal('');
+
+        await delay(100); // There can be a brief delay in CI in starting the tunnel itself
+
+        // Tunnel is now running:
+        tunnel = await docker.getContainer(`httptoolkit-docker-tunnel-${server.port}`).inspect();
+        expect(tunnel.Config.Image.split(':')[0]).to.equal('httptoolkit/docker-socks-tunnel');
+
+        // Then shut everything down:
+        await stopDockerInterceptionServices(server.port, ruleParams);
+
+        // Tunnel is automatically removed:
+        tunnel = await docker.getContainer(`httptoolkit-docker-tunnel-${server.port}`).inspect().catch(e => e);
+        expect(tunnel).to.be.instanceOf(Error)
+        expect((tunnel as Error).message).to.include("no such container");
     });
 
 });
