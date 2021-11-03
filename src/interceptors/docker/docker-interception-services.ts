@@ -114,8 +114,7 @@ export async function deleteAllInterceptedDockerData(proxyPort: number | 'all') 
 
             // Best efforts clean stop & remove:
             await container.stop({ t: 1 }).catch(() => {});
-            await container.kill().catch(() => {});
-            await container.remove().catch(() => {});
+            await container.remove({ force: true }).catch(() => {});
         }));
 
         // We clean up images after containers, in case some containers depended

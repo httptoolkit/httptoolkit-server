@@ -125,7 +125,15 @@ export async function updateDockerTunnelledNetworks(
 
     await containerMutex.runExclusive(async () => {
         // Inspect() must happen inside the lock to avoid any possible races.
-        let container = await docker.getContainer(containerName).inspect();
+        const container = await docker.getContainer(containerName).inspect()
+            .catch(() => undefined);
+
+        if (!container) {
+            // We checked this before, so if it's now missing again then we're probably in
+            // some race where the tunnel & other containers are being stopped en masse, or
+            // some odd shutdown condition. Not the end of the world - just skip this update.
+            return;
+        }
 
         const expectedNetworks = _.uniq([
             ...interceptedNetworks,
@@ -158,7 +166,7 @@ export async function updateDockerTunnelledNetworks(
 
 // A map of proxy port (e.g. 8000) to the automatically mapped Docker tunnel port.
 // Refreshed if it's somehow missing, or on every call to ensureDockerTunnelRunning(), e.g.
-// async at every docker-proxy request & every container interception.
+// async at every docker-proxy request, every network event & every container interception.
 const portCache: { [proxyPort: string]: number | Promise<number> | undefined } = {};
 
 export async function getDockerTunnelPort(proxyPort: number): Promise<number> {
@@ -228,8 +236,7 @@ export async function stopDockerTunnel(proxyPort: number | 'all'): Promise<void>
 
         await Promise.all(containers.map(async (containerData) => {
             const container = docker.getContainer(containerData.Id);
-            await container.kill().catch(() => {});
-            await container.remove().catch(() => {});
+            await container.remove({ force: true }).catch(() => {});
         }));
     });
 }
