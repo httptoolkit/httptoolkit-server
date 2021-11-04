@@ -21,6 +21,7 @@ export async function prepareDockerTunnel() {
     if (!await isDockerAvailable()) return;
 
     await containerMutex.runExclusive(async () => {
+        console.log('pull got lock');
         const docker = new Docker();
         if (await isImageAvailable(docker, DOCKER_TUNNEL_IMAGE)) return;
         else await docker.pull(DOCKER_TUNNEL_IMAGE).catch(console.warn);
@@ -38,7 +39,9 @@ export function ensureDockerTunnelRunning(proxyPort: number) {
         return ongoingEnsureTunnelRunningChecks[proxyPort]!;
     }
 
+    console.log('ensure tunnel running on port', proxyPort);
     ongoingEnsureTunnelRunningChecks[proxyPort] = containerMutex.runExclusive(async () => {
+        console.log('ensure got lock');
         const docker = new Docker();
 
         // Make sure we have the image available (should've been pre-pulled, but just in case)
@@ -104,6 +107,7 @@ export function ensureDockerTunnelRunning(proxyPort: number) {
         // Make sure the tunneling container is running:
         if (!container.State.Running) {
             await docker.getContainer(container.Id).start();
+            console.log('started tunnel container');
         }
 
         // Asynchronously, update the Docker port that's in use for this container.
@@ -122,6 +126,8 @@ export async function updateDockerTunnelledNetworks(
     proxyPort: number,
     interceptedNetworks: string[]
 ) {
+    console.log('update docker networks', interceptedNetworks);
+
     const docker = new Docker();
 
     const defaultBridgeId = docker.listNetworks({
@@ -131,12 +137,15 @@ export async function updateDockerTunnelledNetworks(
         })
     }).then(([builtinBridge]) => builtinBridge?.Id);
 
+    console.log('checking container');
     const containerName = getDockerTunnelContainerName(proxyPort);
     await docker.getContainer(containerName).inspect().catch(() =>
         ensureDockerTunnelRunning(proxyPort)
     );
+    console.log('checked');
 
     await containerMutex.runExclusive(async () => {
+        console.log('update got lock');
         // Inspect() must happen inside the lock to avoid any possible races.
         const container = await docker.getContainer(containerName).inspect()
             .catch(() => undefined);
@@ -234,8 +243,10 @@ export async function refreshDockerTunnelPortCache(proxyPort: number): Promise<n
 
 export async function stopDockerTunnel(proxyPort: number | 'all'): Promise<void> {
     const docker = new Docker();
+    console.log('stopping docker tunnel');
 
     await containerMutex.runExclusive(async () => {
+        console.log('stop got lock');
         const containers = await docker.listContainers({
             all: true,
             filters: JSON.stringify({
@@ -252,4 +263,6 @@ export async function stopDockerTunnel(proxyPort: number | 'all'): Promise<void>
             await container.remove({ force: true }).catch(() => {});
         }));
     });
+
+    console.log('stopped docker tunnel');
 }

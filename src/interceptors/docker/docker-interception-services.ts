@@ -99,7 +99,9 @@ export async function deleteAllInterceptedDockerData(proxyPort: number | 'all') 
     return pendingDeactivations[proxyPort] = (async () => {
         const docker = new Docker();
 
+        console.log('stopping');
         await stopDockerTunnel(proxyPort);
+        console.log('stopped');
 
         const containers = await docker.listContainers({
             all: true,
