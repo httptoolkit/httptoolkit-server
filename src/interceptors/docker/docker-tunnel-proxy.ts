@@ -26,11 +26,18 @@ export async function prepareDockerTunnel() {
     });
 }
 
+// We use this to avoid duplicate ensureRunning calls - collapsing them instead into a single promise.
+const ongoingEnsureTunnelRunningChecks: { [port: number]: Promise<void> | undefined } = {};
+
 // Fully check that the container is created, up & running, recreating it if not.
 // This does *not* connect any networks, so most usage will need to connect up the
 // networks with updateTunnelledNetworks afterwards.
-export async function ensureDockerTunnelRunning(proxyPort: number) {
-    await containerMutex.runExclusive(async () => {
+export function ensureDockerTunnelRunning(proxyPort: number) {
+    if (ongoingEnsureTunnelRunningChecks[proxyPort]) {
+        return ongoingEnsureTunnelRunningChecks[proxyPort]!;
+    }
+
+    ongoingEnsureTunnelRunningChecks[proxyPort] = containerMutex.runExclusive(async () => {
         const docker = new Docker();
 
         // Make sure we have the image available (should've been pre-pulled, but just in case)
@@ -100,7 +107,12 @@ export async function ensureDockerTunnelRunning(proxyPort: number) {
 
         // Asynchronously, update the Docker port that's in use for this container.
         portCache[proxyPort] = refreshDockerTunnelPortCache(proxyPort);
+    }).finally(() => {
+        // Clean up the promise, so that future calls to ensureRunning re-run this check.
+        ongoingEnsureTunnelRunningChecks[proxyPort] = undefined;
     });
+
+    return ongoingEnsureTunnelRunningChecks[proxyPort]!;
 }
 
 // Update the containers network connections. If the container isn't running, this
