@@ -92,52 +92,53 @@ const pendingDeactivations: {
 // When a Docker container or the whole server shuts down, we do our best to delete
 // every remaining intercepted image or container. None of these will be usable
 // without us anyway, as they all depend on HTTP Toolkit for connectivity.
-export async function deleteAllInterceptedDockerData(proxyPort: number | 'all') {
+export async function deleteAllInterceptedDockerData(proxyPort: number | 'all'): Promise<void> {
     if (pendingDeactivations[proxyPort]) return pendingDeactivations[proxyPort];
     if (!await isDockerAvailable()) return;
 
-    return pendingDeactivations[proxyPort] = (async () => {
-        const docker = new Docker();
+    return pendingDeactivations[proxyPort] = Promise.all([
+        stopDockerTunnel(proxyPort),
+        (async () => {
+            const docker = new Docker();
 
-        await stopDockerTunnel(proxyPort);
+            const containers = await docker.listContainers({
+                all: true,
+                filters: JSON.stringify({
+                    label: [
+                        proxyPort === 'all'
+                        ? DOCKER_CONTAINER_LABEL
+                        : `${DOCKER_CONTAINER_LABEL}=${proxyPort}`
+                    ]
+                })
+            });
 
-        const containers = await docker.listContainers({
-            all: true,
-            filters: JSON.stringify({
-                label: [
-                    proxyPort === 'all'
-                    ? DOCKER_CONTAINER_LABEL
-                    : `${DOCKER_CONTAINER_LABEL}=${proxyPort}`
-                ]
-            })
-        });
+            await Promise.all(containers.map(async (containerData) => {
+                const container = docker.getContainer(containerData.Id);
 
-        await Promise.all(containers.map(async (containerData) => {
-            const container = docker.getContainer(containerData.Id);
+                // Best efforts clean stop & remove:
+                await container.stop({ t: 1 }).catch(() => {});
+                await container.remove({ force: true }).catch(() => {});
+            }));
 
-            // Best efforts clean stop & remove:
-            await container.stop({ t: 1 }).catch(() => {});
-            await container.remove({ force: true }).catch(() => {});
-        }));
+            // We clean up images after containers, in case some containers depended
+            // on some images that we intercepted.
+            const images = await docker.listImages({
+                all: true,
+                filters: JSON.stringify({
+                    label: [
+                        proxyPort === 'all'
+                        ? DOCKER_BUILD_LABEL
+                        : `${DOCKER_BUILD_LABEL}=${proxyPort}`
+                    ]
+                })
+            });
 
-        // We clean up images after containers, in case some containers depended
-        // on some images that we intercepted.
-        const images = await docker.listImages({
-            all: true,
-            filters: JSON.stringify({
-                label: [
-                    proxyPort === 'all'
-                    ? DOCKER_BUILD_LABEL
-                    : `${DOCKER_BUILD_LABEL}=${proxyPort}`
-                ]
-            })
-        });
+            await Promise.all(images.map(async (imageData) => {
+                await docker.getImage(imageData.Id).remove().catch(() => {});
+            }));
 
-        await Promise.all(images.map(async (imageData) => {
-            await docker.getImage(imageData.Id).remove().catch(() => {});
-        }));
-
-        // Unmark this deactivation as pending
-        delete pendingDeactivations[proxyPort];
-    })();
+            // Unmark this deactivation as pending
+            delete pendingDeactivations[proxyPort];
+        })()
+    ]) as Promise<unknown> as Promise<void>;
 }
