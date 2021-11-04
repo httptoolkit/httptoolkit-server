@@ -210,7 +210,11 @@ class DockerNetworkMonitor {
 
     // The list of mappings per-network, binding aliases to their (0+) target IPs
     get aliasIpMap(): { [host: string]: ReadonlySet<string> } {
-        return combineSetMaps(...Object.values(this.networkTargets));
+        return combineSetMaps(...Object.values(this.networkTargets), {
+            // The Docker hostname always maps to the host's localhost, and it's not automatically included
+            // on platforms (Windows & Mac) where Docker resolves it implicitly.
+            [DOCKER_HOST_HOSTNAME]: new Set(['127.0.0.1'])
+        });
     }
 
     onEvent = async (event: DockerEvent) => {
