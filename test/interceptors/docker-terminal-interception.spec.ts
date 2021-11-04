@@ -360,6 +360,8 @@ Successfully built <hash>
         expect(interceptedResult.exitCode).to.equal(0);
         expect(interceptedResult.stderr).to.equal('');
 
+        await delay(100); // There can be a brief delay in CI in starting the tunnel itself
+
         // Tunnel is now running:
         tunnel = await docker.getContainer(`httptoolkit-docker-tunnel-${server.port}`).inspect();
         expect(tunnel.Config.Image.split(':')[0]).to.equal('httptoolkit/docker-socks-tunnel');
