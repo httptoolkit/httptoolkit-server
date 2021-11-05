@@ -1,6 +1,6 @@
 // Test built-ins against their specific protocol
-require('http').get('http://example.com/js/http');
-require('https').get('https://example.com/js/https');
+require('http').get('http://example.test/js/http');
+require('https').get('https://example.test/js/https');
 
 function sendRequestsTo(baseUrl) {
     require('request').get(baseUrl + '/request');
@@ -12,11 +12,12 @@ function sendRequestsTo(baseUrl) {
     require('unirest').get(baseUrl + '/unirest', () => {});
     require('reqwest')(baseUrl + '/reqwest');
     require('needle').get(baseUrl + '/needle', () => {});
+    require('undici').request(baseUrl + '/undici');
 }
 
 // Test all other libs against both protocols
-sendRequestsTo('http://example.com/js');
-sendRequestsTo('https://example.com/js');
+sendRequestsTo('http://example.test/js');
+sendRequestsTo('https://example.test/js');
 
 // Test libraries that need manual steps, and use their own URLs:
 require('stripe')('sk_test_hunter2').customers.list();

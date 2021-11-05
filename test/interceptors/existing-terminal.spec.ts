@@ -79,7 +79,7 @@ describe('Existing terminal interceptor', function () {
         const { interceptor, server } = await interceptorSetup;
         const result = await interceptor.activate(server.port) as { port: number };
 
-        const mainRule = await server.get(/https?:\/\/example.com\/js\/.*/).thenReply(200);
+        const mainRule = await server.get(/https?:\/\/example.test\/js\/.*/).thenReply(200);
         const stripeRule = await server.get('https://api.stripe.com/v1/customers').thenJson(200, {});
 
         const scriptOutput = await execAsync(`
@@ -98,8 +98,8 @@ describe('Existing terminal interceptor', function () {
         ])).map(r => r.url.replace(':443', '').replace(':80', ''));
 
         // Built-in modules
-        expect(seenRequests).to.include('http://example.com/js/http');
-        expect(seenRequests).to.include('https://example.com/js/https');
+        expect(seenRequests).to.include('http://example.test/js/http');
+        expect(seenRequests).to.include('https://example.test/js/https');
 
         // http & https with lots of popular libraries
         ['http', 'https'].forEach((protocol) =>
@@ -112,9 +112,10 @@ describe('Existing terminal interceptor', function () {
                 'bent',
                 'unirest',
                 'reqwest',
-                'needle'
+                'needle',
+                'undici'
             ].forEach((library) =>
-                expect(seenRequests).to.include(`${protocol}://example.com/js/${library}`)
+                expect(seenRequests).to.include(`${protocol}://example.test/js/${library}`)
             )
         );
 

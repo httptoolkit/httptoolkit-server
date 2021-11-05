@@ -80,6 +80,18 @@ wrapModule('superagent', function wrapSuperagent (loadedModule) {
     };
 });
 
+wrapModule('undici', function wrapUndici (loadedModule) {
+    const ProxyAgent = loadedModule.ProxyAgent;
+    const setGlobalDispatcher = loadedModule.setGlobalDispatcher;
+
+    // Old Undici release, which can't be intercepted:
+    if (!ProxyAgent || !setGlobalDispatcher) return;
+
+    setGlobalDispatcher(
+        new ProxyAgent(process.env.HTTP_PROXY)
+    );
+});
+
 wrapModule('stripe', function wrapStripe (loadedModule) {
     if (loadedModule.INTERCEPTED_BY_HTTPTOOLKIT) return;
 
