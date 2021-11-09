@@ -205,8 +205,8 @@ export async function refreshDockerTunnelPortCache(proxyPort: number): Promise<n
             .inspect().catch(() => undefined);
         if (!container) {
             // Can't get the container - recreate it (refreshing the port automatically)
-            return ensureDockerTunnelRunning(proxyPort)
-                .then(() => getDockerTunnelPort(proxyPort));
+            await ensureDockerTunnelRunning(proxyPort)
+            return getDockerTunnelPort(proxyPort);
         }
 
         const portMappings = container.NetworkSettings.Ports['1080/tcp'];
@@ -215,9 +215,9 @@ export async function refreshDockerTunnelPortCache(proxyPort: number): Promise<n
         if (!localPort) {
             // This can happen if the networks of the container are changed manually. In some cases
             // this can result in the mapping being lots. Kill & restart the container.
-            return docker.getContainer(containerName).kill()
-                .then(() => ensureDockerTunnelRunning(proxyPort))
-                .then(() => getDockerTunnelPort(proxyPort));
+            await docker.getContainer(containerName).kill();
+            await ensureDockerTunnelRunning(proxyPort);
+            return getDockerTunnelPort(proxyPort);
         }
 
         const port = parseInt(localPort.HostPort, 10);
