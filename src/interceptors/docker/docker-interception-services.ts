@@ -1,12 +1,13 @@
 import * as Docker from 'dockerode';
 import { ProxySettingCallback } from 'mockttp';
-import { getDnsServer } from '../../dns-server';
 
+import { reportError } from '../../error-tracking';
 import { addShutdownHandler } from '../../shutdown';
 
 import { DOCKER_BUILD_LABEL } from './docker-build-injection';
 import { DOCKER_CONTAINER_LABEL } from './docker-commands';
 
+import { getDnsServer } from '../../dns-server';
 import {
     monitorDockerNetworkAliases,
     stopMonitoringDockerNetworkAliases
@@ -69,7 +70,7 @@ export async function ensureDockerServicesRunning(proxyPort: number) {
         monitorDockerNetworkAliases(proxyPort),
         ensureDockerTunnelRunning(proxyPort),
         getDnsServer(proxyPort)
-    ]);
+    ]).catch(reportError);
 }
 
 export async function stopDockerInterceptionServices(

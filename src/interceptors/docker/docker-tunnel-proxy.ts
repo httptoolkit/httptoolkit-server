@@ -3,10 +3,10 @@ import * as Docker from 'dockerode';
 import * as semver from 'semver';
 import { Mutex } from 'async-mutex';
 
-import { delay } from '../../util/promise';
-
 import { DOCKER_HOST_HOSTNAME, isImageAvailable } from './docker-commands';
 import { isDockerAvailable } from './docker-interception-services';
+import { delay } from '../../util/promise';
+import { reportError } from '../../error-tracking';
 
 const DOCKER_TUNNEL_IMAGE = "httptoolkit/docker-socks-tunnel:v1.1.0";
 const DOCKER_TUNNEL_LABEL = "tech.httptoolkit.docker.tunnel";
@@ -113,12 +113,16 @@ export function ensureDockerTunnelRunning(proxyPort: number) {
         if (!_.isObject(portCache[proxyPort]) && localTunnelPort?.HostPort !== String(portCache[proxyPort])) {
             // If the tunnel port may be outdated (port changed, or missing, or container just started so
             // port here is undefined) then schedule an async tunnel port refresh:
-            portCache[proxyPort] = delay(10).then(() => // Leave time for the port to bind
-                refreshDockerTunnelPortCache(proxyPort, {
-                    // Force, because otherwise we get into a loop here due to the delay().
-                    force: true
-                })
+
+            const refreshTunnelPort = delay(10).then(
+                () => // Leave time for the port to bind
+                    refreshDockerTunnelPortCache(proxyPort, {
+                        // Force, because otherwise we get into a loop here due to the delay().
+                        force: true
+                    })
             );
+            portCache[proxyPort] = refreshTunnelPort;
+            refreshTunnelPort.catch(reportError);
         }
     }).finally(() => {
         // Clean up the promise, so that future calls to ensureRunning re-run this check.
@@ -225,10 +229,11 @@ export async function refreshDockerTunnelPortCache(proxyPort: number, { force } 
         const localPort = _.find(portMappings, ({ HostIp }) => HostIp === '127.0.0.1');
 
         if (!localPort) {
-            // This can happen if the networks of the container are changed manually. In some cases
-            // this can result in the mapping being lots. Kill & restart the container.
+            // This can happen if the networks of the container are changed manually, which can lose some
+            // mappings, or if the container is being shut down. Kill & restart the container:
             await docker.getContainer(containerName).kill();
             await ensureDockerTunnelRunning(proxyPort);
+            await delay(10); // Wait for the port to bind after startup
             return refreshDockerTunnelPortCache(proxyPort, { force: true });
         }
 
