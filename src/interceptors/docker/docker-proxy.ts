@@ -189,9 +189,18 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
             const filterString = reqUrl.searchParams.get('filters') ?? '{}';
 
             try {
-                const filters = JSON.parse(filterString) as { [key: string]: string[] };
-                const projectFilter = (filters.label ?? [])
-                    .filter(l => l.startsWith("com.docker.compose.project="))[0];
+                const filters = JSON.parse(filterString) as {
+                    // Docs say only string[] is allowed, but Docker CLI uses bool maps in "docker compose"
+                    [key: string]: string[] | { [key: string]: boolean }
+                };
+                const labelFilters = (
+                    _.isArray(filters.label)
+                        ? filters.label
+                        : Object.keys(filters.label)
+                            .filter(key => !!(filters.label as _.Dictionary<boolean>)[key])
+                );
+                const projectFilter = labelFilters.filter(l => l.startsWith("com.docker.compose.project="))[0];
+
                 if (projectFilter) {
                     const project = projectFilter.slice(projectFilter.indexOf('=') + 1);
 
@@ -206,7 +215,7 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
                             // containers, and b) future non-proxied requests only find non-intercepted containers.
                             // By excluding non-intercepted containers, we force DC to recreate, so we can then
                             // intercept the container creation itself and inject what we need.
-                            ...filters.label.filter((label) => label !== projectFilter),
+                            ...labelFilters.filter((label) => label !== projectFilter),
                             `com.docker.compose.project=${project}_HTK:${proxyPort}`
                         ]
                     }));
