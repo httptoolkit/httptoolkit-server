@@ -43,7 +43,8 @@ if (process.platform !== 'win32') {
 const API_VERSION_MATCH = /^\/v?([\.\d]+)\//;
 const CREATE_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/create/;
 const START_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/([^\/]+)\/start/;
-const BUILD_IMAGE_MATCHER = /^\/[^\/]+\/build/;
+const BUILD_IMAGE_MATCHER = /^\/[^\/]+\/build$/;
+const EVENTS_MATCHER = /^\/[^\/]+\/events$/;
 const ATTACH_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/([^\/]+)\/attach/;
 const CONTAINER_LIST_MATCHER = /^\/[^\/]+\/containers\/json/;
 
@@ -185,7 +186,10 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
             }
         }
 
-        if (reqPath.match(CONTAINER_LIST_MATCHER)) {
+        if (
+            reqPath.match(CONTAINER_LIST_MATCHER) ||
+            reqPath.match(EVENTS_MATCHER)
+        ) {
             const filterString = reqUrl.searchParams.get('filters') ?? '{}';
 
             try {
@@ -312,20 +316,29 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
         });
 
         const attachMatch = ATTACH_CONTAINER_MATCHER.exec(req.url!);
-        if (attachMatch) {
+
+        // Python Docker compose (every version since 2016 at least) uses its own user agent, and
+        // has problems with unexpected closure of attach requests
+        const isPythonDockerCompose = (req.headers['user-agent'] ?? '').startsWith('docker-compose/');
+
+        if (attachMatch && process.platform === 'win32' && !isPythonDockerCompose) {
+            // On Windows for some reason attach doesn't exit by itself when containers do. To handle
+            // that, we watch for exit ourselves, kill the attach shortly afterwards, in case it isn't dead
+            // already.
+
+            // This only affects Windows, and it's disabled for Python docker-compose, which doesn't handle
+            // clean closure well (throwing pipe errors) but which does know how to clean up attach connections
+            // all by itself (it tracks container events to close from the client side).
+
             const abortController = new AbortController();
 
             docker.getContainer(attachMatch[1]).wait({
                 condition: 'next-exit',
                 abortSignal: abortController.signal
             }).then(() => {
-                // The container has exited. On Windows for some reason attach doesn't exit by itself, even
-                // after the container has actually ended. To handle that, we watch for exit here, and
-                // kill the attach shortly afterwards, if it isn't dead already. We do this on all platforms,
-                // not just Windows, for consistency & reliability in case this comes up elsewhere.
                 setTimeout(() => {
                     socket.end();
-                }, 100); // Slightly delay, in case there's more output on the way
+                }, 500); // Slightly delay, in case there's more output/clean close on the way
             }).catch((err) => {
                 if (abortController.signal.aborted) return; // If we aborted, we don't care about errors
                 console.log("Error waiting for container exit on attach", err);
