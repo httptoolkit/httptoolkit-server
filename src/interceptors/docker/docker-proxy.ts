@@ -22,6 +22,7 @@ import {
 } from './docker-commands';
 import { injectIntoBuildStream, getBuildOutputPipeline } from './docker-build-injection';
 import { ensureDockerServicesRunning, isDockerAvailable } from './docker-interception-services';
+import { transformComposeResponseLabels } from './docker-compose';
 
 export const getDockerPipePath = (proxyPort: number, targetPlatform: NodeJS.Platform = process.platform) => {
     if (targetPlatform === 'win32') {
@@ -47,6 +48,7 @@ const BUILD_IMAGE_MATCHER = /^\/[^\/]+\/build$/;
 const EVENTS_MATCHER = /^\/[^\/]+\/events$/;
 const ATTACH_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/([^\/]+)\/attach/;
 const CONTAINER_LIST_MATCHER = /^\/[^\/]+\/containers\/json/;
+const CONTAINER_INSPECT_MATCHER = /^\/[^\/]+\/containers\/[^\/]+\/json/;
 
 const DOCKER_PROXY_MAP: { [mockServerPort: number]: Promise<DestroyableServer> | undefined } = {};
 
@@ -144,41 +146,6 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
                 }
             );
             requestBodyStream = stream.Readable.from(JSON.stringify(transformedConfig));
-
-            // If you specify an explicit name in cases that will cause conflicts (when a container already
-            // exists, or if you're using docker-compose) we try to create a separate container instead,
-            // that uses a _HTK$PORT suffix to avoid conflicts. This happens commonly, because of how
-            // docker-compose automatically generates container names.
-            const containerName = reqUrl.searchParams.get('name');
-            if (containerName) {
-                const existingContainer = await docker.getContainer(containerName).inspect()
-                    .catch<false>(() => false);
-
-                if (existingContainer && existingContainer.State.Running) {
-                    // If there's a duplicate running container, we could rename the new one, but instead we return
-                    // an error. It's likely that this will create conflicts otherwise - e.g. two running containers
-                    // using the same volumes or the same network aliases. Better to play it safe.
-                    res.statusCode = 409;
-                    res.end(JSON.stringify({
-                        "message": `Conflict. The container name ${
-                            containerName
-                        } is already in use by a running container.\n${''
-                        }HTTP Toolkit won't intercept this by default to avoid conflicts over shared resources. ${''
-                        }To create & intercept this container, either stop the existing unintercepted container, or use a different container name.`
-                    }));
-                    return;
-                } else if (existingContainer || hasDockerComposeLabels) {
-                    // If there's a naming conflict, and we can safely work around it (because the container isn't
-                    // running) then we do so.
-
-                    // For Docker-Compose, we *always* rewrite names. This ensures that subsequent Docker-Compose usage
-                    // outside intercepted usage doesn't run into naming conflicts (however, this still only applies
-                    // after checking for running containers - we never create a duplicate parallel container ourselves)
-
-                    reqUrl.searchParams.set('name', `${containerName}_HTK${proxyPort}`);
-                    req.url = reqUrl.toString();
-                }
-            }
         }
 
         // Intercept container creation (e.g. docker start):
@@ -192,70 +159,6 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
                     "HTTP Toolkit cannot intercept startup of preexisting non-intercepted containers. " +
                     "The container must be recreated here first - try `docker run <image>` instead."
                 );
-            }
-
-            if (containerData.Name.endsWith(`_HTK${proxyPort}`)) {
-                // Trim initial slash and our HTK suffix:
-                const clonedContainerName = containerData.Name.slice(1, -1 * `_HTK${proxyPort}`.length);
-                const clonedContainerData = await docker.getContainer(clonedContainerName)
-                    .inspect()
-                    .catch(() => undefined);
-
-                if (clonedContainerData && clonedContainerData.State.Running) {
-                    // If you successfully intercept a docker-compose container, stop it & start the original container(s),
-                    // and then restart the already-created intercepted container, you could risk conflicts, so we warn you:
-                    res.writeHead(409).end(
-                        `Conflict: an unintercepted container with the same base name is already running.\n${''
-                        }HTTP Toolkit won't launch intercepted containers in parallel by default to avoid conflicts ${''
-                        }over shared resources. To create & intercept this container, either stop the existing ${''
-                        }unintercepted container, or use a different container name.`
-
-                    );
-                }
-            }
-        }
-
-        if (
-            reqPath.match(CONTAINER_LIST_MATCHER) ||
-            reqPath.match(EVENTS_MATCHER)
-        ) {
-            const filterString = reqUrl.searchParams.get('filters') ?? '{}';
-
-            try {
-                const filters = JSON.parse(filterString) as {
-                    // Docs say only string[] is allowed, but Docker CLI uses bool maps in "docker compose"
-                    [key: string]: string[] | { [key: string]: boolean }
-                };
-                const labelFilters = (
-                    _.isArray(filters.label)
-                        ? filters.label
-                        : Object.keys(filters.label ?? {})
-                            .filter(key => !!(filters.label as _.Dictionary<boolean>)[key])
-                );
-                const projectFilter = labelFilters.filter(l => l.startsWith("com.docker.compose.project="))[0];
-
-                if (projectFilter) {
-                    const project = projectFilter.slice(projectFilter.indexOf('=') + 1);
-
-                    // This is a request from docker-compose, looking for containers related to a
-                    // specific project. Add an extra filter so that it only finds *intercepted*
-                    // containers. This ensures it'll recreate any unintercepted containers.
-                    reqUrl.searchParams.set('filters', JSON.stringify({
-                        ...filters,
-                        label: [
-                            // Replace the project filter, to ensure that the intercepted & non-intercepted containers
-                            // are handled separately. We need to ensure that a) this request only finds intercepted
-                            // containers, and b) future non-proxied requests only find non-intercepted containers.
-                            // By excluding non-intercepted containers, we force DC to recreate, so we can then
-                            // intercept the container creation itself and inject what we need.
-                            ...labelFilters.filter((label) => label !== projectFilter),
-                            `com.docker.compose.project=${project}_HTK:${proxyPort}`
-                        ]
-                    }));
-                    req.url = reqUrl.toString();
-                }
-            } catch (e) {
-                console.log("Could not parse /containers/json filters param", e);
             }
         }
 
@@ -304,23 +207,73 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
         });
 
         dockerReq.on('response', async (dockerRes) => {
-            res.writeHead(
-                dockerRes.statusCode!,
-                dockerRes.statusMessage,
-                dockerRes.headers
-            );
             res.on('error', (e) => {
                 console.error('Docker proxy conn error', e);
                 dockerRes.destroy();
             });
 
+            // In any container data responses that might be used by docker-compose, we need to remap some of the
+            // content to ensure that intercepted containers are always used:
+            const isContainerInspect = reqPath.match(CONTAINER_INSPECT_MATCHER);
+            const isComposeContainerQuery = reqPath.match(CONTAINER_LIST_MATCHER) &&
+                reqUrl.searchParams.get('filters')?.includes("com.docker.compose");
+            const shouldRemapContainerData = isContainerInspect || isComposeContainerQuery;
+
+            if (shouldRemapContainerData) {
+                // We're going to mess with the body, so we need to ensure that the content
+                // length isn't going to conflict along the way:
+                delete dockerRes.headers['content-length'];
+            }
+
+            res.writeHead(
+                dockerRes.statusCode!,
+                dockerRes.statusMessage,
+                dockerRes.headers
+            );
+            res.flushHeaders(); // Required, or blocking responses (/wait) don't work!
+
             if (reqPath.match(BUILD_IMAGE_MATCHER) && dockerRes.statusCode === 200) {
+                // We transform the build output to replace the docker build interception steps with a cleaner
+                // & simpler HTTP Toolkit interception message:
                 dockerRes.pipe(getBuildOutputPipeline(await extraDockerCommandCount!)).pipe(res);
+            } else if (shouldRemapContainerData) {
+                // We need to remap container data, to hook all docker-compose behaviour:
+                const data = await new Promise<Buffer>((resolve, reject) => {
+                    const dataChunks: Buffer[] = [];
+                    dockerRes.on('data', (d) => dataChunks.push(d));
+                    dockerRes.on('end', () => resolve(Buffer.concat(dataChunks)));
+                    dockerRes.on('error', reject);
+                });
+
+                try {
+                    if (isComposeContainerQuery) {
+                        const containerQueryResponse: Dockerode.ContainerInfo[] = JSON.parse(data.toString('utf8'));
+                        const modifiedResponse = containerQueryResponse.map((container) => ({
+                            ...container,
+                            Labels: transformComposeResponseLabels(proxyPort, container.Labels)
+                        }));
+
+                        res.end(JSON.stringify(modifiedResponse));
+                    } else {
+                        const containerInspectResponse: Dockerode.ContainerInspectInfo = JSON.parse(data.toString('utf8'));
+                        const modifiedResponse = {
+                            ...containerInspectResponse,
+                            Config: {
+                                ...containerInspectResponse.Config,
+                                Labels: transformComposeResponseLabels(proxyPort, containerInspectResponse.Config?.Labels)
+                            }
+                        };
+
+                        res.end(JSON.stringify(modifiedResponse));
+                    }
+                } catch (e) {
+                    console.error("Failed to parse container data response", e);
+                    // Write the raw body back to the response - effectively just do nothing.
+                    res.end(data);
+                }
             } else {
                 dockerRes.pipe(res);
             }
-
-            res.flushHeaders(); // Required, or blocking responses (/wait) don't work!
         });
     });
 

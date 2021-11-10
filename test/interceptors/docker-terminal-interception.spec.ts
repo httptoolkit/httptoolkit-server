@@ -282,15 +282,15 @@ Successfully built <hash>
             .replace(/\s+\|/g, ' |'); // Strip container name variable whitespace
 
         [
-            `compose_host_1_HTK${server.port}`,
-            `compose_default-service-a_1_HTK${server.port}`,
-            `compose_default-linked-service-b_1_HTK${server.port}`,
-            `compose_multi-network-a_1_HTK${server.port}`,
-            `compose_multi-network-b_1_HTK${server.port}`
+            `host_1`,
+            `default-service-a_1`,
+            `default-linked-service-b_1`,
+            `multi-network-a_1`,
+            `multi-network-b_1`
         ].forEach((container) => {
             expect(dcOutput).to.include(`${container} | All requests ok`);
         });
-        expect(dcOutput).to.include(`compose_none_1_HTK${server.port} | Skipping`);
+        expect(dcOutput).to.include(`none_1 | Skipping`);
     });
 
     it("should clean up containers after shutdown", async () => {

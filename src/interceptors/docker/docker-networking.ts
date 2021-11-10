@@ -367,7 +367,7 @@ class DockerNetworkMonitor {
                 const linkStrings: string[] = container.HostConfig.Links || [];
                 const linkAliases = await Promise.all(linkStrings.map(async (link) => {
                     // Aliases are of the form:
-                    // /compose_default-service-a_1_HTK8000:/compose_linked-service-b_1_HTK8000/a
+                    // /compose_default-service-a_1:/compose_linked-service-b_1/a
                     // I.e. service-a is linked by service-b with alias 'a'.
                     const endOfContainerName = link.indexOf(':/');
                     const aliasIndex = link.lastIndexOf('/');

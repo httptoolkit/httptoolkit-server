@@ -8,6 +8,7 @@ import {
     getTerminalEnvVars,
     OVERRIDES_DIR
 } from '../terminal/terminal-env-overrides';
+import { transformComposeCreationLabels } from './docker-compose';
 
 // Used to label intercepted docker containers with the port of the proxy
 // that's currently intercepting them.
@@ -215,15 +216,7 @@ export function transformContainerCreationConfig(
             )
         ],
         Labels: {
-            ...currentConfig.Labels,
-            // If there's a docker-compose project label, append our suffix. This ensures that normal
-            // DC commands don't use intercepted containers, and vice versa.
-            ...(currentConfig.Labels?.['com.docker.compose.project']
-                ? { 'com.docker.compose.project':
-                    `${currentConfig.Labels['com.docker.compose.project']}_HTK:${proxyPort}`
-                }
-                : {}
-            ),
+            ...transformComposeCreationLabels(proxyPort, currentConfig.Labels),
             // Label the resulting container as intercepted by this specific proxy:
             [DOCKER_CONTAINER_LABEL]: String(proxyPort)
         }
