@@ -130,6 +130,9 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
                 { apiVersion: dockerApiVersion! },
             );
 
+            const hasDockerComposeLabels = Object.keys(config.Labels ?? [])
+                .includes("com.docker.compose.version");
+
             const transformedConfig = transformContainerCreationConfig(
                 config,
                 imageConfig,
@@ -142,34 +145,38 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
             );
             requestBodyStream = stream.Readable.from(JSON.stringify(transformedConfig));
 
-            // If you try to create a container with a name that directly conflicts with another name
-            // that's currently in use by a non-intercepted container, we create a separate container
-            // with an _HTK$PORT suffix to avoid conflicts. This happens commonly, because of how
+            // If you specify an explicit name in cases that will cause conflicts (when a container already
+            // exists, or if you're using docker-compose) we try to create a separate container instead,
+            // that uses a _HTK$PORT suffix to avoid conflicts. This happens commonly, because of how
             // docker-compose automatically generates container names.
             const containerName = reqUrl.searchParams.get('name');
             if (containerName) {
                 const existingContainer = await docker.getContainer(containerName).inspect()
                     .catch<false>(() => false);
-                if (existingContainer && !isInterceptedContainer(existingContainer, proxyPort)) {
-                    if (!existingContainer.State.Running) {
-                        // If there's a duplicate but stopped container, we start the new container with an
-                        // modified name, so that everything works with no conflicts:
-                        reqUrl.searchParams.set('name', `${containerName}_HTK${proxyPort}`);
-                        req.url = reqUrl.toString();
-                    } else {
-                        // If there's a duplicate running container, we could to the same, but instead we return an error.
-                        // It's likely that this will create conflicts otherwise, e.g. two running containers using the
-                        // same volumes or the same network aliases. Better to play it safe.
-                        res.statusCode = 409;
-                        res.end(JSON.stringify({
-                            "message": `Conflict. The container name ${
-                                containerName
-                            } is already in use by a running container.\n${''
-                            }HTTP Toolkit won't intercept this by default to avoid conflicts with shared resources. ${''
-                            }To create & intercept this container, either stop the existing unintercepted container, or use a different name.`
-                        }));
-                        return;
-                    }
+
+                if (existingContainer && existingContainer.State.Running) {
+                    // If there's a duplicate running container, we could rename the new one, but instead we return
+                    // an error. It's likely that this will create conflicts otherwise - e.g. two running containers
+                    // using the same volumes or the same network aliases. Better to play it safe.
+                    res.statusCode = 409;
+                    res.end(JSON.stringify({
+                        "message": `Conflict. The container name ${
+                            containerName
+                        } is already in use by a running container.\n${''
+                        }HTTP Toolkit won't intercept this by default to avoid conflicts with shared resources. ${''
+                        }To create & intercept this container, either stop the existing unintercepted container, or use a different name.`
+                    }));
+                    return;
+                } else if (existingContainer || hasDockerComposeLabels) {
+                    // If there's a naming conflict, and we can safely work around it (because the container isn't
+                    // running) then we do so.
+
+                    // For Docker-Compose, we *always* rewrite names. This ensures that subsequent Docker-Compose usage
+                    // outside intercepted usage doesn't run into naming conflicts (however, this still only applies
+                    // after checking for running containers - we never create a duplicate parallel container ourselves)
+
+                    reqUrl.searchParams.set('name', `${containerName}_HTK${proxyPort}`);
+                    req.url = reqUrl.toString();
                 }
             }
         }
