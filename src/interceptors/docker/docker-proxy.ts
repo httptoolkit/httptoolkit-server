@@ -229,7 +229,7 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
                 const labelFilters = (
                     _.isArray(filters.label)
                         ? filters.label
-                        : Object.keys(filters.label)
+                        : Object.keys(filters.label ?? {})
                             .filter(key => !!(filters.label as _.Dictionary<boolean>)[key])
                 );
                 const projectFilter = labelFilters.filter(l => l.startsWith("com.docker.compose.project="))[0];
