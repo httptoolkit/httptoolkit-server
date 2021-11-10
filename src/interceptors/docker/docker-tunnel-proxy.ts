@@ -231,7 +231,12 @@ export async function refreshDockerTunnelPortCache(proxyPort: number, { force } 
         if (!localPort) {
             // This can happen if the networks of the container are changed manually, which can lose some
             // mappings, or if the container is being shut down. Kill & restart the container:
-            await docker.getContainer(containerName).kill();
+            await docker.getContainer(containerName).kill().catch((e) => {
+                // If the container now doesn't exist/is stopped (due to a race condition) that's fine too:
+                if (e.statusCode === 404 || e.statusCode === 409) return;
+                else throw e;
+            });
+
             await ensureDockerTunnelRunning(proxyPort);
             await delay(10); // Wait for the port to bind after startup
             return refreshDockerTunnelPortCache(proxyPort, { force: true });
