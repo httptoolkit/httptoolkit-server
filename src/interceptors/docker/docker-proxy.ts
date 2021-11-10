@@ -163,8 +163,8 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
                         "message": `Conflict. The container name ${
                             containerName
                         } is already in use by a running container.\n${''
-                        }HTTP Toolkit won't intercept this by default to avoid conflicts with shared resources. ${''
-                        }To create & intercept this container, either stop the existing unintercepted container, or use a different name.`
+                        }HTTP Toolkit won't intercept this by default to avoid conflicts over shared resources. ${''
+                        }To create & intercept this container, either stop the existing unintercepted container, or use a different container name.`
                     }));
                     return;
                 } else if (existingContainer || hasDockerComposeLabels) {
@@ -185,11 +185,33 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
         const startContainerMatch = START_CONTAINER_MATCHER.exec(reqPath);
         if (startContainerMatch) {
             const containerId = startContainerMatch[1];
-            if (!isInterceptedContainer(await docker.getContainer(containerId).inspect(), proxyPort)) {
+            const containerData = await docker.getContainer(containerId).inspect();
+
+            if (!isInterceptedContainer(containerData, proxyPort)) {
                 res.writeHead(400).end(
                     "HTTP Toolkit cannot intercept startup of preexisting non-intercepted containers. " +
                     "The container must be recreated here first - try `docker run <image>` instead."
                 );
+            }
+
+            if (containerData.Name.endsWith(`_HTK${proxyPort}`)) {
+                // Trim initial slash and our HTK suffix:
+                const clonedContainerName = containerData.Name.slice(1, -1 * `_HTK${proxyPort}`.length);
+                const clonedContainerData = await docker.getContainer(clonedContainerName)
+                    .inspect()
+                    .catch(() => undefined);
+
+                if (clonedContainerData && clonedContainerData.State.Running) {
+                    // If you successfully intercept a docker-compose container, stop it & start the original container(s),
+                    // and then restart the already-created intercepted container, you could risk conflicts, so we warn you:
+                    res.writeHead(409).end(
+                        `Conflict: an unintercepted container with the same base name is already running.\n${''
+                        }HTTP Toolkit won't launch intercepted containers in parallel by default to avoid conflicts ${''
+                        }over shared resources. To create & intercept this container, either stop the existing ${''
+                        }unintercepted container, or use a different container name.`
+
+                    );
+                }
             }
         }
 
