@@ -364,6 +364,14 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
         await deleteFile(proxyListenPath).catch(() => {});
     }
 
+    if (process.platform === 'win32') {
+        // We're using local pipes - we can safely keep connections open forever, and doing so is
+        // necessary on Windows, because docker-compose there does not expected connections in its
+        // pool to ever be closed by the server, and crashes if they are. Can't use actual Infinity
+        // since Node rejects it, but 1 hour should be far more than any client's own timeout.
+        server.keepAliveTimeout = 1000 * 60 * 60;
+    }
+
     await new Promise<void>((resolve, reject) => {
         server.listen(proxyListenPath, resolve);
         server.on('error', reject);
