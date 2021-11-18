@@ -1,5 +1,5 @@
 declare module 'event-stream' {
-    // Type definitions for event-stream v3.3.2
+    // Type definitions for event-stream v4.0
     // Project: https://github.com/dominictarr/event-stream
     // Definitions by: David Gardiner <https://github.com/flcdrg>
     // Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
@@ -8,7 +8,7 @@ declare module 'event-stream' {
 
     import * as stream from 'stream';
 
-    interface MapStream extends stream.Stream {
+    export interface MapStream extends stream.Stream {
         writable: boolean;
         readable: boolean;
 
@@ -22,7 +22,7 @@ declare module 'event-stream' {
     /**
      * Create a stream from a series of MapStreams
      */
-    export function pipeline(...streams: MapStream[]): NodeJS.ReadWriteStream;
+    export function pipeline(...streams: MapStream[]): MapStream;
 
     /**
      * Create a through stream from an asynchronous function
@@ -36,6 +36,11 @@ declare module 'event-stream' {
      * @param syncFunction
      */
     export function mapSync(syncFunction: Function):  MapStream;
+
+    /**
+     * Filter elements of the stream.
+     */
+    export function filterSync(syncFunction: (value: any) => boolean):  MapStream;
 
     /**
      * Break up a stream and reassemble it so that each line is a chunk. matcher may be a String, or a RegExp

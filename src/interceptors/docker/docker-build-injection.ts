@@ -218,7 +218,7 @@ const END_OF_STEP_REGEX = /^ ---\u003e [a-z0-9]+\n$/;
  * HTTP Toolkit interception noise down to a single clear line, and normalize the step count text
  * to match.
  */
-export function getBuildOutputPipeline(extraDockerCommandCount: number): NodeJS.ReadWriteStream {
+export function getBuildOutputPipeline(extraDockerCommandCount: number): EventStream.MapStream {
     let outputToHide: 'none' | 'all' | 'until-next' = 'none';
 
     let totalStepCount = -1;

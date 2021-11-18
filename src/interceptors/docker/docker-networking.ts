@@ -20,7 +20,7 @@ interface DockerEvent {
     };
 }
 
-let dockerEventStream: NodeJS.ReadableStream | undefined;
+let dockerEventStream: EventStream.MapStream | undefined;
 
 /**
  * Get a stream of events from Docker. Although Dockerode will only give us the raw event buffers,
@@ -33,9 +33,9 @@ function getDockerEventStream(docker: Docker) {
     if (!dockerEventStream) {
         const dockerEventParsingStream = EventStream.pipeline(
             EventStream.split(),
-            EventStream.mapSync((rawLine: Buffer) =>
-                JSON.parse(rawLine.toString('utf8'))
-            )
+            EventStream.mapSync((buffer: Buffer) => buffer.toString('utf8')),
+            EventStream.filterSync((line: string) => line.length > 0),
+            EventStream.mapSync((rawLine: string) => JSON.parse(rawLine))
         );
 
         // We expose the stream immediately, even though no data is coming yet
@@ -43,21 +43,19 @@ function getDockerEventStream(docker: Docker) {
 
         // This gives us a stream of raw Buffer data. Inside, it contains
         // JSON strings, newline separated, which we parse above.
-        (docker.getEvents() as Promise<stream.Readable>) // Wrong types, it's a raw http.IncomingMessage
-            .then((rawEventStream) => {
-                rawEventStream.pipe(dockerEventParsingStream);
-                rawEventStream.on('error', (e) => {
-                    dockerEventParsingStream?.emit('error', e);
-                });
-                rawEventStream.on('close', () => {
-                    dockerEventParsingStream?.end();
-                    dockerEventStream = undefined;
-                });
-            })
-            .catch((e) => {
+        docker.getEvents().then((rawEventStream) => {
+            rawEventStream.pipe(dockerEventParsingStream);
+            rawEventStream.on('error', (e) => {
                 dockerEventParsingStream?.emit('error', e);
+            });
+            rawEventStream.on('close', () => {
+                dockerEventParsingStream?.end();
                 dockerEventStream = undefined;
             });
+        }).catch((e) => {
+            dockerEventParsingStream?.emit('error', e);
+            dockerEventStream = undefined;
+        });
     }
 
     return dockerEventStream;
@@ -166,7 +164,7 @@ class DockerNetworkMonitor {
     constructor(
         private docker: Docker,
         private proxyPort: number,
-        private dockerEventStream: NodeJS.ReadableStream
+        private dockerEventStream: stream.Stream
     ) {
         // We use mobx here to automatically propagate updates whilst avoiding
         // unnecessary updates when nothing changes.
