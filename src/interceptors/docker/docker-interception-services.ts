@@ -20,7 +20,10 @@ import {
     stopDockerTunnel,
 } from './docker-tunnel-proxy';
 
-export const isDockerAvailable = () => new Docker().ping().then(() => true).catch(() => false);
+export const isDockerAvailable = () =>
+    (async () => new Docker().ping())() // Catch sync & async setup errors
+    .then(() => true)
+    .catch(() => false);
 
 const IPv4_IPv6_PREFIX = "::ffff:";
 

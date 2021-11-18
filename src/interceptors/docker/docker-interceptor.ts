@@ -20,7 +20,13 @@ export class DockerContainerInterceptor implements Interceptor {
         private config: HtkConfig
     ) {}
 
-    private docker = new Docker();
+    private _docker: Docker | undefined;
+    private getDocker() {
+        if (!this._docker) {
+            this._docker = new Docker();
+        }
+        return this._docker;
+    }
 
     async isActivable(): Promise<boolean> {
         return isDockerAvailable();
@@ -32,7 +38,7 @@ export class DockerContainerInterceptor implements Interceptor {
             // We cache the containers query whilst it's active, because this gets hit a lot,
             // usually directly in parallel by getMetadata and isActive, and this ensures
             // that concurrent calls all just run one lookup and use the same result.
-            this._containersPromise = this.docker.listContainers()
+            this._containersPromise = this.getDocker().listContainers()
                 .finally(() => { this._containersPromise = undefined; });
         }
         return this._containersPromise;
@@ -70,7 +76,7 @@ export class DockerContainerInterceptor implements Interceptor {
         } as const;
 
         ensureDockerServicesRunning(proxyPort);
-        await restartAndInjectContainer(this.docker, options.containerId, interceptionSettings);
+        await restartAndInjectContainer(this.getDocker(), options.containerId, interceptionSettings);
     }
 
     async isActive(proxyPort: number): Promise<boolean> {

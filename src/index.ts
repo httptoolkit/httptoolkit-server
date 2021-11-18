@@ -70,11 +70,17 @@ function manageBackgroundServices(
     httpsConfig: { certPath: string, certContent: string }
 ) {
     standalone.on('mock-server-started', async (server) => {
-        startDockerInterceptionServices(server.port, httpsConfig, ruleParameters);
+        startDockerInterceptionServices(server.port, httpsConfig, ruleParameters)
+        .catch((error) => {
+            console.log("Could not start Docker components:", error);
+        });
     });
 
     standalone.on('mock-server-stopping', (server) => {
-        stopDockerInterceptionServices(server.port, ruleParameters);
+        stopDockerInterceptionServices(server.port, ruleParameters)
+        .catch((error) => {
+            console.log("Could not stop Docker components:", error);
+        });
     });
 }
 
