@@ -50,7 +50,7 @@ function getDockerEventStream(docker: Docker) {
                     dockerEventParsingStream?.emit('error', e);
                 });
                 rawEventStream.on('close', () => {
-                    dockerEventParsingStream?.end(() => {});
+                    dockerEventParsingStream?.end();
                     dockerEventStream = undefined;
                 });
             })
