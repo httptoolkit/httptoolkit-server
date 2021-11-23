@@ -152,9 +152,9 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
         const startContainerMatch = START_CONTAINER_MATCHER.exec(reqPath);
         if (startContainerMatch) {
             const containerId = startContainerMatch[1];
-            const containerData = await docker.getContainer(containerId).inspect();
+            const containerData = await docker.getContainer(containerId).inspect().catch(() => undefined);
 
-            if (!isInterceptedContainer(containerData, proxyPort)) {
+            if (containerData && !isInterceptedContainer(containerData, proxyPort)) {
                 res.writeHead(400).end(
                     "HTTP Toolkit cannot intercept startup of preexisting non-intercepted containers. " +
                     "The container must be recreated here first - try `docker run <image>` instead."

@@ -280,11 +280,13 @@ class DockerNetworkMonitor {
             return undefined;
         }
 
-        const networkContainers = await Promise.all(
+        const networkContainers = (await Promise.all(
             Object.values(networkDetails.Containers ?? {}).map((networkContainer) =>
-                this.docker.getContainer(networkContainer.Name).inspect()
+                this.docker.getContainer(networkContainer.Name)
+                    .inspect()
+                    .catch(() => undefined) // There's a race condition here - skip any now-missing containers
             )
-        );
+        )).filter((container) => !!container) as Docker.ContainerInspectInfo[];
 
         if (!networkContainers.find((container) => this.isInterceptedContainer(container))) {
             // If we're not tracking any containers in this network, we don't need its aliases.
@@ -375,7 +377,11 @@ class DockerNetworkMonitor {
 
                     const linkedContainer = networkContainers.find(c => c.Name === linkedContainerName)
                         // Container should always be in the same network AFAICT, but fallback to lookup just in case:
-                        ?? await this.docker.getContainer(linkedContainerName).inspect();
+                        ?? await this.docker.getContainer(linkedContainerName)
+                            .inspect()
+                            .catch(() => undefined); // There's a race condition here - skip any now missing containers
+
+                    if (!linkedContainer) return [];
 
                     const linkedContainerIp = linkedContainer.NetworkSettings.Networks[networkId]?.IPAddress ||
                         linkedContainer.NetworkSettings.IPAddress;
