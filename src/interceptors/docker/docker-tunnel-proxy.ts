@@ -105,6 +105,7 @@ export function ensureDockerTunnelRunning(proxyPort: number) {
 
         // Make sure the tunneling container is running:
         if (!container.State.Running) {
+            console.log("Starting Docker tunnel...");
             await docker.getContainer(container.Id).start();
         }
 
@@ -138,6 +139,8 @@ export async function updateDockerTunnelledNetworks(
     proxyPort: number,
     interceptedNetworks: string[]
 ) {
+    console.log(`Updating intercepted Docker networks to: ${interceptedNetworks.join(', ')}`);
+
     const docker = new Docker();
 
     const defaultBridgeId = docker.listNetworks({
@@ -208,6 +211,7 @@ export async function getDockerTunnelPort(proxyPort: number): Promise<number> {
 }
 
 export async function refreshDockerTunnelPortCache(proxyPort: number, { force } = { force: false }): Promise<number> {
+    console.log("Querying Docker tunnel port...");
     try {
         if (!force && _.isObject(portCache[proxyPort])) {
             // If there's an existing promise refreshing this data, then don't duplicate:

@@ -227,6 +227,8 @@ class DockerNetworkMonitor {
                 });
             }
         } else if (event.Action === 'connect' || event.Action === 'disconnect') {
+            console.log(`Updating Docker aliases for network ${event.Actor.ID}...`);
+
             // If any containers are attached to the network, or removed from the network
             // then we just update all aliases. Exact changes are a little unpredictable,
             // and this is cheap enough to do every time:
@@ -243,6 +245,7 @@ class DockerNetworkMonitor {
     }
 
     private async refreshAllNetworks() {
+        console.log('Updating all Docker network aliases...');
         const networks = await this.docker.listNetworks();
 
         const networkMap = await Promise.all(
