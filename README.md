@@ -1,4 +1,4 @@
-HTTP Toolkit Server [![Travis Build Status](https://img.shields.io/travis/httptoolkit/httptoolkit-server.svg)](https://travis-ci.org/httptoolkit/httptoolkit-server) [![Version](https://img.shields.io/npm/v/httptoolkit-server.svg)](https://npmjs.org/package/httptoolkit-server)
+HTTP Toolkit Server [![Build Status](https://github.com/httptoolkit/httptoolkit-server/workflows/CI/badge.svg)](https://github.com/httptoolkit/httptoolkit-server/actions) [![Version](https://img.shields.io/npm/v/httptoolkit-server.svg)](https://npmjs.org/package/httptoolkit-server)
 ===================
 
 This repo contains the backend for [HTTP Toolkit](https://httptoolkit.tech), a beautiful, cross-platform & open-source HTTP(S) debugging proxy, analyzer & client.
