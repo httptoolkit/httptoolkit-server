@@ -256,7 +256,8 @@ export async function injectSystemCertificate(
     );
 
     // Actually run the script that we just pushed above, as root
-    await run(adbClient, deviceId, rootCmd.concat('sh', injectionScriptPath));
+    const scriptOutput = await run(adbClient, deviceId, rootCmd.concat('sh', injectionScriptPath));
+    console.log(scriptOutput);
 }
 
 export async function bringToFront(
