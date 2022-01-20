@@ -202,9 +202,7 @@ export class FreshTerminalInterceptor implements Interceptor {
         return !!(terminals[proxyPort] && terminals[proxyPort]!.length);
     }
 
-    async activate(proxyPort: number, activationOptions: {
-        dockerEnabled?: boolean
-    } = {}): Promise<void> {
+    async activate(proxyPort: number): Promise<void> {
         const terminalSpawnArgs = await getTerminalCommand();
         if (!terminalSpawnArgs) throw new Error('Could not find a suitable terminal');
 
@@ -230,9 +228,7 @@ export class FreshTerminalInterceptor implements Interceptor {
             _.assign(options || {}, {
                 env: {
                     ...currentEnv,
-                    ...getTerminalEnvVars(proxyPort, this.config.https, currentEnv, {}, {
-                        dockerEnabled: activationOptions.dockerEnabled
-                    }),
+                    ...getTerminalEnvVars(proxyPort, this.config.https, currentEnv, {}),
                 },
                 cwd: currentEnv.HOME || currentEnv.USERPROFILE
             })
