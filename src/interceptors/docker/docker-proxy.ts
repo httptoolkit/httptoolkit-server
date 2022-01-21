@@ -45,7 +45,6 @@ const API_VERSION_MATCH = /^\/v?([\.\d]+)\//;
 const CREATE_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/create/;
 const START_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/([^\/]+)\/start/;
 const BUILD_IMAGE_MATCHER = /^\/[^\/]+\/build$/;
-const EVENTS_MATCHER = /^\/[^\/]+\/events$/;
 const ATTACH_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/([^\/]+)\/attach/;
 const CONTAINER_LIST_MATCHER = /^\/[^\/]+\/containers\/json/;
 const CONTAINER_INSPECT_MATCHER = /^\/[^\/]+\/containers\/[^\/]+\/json/;
@@ -132,14 +131,10 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
                 { apiVersion: dockerApiVersion! },
             );
 
-            const hasDockerComposeLabels = Object.keys(config.Labels ?? [])
-                .includes("com.docker.compose.version");
-
             const transformedConfig = transformContainerCreationConfig(
                 config,
                 imageConfig,
                 {
-                    interceptionType: 'mount',
                     certPath: httpsConfig.certPath,
                     proxyPort,
                     proxyHost

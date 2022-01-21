@@ -1,7 +1,6 @@
 import * as _ from 'lodash';
 import * as Docker from 'dockerode';
 import * as path from 'path';
-import * as tarFs from 'tar-fs';
 import * as semver from 'semver';
 
 import {
@@ -92,36 +91,6 @@ const envArrayToObject = (envArray: string[] | null | undefined) =>
 const envObjectToArray = (envObject: { [key: string]: string }): string[] =>
     Object.keys(envObject).map(k => `${k}=${envObject[k]}`);
 
-function packInterceptionFiles(certContent: string) {
-    return tarFs.pack(OVERRIDES_DIR, {
-        map: (fileHeader) => {
-            fileHeader.name = path.posix.join(HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH, fileHeader.name);
-
-            // Owned by root by default
-            fileHeader.uid = 0;
-            fileHeader.gid = 0;
-
-            // But ensure everything is globally readable & runnable
-            fileHeader.mode = parseInt('555', 8);
-
-            return fileHeader;
-        },
-        finalize: false,
-        finish: (pack) => {
-            pack.entry({ name: HTTP_TOOLKIT_INJECTED_CA_PATH }, certContent);
-            pack.finalize();
-        }
-    });
-}
-
-// The two ways to inject the files required for interception into the image.
-// If 'mount', the override files should be bind-mounted directly into the image. If
-// 'inject', the override files should be copied into the image. 'Mount' is generally
-// better & faster, but not possible for builds or injection into remote hosts.
-export type DOCKER_INTERCEPTION_TYPE =
-    | 'mount'
-    | 'inject';
-
 /**
  * Takes the config for a container, and returns the config to create the
  * same container, but fully intercepted.
@@ -133,8 +102,7 @@ export type DOCKER_INTERCEPTION_TYPE =
 export function transformContainerCreationConfig(
     containerConfig: Docker.ContainerCreateOptions,
     baseImageConfig: Docker.ImageInspectInfo | undefined,
-    { interceptionType, proxyPort, proxyHost, certPath }: {
-        interceptionType: DOCKER_INTERCEPTION_TYPE
+    { proxyPort, proxyHost, certPath }: {
         proxyPort: number,
         proxyHost: string,
         certPath: string
@@ -164,25 +132,20 @@ export function transformContainerCreationConfig(
     const hostConfig: Docker.HostConfig = {
         ...currentConfig.HostConfig,
         // To intercept without modifying the container, we bind mount our overrides and certificate
-        // files into place:
-        ...(interceptionType === 'mount'
-            ? {
-                Binds: [
-                    ...(currentConfig.HostConfig?.Binds ?? []).filter((existingMount) =>
-                        // Drop any existing mounts for these folders - this allows re-intercepting containers, e.g.
-                        // to switch from one proxy port to another.
-                        !existingMount.startsWith(`${certPath}:`) &&
-                        !existingMount.startsWith(`${OVERRIDES_DIR}:`)
-                    ),
-                    // Bind-mount the CA certificate file individually too:
-                    `${certPath}:${HTTP_TOOLKIT_INJECTED_CA_PATH}:ro`,
-                    // Bind-mount the overrides directory into the container:
-                    `${OVERRIDES_DIR}:${HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH}:ro`
-                    // ^ Both 'ro' - untrusted containers must not be able to mess with these!
-                ]
-            }
-            : {}
-        ),
+        // files into place on top of the existing content:
+        Binds: [
+            ...(currentConfig.HostConfig?.Binds ?? []).filter((existingMount) =>
+                // Drop any existing mounts for these folders - this allows re-intercepting containers, e.g.
+                // to switch from one proxy port to another.
+                !existingMount.startsWith(`${certPath}:`) &&
+                !existingMount.startsWith(`${OVERRIDES_DIR}:`)
+            ),
+            // Bind-mount the CA certificate file individually too:
+            `${certPath}:${HTTP_TOOLKIT_INJECTED_CA_PATH}:ro`,
+            // Bind-mount the overrides directory into the container:
+            `${OVERRIDES_DIR}:${HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH}:ro`
+            // ^ Both 'ro' - untrusted containers must not be able to mess with these!
+        ],
         ...(process.platform === 'linux'
             // On Linux only, we need to add an explicit host to make host.docker.internal work:
             ? {
@@ -254,8 +217,7 @@ async function connectNetworks(
 export async function restartAndInjectContainer(
     docker: Docker,
     containerId: string,
-    { interceptionType, proxyPort, certContent, certPath }: {
-        interceptionType: DOCKER_INTERCEPTION_TYPE
+    { proxyPort, certContent, certPath }: {
         proxyPort: number,
         certContent: string
         certPath: string
@@ -298,7 +260,6 @@ export async function restartAndInjectContainer(
             // We don't need image config - inspect result has *everything*
             undefined,
             { // The settings to inject:
-                interceptionType,
                 certPath,
                 proxyPort,
                 proxyHost
@@ -312,11 +273,6 @@ export async function restartAndInjectContainer(
         newContainer.id,
         containerDetails.NetworkSettings.Networks
     );
-
-    if (interceptionType === 'inject') {
-        // Inject the overide files & MITM cert into the image directly:
-        await newContainer.putArchive(packInterceptionFiles(certContent), { path: '/' });
-    }
 
     // Start everything up!
     await newContainer.start();
