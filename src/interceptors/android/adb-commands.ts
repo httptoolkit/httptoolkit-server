@@ -64,6 +64,7 @@ export const getConnectedDevices = batchCalls(async (adbClient: adb.AdbClient) =
         if (isErrorLike(e) && (
                 e.code === 'ENOENT' || // No ADB available
                 e.code === 'EACCES' || // ADB available, but we aren't allowed to run it
+                e.code === 'EPERM' || // Permissions error launching ADB
                 e.code === 'ECONNREFUSED' || // Tried to start ADB, but still couldn't connect
                 e.code === 'ENOTDIR' || // ADB path contains something that's not a directory
                 e.signal === 'SIGKILL' || // In some envs 'adb start-server' is always killed (why?)
