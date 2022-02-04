@@ -68,7 +68,7 @@
     "mockttp": "^2.5.0",
     "node-abort-controller": "^3.0.1",
     "node-fetch": "^2.6.1",
-    "node-forge": "^0.10.0",
+    "node-forge": "^1.2.1",
     "node-gsettings-wrapper": "^0.5.0",
     "os-proxy-config": "^1.1.1",
     "portfinder": "^1.0.25",
@@ -128,7 +128,10 @@
     "xhr2": "^0.2.0"
   },
   "overrides": {
-    "prebuild-install": "^7.0.0"
+    "prebuild-install": "^7.0.0",
+    "@devicefarmer/adbkit": {
+      "node-forge": "^1.0.0"
+    }
   },
   "engines": {
     "node": ">=10.0.0"
