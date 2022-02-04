@@ -4,15 +4,13 @@ import * as path from 'path';
 
 import * as request from 'request-promise-native';
 import * as tmp from 'tmp';
-import { extractTarball as extractTarballCb } from 'tarball-extract';
+import * as decompress from 'decompress';
 import { expect } from 'chai';
 import * as getGraphQL from 'graphql.js';
 
 import { getRemote } from 'mockttp';
 
 import { delay } from '../src/util/promise';
-
-const extractTarball = promisify(extractTarballCb) as (source: string, dest: string) => Promise<void>;
 
 async function setupServerPath() {
     if (!process.env.TEST_BUILT_TARBALL) {
@@ -36,7 +34,7 @@ async function setupServerPath() {
     );
 
     console.log('Extracting built tarball to', tmpDir);
-    await extractTarball(tarballPath, tmpDir);
+    await decompress(tarballPath, tmpDir);
 
     // Pretend this is being called by the real startup script,
     // so it acts like a proper prod build.
