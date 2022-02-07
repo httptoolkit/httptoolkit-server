@@ -1,5 +1,6 @@
 import { getLocal, Mockttp } from 'mockttp';
 import { HtkConfig } from './config';
+import { EPHEMERAL_PORT_RANGE } from './constants';
 
 // The first tab that opens in a new Chrome/Edge window warns about dangerous flags.
 // Closing it and immediately opening a new one is a bit cheeky, but
@@ -24,7 +25,7 @@ export class HideWarningServer {
     })
 
     async start(targetUrl: string) {
-        await this.server.start();
+        await this.server.start(EPHEMERAL_PORT_RANGE);
 
         await this.server.get('/hide-warning').thenReply(200, `
             <html>

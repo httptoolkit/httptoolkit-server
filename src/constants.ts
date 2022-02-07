@@ -23,3 +23,9 @@ export const ALLOWED_ORIGINS = IS_PROD_BUILD
         /^http:\/\/local\.httptoolkit\.tech(:\d+)?$/,
         /^https:\/\/app\.httptoolkit\.tech$/
     ]
+
+// The range of ports that should be used by invisible ephemeral services, such as Firefox's
+// certificate check server and Chrome's "hide warning" server. These ports are extra likely
+// not to conflict with normal user usage, and are specifically designated by the IANA for
+// use for dynamic ports.
+export const EPHEMERAL_PORT_RANGE = { startPort: 49152, endPort: 65535 } as const;

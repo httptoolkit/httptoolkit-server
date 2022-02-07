@@ -1,28 +1,29 @@
 import { getLocal, Mockttp } from 'mockttp';
 
 import { HtkConfig } from './config';
+import { EPHEMERAL_PORT_RANGE } from './constants';
 import { getDeferred } from './util/promise';
 
-const buildPage = (config: HtkConfig, style: string, script?: string, body?: string) =>
-`<html>
-    <head>
-        <title>HTTP Toolkit HTTPS Test</title>
-        <meta charset="UTF-8" />
-        <link href="http://fonts.googleapis.com/css?family=Lato" rel="stylesheet" />
-        <style>
-            body {
-                margin: 0;
-                padding: 20px;
-            }
+const buildPage = (style: string, script?: string, body?: string) =>
+    `<html>
+        <head>
+            <title>HTTP Toolkit HTTPS Test</title>
+            <meta charset="UTF-8" />
+            <link href="http://fonts.googleapis.com/css?family=Lato" rel="stylesheet" />
+            <style>
+                body {
+                    margin: 0;
+                    padding: 20px;
+                }
 
-            ${style}
-        </style>
-        ${script}
-    </head>
-    <body>
-        ${body}
-    </body>
-</html>`;
+                ${style}
+            </style>
+            ${script}
+        </head>
+        <body>
+            ${body}
+        </body>
+    </html>`;
 
 export class CertCheckServer {
 
@@ -34,7 +35,7 @@ export class CertCheckServer {
 
     async start(targetUrl: string) {
         this.server = getLocal({ https: this.config.https, cors: true });
-        await this.server.start();
+        await this.server.start(EPHEMERAL_PORT_RANGE);
 
         await Promise.all([
             this.server.get('/test-https').thenCallback(() => {
@@ -47,7 +48,7 @@ export class CertCheckServer {
 
                 return {
                     statusCode: 200,
-                    body: buildPage(this.config, `
+                    body: buildPage(`
                             body {
                                 background-color: #d8e2e6;
                                 font-family: Lato, Arial;
@@ -122,7 +123,7 @@ export class CertCheckServer {
 
                 return {
                     statusCode: 200,
-                    body: buildPage(this.config, `
+                    body: buildPage(`
                             body {
                                 background-color: #d8e2e6;
                                 font-family: Lato, Arial;

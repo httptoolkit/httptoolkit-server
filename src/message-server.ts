@@ -1,6 +1,7 @@
 import { getLocal, Mockttp } from 'mockttp';
 
 import { HtkConfig } from './config';
+import { EPHEMERAL_PORT_RANGE } from './constants';
 import { getDeferred } from './util/promise';
 
 export class MessageServer {
@@ -16,7 +17,7 @@ export class MessageServer {
 
     async start() {
         this.server = getLocal({ https: this.config.https, cors: true });
-        await this.server.start();
+        await this.server.start(EPHEMERAL_PORT_RANGE);
 
         await this.server.get('/')
             .thenCallback(() => {
