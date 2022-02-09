@@ -47,4 +47,7 @@ const OVERRIDES_DIR = path.join(__dirname, 'overrides');
     );
 
     console.log('Override dependencies installed');
-})();
+})().catch((e) => {
+    console.error(e);
+    process.exit(1);
+});
