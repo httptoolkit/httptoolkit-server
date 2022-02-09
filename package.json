@@ -16,9 +16,9 @@
   "scripts": {
     "start": "node-dev ./bin/run start",
     "build:src": "rm -rf lib && tsc -b --force",
-    "build:release": "oclif-dev manifest && webpack && ts-node ./pack.ts",
+    "build:release": "oclif manifest && webpack && ts-node ./pack.ts",
     "prepare": "ts-node ./prepare.ts",
-    "prepack": "npm run build:src && oclif-dev manifest",
+    "prepack": "npm run build:src && oclif manifest",
     "test": "cross-env TS_NODE_FILES=true mocha --exit -r ts-node/register 'test/**/*.spec.ts'",
     "test:release": "cross-env TEST_BUILT_TARBALL=1 npm run test"
   },
@@ -82,7 +82,6 @@
     "win-version-info": "^3.1.1"
   },
   "devDependencies": {
-    "@oclif/dev-cli": "^1.19.4",
     "@sentry/webpack-plugin": "^1.16.0",
     "@types/aws-lambda": "^8.10.15",
     "@types/chai": "^4.1.6",
@@ -90,6 +89,7 @@
     "@types/env-paths": "^1.0.2",
     "@types/express": "^4.16.1",
     "@types/fs-extra": "^8.0.0",
+    "@types/glob": "^7.2.0",
     "@types/klaw": "^3.0.2",
     "@types/lodash": "^4.14.117",
     "@types/mocha": "^5.2.5",
@@ -105,6 +105,7 @@
     "cross-env": "^7.0.3",
     "decompress": "^4.2.1",
     "fs-extra": "^8.1.0",
+    "glob": "^7.2.0",
     "got": "^9.6.0",
     "graphql.js": "^0.6.1",
     "klaw": "^4.0.1",
@@ -112,6 +113,7 @@
     "needle": "^2.4.0",
     "node-dev": "^6.4.0",
     "node-noop": "^1.0.0",
+    "oclif": "^2.4.4",
     "request": "^2.88.0",
     "request-promise-native": "^1.0.5",
     "reqwest": "^2.0.5",

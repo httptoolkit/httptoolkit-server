@@ -1,7 +1,7 @@
 @echo off
 
 REM Extract the tarball. Tar doesn't support wildcards on windows, DIR only supports one wildcard, so we have to do this mess:
-cd distributables\v*\
+cd distributables
 set GET_TAR="dir /b httptoolkit-server-*-win32-x64.tar.gz"
 FOR /F "tokens=*" %%i IN (' %GET_TAR% ') DO SET TAR_PATH=%%i
 
