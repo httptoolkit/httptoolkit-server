@@ -20,6 +20,15 @@ const spawn = (command: string, args: string[] = [], options: SpawnOptions = {})
     });
 }
 
+/**
+ * The process here is that we create a clone of the whole codebase, but keeping the latest
+ * build output, and make a couple of small modifications to manage the build process, and then
+ * we handle off to Oclif to rebuild once for each target operating system.
+ *
+ * Oclif will run "npm pack", then "npm unpack" into a temp directory, "npm install" there, inject
+ * the appropriate scripts & node binaries to make everything work nicely, and then bundled us up
+ * a nice tarball ready for deployment.
+ */
 const packageApp = async () => {
     console.log('Preparing packaging directory');
     await fs.emptyDir(OUTPUT_DIR);
@@ -59,7 +68,12 @@ const packageApp = async () => {
         .keyBy(_.identity)
         .mapValues((pkg: string) => pLockJson.dependencies[pkg].version);
 
-    delete pJson.scripts.prepack; // We don't want to rebuild
+    // Oclif is going to re-run install, and there's a couple of extra files that will be required to make
+    // that work, which aren't normally included by the "npm pack"/"npm unpack" flow, so we manually pull
+    // them across here:
+    pJson.scripts.preinstall = `cp ../../prepare.ts . && cp ../../overrides/js/package-lock.json overrides/js`;
+
+    delete pJson.scripts.prepack; // We don't want to rebuild - all built code will be in the packed content
     await fs.writeJson(path.join(OUTPUT_DIR, 'package.json'), pJson);
 
     const buildScript = path.join(OUTPUT_DIR, 'build-release.sh');

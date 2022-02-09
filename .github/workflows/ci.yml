@@ -7,7 +7,7 @@ jobs:
     name: Build & test
     runs-on: ubuntu-18.04
     container:
-      image: httptoolkit/act-build-base
+      image: httptoolkit/act-build-base:v2.0.0
       options: "--privileged" # Required for DIND tests
     env:
       DIND_HOST: unix:///tmp/docker.sock
@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: 14.18.3
+
+      - run: npm install -g npm@^8
 
       - name: Set up JDK 11 for Java testing
         uses: actions/setup-java@v1
@@ -31,20 +33,20 @@ jobs:
 
       - name: Prepare test environment
         run: |
-          apt-get update
-          apt-get install p7zip-full xterm
+          sudo apt-get update
+          sudo apt-get install p7zip-full xterm
 
           wget https://downloads.slack-edge.com/linux_releases/slack-desktop-4.12.2-amd64.deb
-          apt install ./slack-desktop-4.12.2-amd64.deb
+          sudo apt install ./slack-desktop-4.12.2-amd64.deb
 
-          cp test/no-sandbox-docker-wrapper.sh /usr/local/bin/google-chrome
-          cp test/no-sandbox-docker-wrapper.sh /usr/local/bin/slack
+          sudo cp test/no-sandbox-docker-wrapper.sh /usr/local/bin/google-chrome
+          sudo cp test/no-sandbox-docker-wrapper.sh /usr/local/bin/slack
 
           # Fix $HOME perms to make Firefox happy
-          chown $(whoami) $HOME
+          sudo chown $(whoami) $HOME
 
           # Start a DIND docker host, running in the background
-          dockerd -H $DIND_HOST &
+          sudo dockerd -H $DIND_HOST &
           sleep 5
 
           # Pre-pull lots of the Docker images we'll want to use later
