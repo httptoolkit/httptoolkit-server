@@ -33,7 +33,7 @@ TARGET=$TARGET_PLATFORM-$TARGET_ARCH
 # Clean the existing build workspace, to keep targets 100% independent
 # ------------------------------------------------------------------------
 
-rm -r ./tmp || true
+rm -rf ./tmp || true
 
 # ------------------------------------------------------------------------
 # Build the package for this platform
