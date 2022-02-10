@@ -97,11 +97,26 @@ wrapModule('stripe', function wrapStripe (loadedModule) {
 
     return Object.assign(
         function () {
-            const result = loadedModule.apply(this, arguments);
+            // In Stripe v8+ setHttpAgent is deprecated and a config param is preferred
+            const agentConfigSupported = !loadedModule.DEFAULT_HOST;
 
             // Set by global-tunnel in Node < 10 (or global-agent in 11.7+)
-            result.setHttpAgent(require('https').globalAgent);
-            return result;
+            const agent = require('https').globalAgent;
+
+            if (agentConfigSupported) {
+                const [apiKey, configOption] = arguments;
+
+                const config = {
+                    ...configOption,
+                    httpAgent: agent // Add our agent to the config object
+                }
+
+                return loadedModule.call(this, apiKey, config);
+            } else {
+                const result = loadedModule.apply(this, arguments);
+                result.setHttpAgent(agent);
+                return result;
+            }
         },
         loadedModule,
         { INTERCEPTED_BY_HTTPTOOLKIT: true }
