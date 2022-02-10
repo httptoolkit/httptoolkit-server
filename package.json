@@ -65,7 +65,7 @@
     "lookpath": "^1.2.1",
     "mime-types": "^2.1.27",
     "mobx": "^6.3.5",
-    "mockttp": "^2.5.0",
+    "mockttp": "^2.6.0",
     "node-abort-controller": "^3.0.1",
     "node-fetch": "^2.6.1",
     "node-forge": "^1.2.1",
