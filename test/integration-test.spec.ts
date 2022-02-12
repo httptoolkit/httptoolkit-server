@@ -7,13 +7,10 @@ import * as tmp from 'tmp';
 import * as decompress from 'decompress';
 import { expect } from 'chai';
 import * as getGraphQL from 'graphql.js';
-import * as glob from 'glob';
 
 import { getRemote } from 'mockttp';
 
 import { delay } from '../src/util/promise';
-
-const matchFiles = promisify(glob);
 
 async function setupServerPath() {
     if (!process.env.TEST_BUILT_TARBALL) {
@@ -27,15 +24,14 @@ async function setupServerPath() {
 
     const channel = (version.split('-')[1] || '').split('.')[0];
 
-    const tarballPath = (await matchFiles(path.join(
+    const tarballPath = path.join(
         __dirname,
         '..',
         'build',
         'dist',
-        `${channel ? channel + '-' : ''}httptoolkit-server-v${version}-*-${process.platform}-${process.arch}.tar.gz`
-    )))[0];
-
-    if (!tarballPath) throw new Error("No built server available - run 'npm run build:release' first");
+        `v${version}`,
+        `${channel ? channel + '-' : ''}httptoolkit-server-v${version}-${process.platform}-${process.arch}.tar.gz`
+    );
 
     console.log('Extracting built tarball to', tmpDir);
     await decompress(tarballPath, tmpDir);

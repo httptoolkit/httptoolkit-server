@@ -43,7 +43,7 @@ echo
 echo "BUILDING FOR $TARGET_PLATFORM"
 echo
 
-oclif pack tarballs --targets=$TARGET
+oclif-dev pack --targets=$TARGET
 
 echo
 echo "BUILT"

@@ -4,7 +4,7 @@ set -e
 
 ls -la *
 
-tar -xvzf ./distributables/httptoolkit-server-*-$1-x64.tar.gz
+tar -xvzf ./distributables/v*/httptoolkit-server-*-$1-x64.tar.gz
 
 echo "Starting server..."
 
