@@ -48,7 +48,9 @@ const getChromiumLaunchOptions = async (
             // Trust our CA certificate's fingerprint:
             `--ignore-certificate-errors-spki-list=${spkiFingerprint}`,
             // Avoid annoying extra network noise:
-            '--disable-background-networking'
+            '--disable-background-networking',
+            // Disable annoying "What's New" page
+            '--disable-features=ChromeWhatsNewUI'
         ]
     };
 }
