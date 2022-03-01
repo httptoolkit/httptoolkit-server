@@ -47,10 +47,12 @@ const getChromiumLaunchOptions = async (
         options: [
             // Trust our CA certificate's fingerprint:
             `--ignore-certificate-errors-spki-list=${spkiFingerprint}`,
+            // Disable annoying "What's New" page
+            '--disable-features=ChromeWhatsNewUI',
             // Avoid annoying extra network noise:
             '--disable-background-networking',
-            // Disable annoying "What's New" page
-            '--disable-features=ChromeWhatsNewUI'
+            '--disable-component-update',
+            '--check-for-update-interval=31536000' // Don't update for a year
         ]
     };
 }
