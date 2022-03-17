@@ -75,8 +75,6 @@ export function getTerminalEnvVars(
         'npm_config_https_proxy': proxyUrl,
         // Stop npm warning about having a different 'node' in $PATH
         'npm_config_scripts_prepend_node_path': 'false',
-        // Proxy used by the Go CLI
-        'GOPROXY': proxyUrl,
 
         // Trust cert when using OpenSSL with default settings
         'SSL_CERT_FILE': httpsConfig.certPath,
