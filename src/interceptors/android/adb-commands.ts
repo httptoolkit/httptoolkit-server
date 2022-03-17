@@ -209,10 +209,11 @@ export async function injectSystemCertificate(
     adbClient: adb.AdbClient,
     deviceId: string,
     rootCmd: string[],
-    certificatePath: string
+    certificatePath: string,
+    certificateName: string
 ) {
     const injectionScriptPath = `${ANDROID_TEMP}/htk-inject-system-cert.sh`;
-
+    console.log("Cert Path", certificatePath)
     // We have a challenge here. How do we add a new cert to /system/etc/security/cacerts,
     // when that's generally read-only & often hard to remount (emulators require startup
     // args to allow RW system files). Solution: mount a virtual temporary FS on top of it.
@@ -236,7 +237,7 @@ export async function injectSystemCertificate(
             mv /data/local/tmp/htk-ca-copy/* /system/etc/security/cacerts/
 
             # Copy our new cert in, so we trust that too
-            mv ${certificatePath} /system/etc/security/cacerts/
+            cp ${certificatePath} /system/etc/security/cacerts/
 
             # Update the perms & selinux context labels, so everything is as readable as before
             chown root:root /system/etc/security/cacerts/*
@@ -259,6 +260,37 @@ export async function injectSystemCertificate(
     // Actually run the script that we just pushed above, as root
     const scriptOutput = await run(adbClient, deviceId, rootCmd.concat('sh', injectionScriptPath));
     console.log(scriptOutput);
+
+    const certsList = await run(adbClient, deviceId, rootCmd.concat(["ls",`/system/etc/security/cacerts/${certificateName}`]));
+    console.log("Cert Check 1st round:", certsList)
+
+    // See Issue https://github.com/httptoolkit/httptoolkit-android/issues/8
+    if(certsList.includes("No such file")){
+        await pushFile(
+            adbClient,
+            deviceId,
+            stringAsStream(`
+                set -e # Fail on error
+    
+                mount -o rw,remount /
+                cp ${certificatePath} /system/etc/security/cacerts/
+            `),
+            injectionScriptPath,
+            // Due to an Android bug - user mode is always duplicated to group & others. We set as read-only
+            // to avoid making this writable by others before we run it as root in a moment.
+            // More details: https://github.com/openstf/adbkit/issues/126
+            0o444
+        );
+
+        const scriptOutput = await run(adbClient, deviceId, rootCmd.concat('sh', injectionScriptPath));
+        console.log(scriptOutput);
+  
+        const certsList = await run(adbClient, deviceId, rootCmd.concat(["ls",`/system/etc/security/cacerts/${certificateName}`]));
+        console.log("Cert Check 2nd Round:", certsList)
+    }
+
+    // Cleanup
+    await run(adbClient, deviceId, rootCmd.concat(["rm", certificatePath]));
 }
 
 export async function bringToFront(

@@ -190,8 +190,8 @@ export class AndroidAdbInterceptor implements Interceptor {
                 return;
             }
 
+            const certName = `${subjectHash}.0`
             const certPath = `${ANDROID_TEMP}/${subjectHash}.0`;
-            console.log(`Adding cert file as ${certPath}`);
 
             await pushFile(
                 this.adbClient,
@@ -201,7 +201,7 @@ export class AndroidAdbInterceptor implements Interceptor {
                 0o444
             );
 
-            await injectSystemCertificate(this.adbClient, deviceId, rootCmd, certPath);
+            await injectSystemCertificate(this.adbClient, deviceId, rootCmd, certPath, certName);
             console.log(`Cert injected`);
         } catch (e) {
             reportError(e);
