@@ -191,10 +191,13 @@ function deriveContainerCreationConfigFromInspection(
 ): Docker.ContainerCreateOptions {
     return {
         ...containerDetails.Config,
-        HostConfig: containerDetails.HostConfig,
         name: containerDetails.Name,
         // You can't reconnect all networks at creation for >1 network.
-        // To simplify things, we just connect all networks after creation.
+        // To avoid issues, we just reconnect all networks after creation.
+        HostConfig: {
+            ...containerDetails.HostConfig,
+            NetworkMode: 'none'
+        },
         NetworkingConfig: {}
     };
 }
@@ -204,6 +207,11 @@ async function connectNetworks(
     containerId: string,
     networks: Docker.EndpointsConfig
 ) {
+    // At creation, we initially connect containers to 'none', and we have to
+    // undo that before we can connect to anything else. Note that this all
+    // happens before container startup, so this is invisible.
+    await docker.getNetwork('none').disconnect({ Container: containerId });
+
     await Promise.all(
         Object.keys(networks).map(networkName =>
             docker.getNetwork(networkName).connect({
@@ -268,7 +276,7 @@ export async function restartAndInjectContainer(
     );
 
     // Reconnect to all the previous container's networks:
-    connectNetworks(
+    await connectNetworks(
         docker,
         newContainer.id,
         containerDetails.NetworkSettings.Networks
