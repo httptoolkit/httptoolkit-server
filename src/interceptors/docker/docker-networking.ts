@@ -338,6 +338,11 @@ class DockerNetworkMonitor {
             } else {
                 // Elsewhere it's true for *all* traffic:
                 aliases.push([container.Config.Hostname, containerIp]);
+
+                // In some cases (custom name defined) which we can't reliably detect, on non-default
+                // networks it's also possible to resolve a container using just its container name
+                // (with the leading slash stripped). To handle that we just route all names:
+                aliases.push([container.Name.slice(1), containerIp]);
             }
 
             // Every container can be accessed by any configured aliases on this network:
