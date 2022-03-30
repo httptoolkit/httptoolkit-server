@@ -77,13 +77,13 @@ describe('Existing terminal interceptor', function () {
     it("should intercept all popular JS libraries", async function () {
         this.timeout(10000);
         const { interceptor, server } = await interceptorSetup;
-        const result = await interceptor.activate(server.port) as { port: number };
+        const result = await interceptor.activate(server.port) as { port: number, commands: { [shell: string]: { command: string } } };
 
-        const mainRule = await server.get(/https?:\/\/example.test\/js\/.*/).thenReply(200);
-        const stripeRule = await server.get('https://api.stripe.com/v1/customers').thenJson(200, {});
+        const mainRule = await server.forGet(/https?:\/\/example.test\/js\/.*/).thenReply(200);
+        const stripeRule = await server.forGet('https://api.stripe.com/v1/customers').thenJson(200, {});
 
         const scriptOutput = await execAsync(`
-            . <(curl -sS http://localhost:${result.port}/setup);
+            ${result.commands['Bash'].command}
             node "${require.resolve('../fixtures/terminal/js-test-script')}"
         `, {
             shell: '/bin/bash'
