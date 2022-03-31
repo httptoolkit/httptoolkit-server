@@ -106,6 +106,22 @@ export const getFishShellScript = (callbackUrl: string, env: { [name: string]: s
     echo 'HTTP Toolkit interception enabled'
 `;
 
+export const getPowerShellScript = (callbackUrl: string, env: { [name: string]: string }) => `${
+        _.map(env, (value, key) => `    $Env:${key} = "${value.replace(/"/g, '`"')}"`).join('\n')
+    }
+
+    # We add a few special hooks just for Invoke-WebRequest.
+    # First, we override the default proxy to use the env var value:
+    $PSDefaultParameterValues["invoke-webrequest:proxy"] = $Env:HTTP_PROXY
+    # Then we disable cert checks completely - all traffic will go to us, we'll handle HTTPS upstream
+    $PSDefaultParameterValues["invoke-webrequest:SkipCertificateCheck"] = $True
+
+    # Let the HTTP Toolkit app know this ran succesfully
+    Start-Job -ScriptBlock { Invoke-WebRequest "${callbackUrl}" -NoProxy -Method 'POST' } | out-null
+
+    Write-Host 'HTTP Toolkit interception enabled'
+`;
+
 // Find the relevant user shell config file, add the above line to it, so that
 // shells launched with HTTP_TOOLKIT_ACTIVE set use the interception PATH.
 export const editShellStartupScripts = async () => {

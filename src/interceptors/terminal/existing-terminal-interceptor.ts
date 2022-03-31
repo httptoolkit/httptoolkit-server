@@ -4,17 +4,41 @@ import { Mockttp, getLocal } from 'mockttp';
 import { Interceptor } from '..';
 import { HtkConfig } from '../../config';
 import { getTerminalEnvVars } from './terminal-env-overrides';
-import { getBashShellScript, getFishShellScript } from './terminal-scripts';
+import { getBashShellScript, getFishShellScript, getPowerShellScript } from './terminal-scripts';
 
 interface ServerState {
     server: Mockttp;
     isActive: boolean;
 }
 
-function getShellCommands(port: number) {
-    return {
-        'Bash': { command: `eval "$(curl -sS localhost:${port}/setup)"`, description: "Bash-compatible" },
-        'Fish': { command: `curl -sS localhost:${port}/fish-setup | source`, description: "Fish" }
+type ShellDefinition = { command: string, description: string };
+
+const getBashDefinition = (port: number) => ({
+    description: "Bash-compatible",
+    command: `eval "$(curl -sS localhost:${port}/setup)"`
+});
+
+const getFishDefinition = (port: number) => ({
+    description: "Fish",
+    command: `curl -sS localhost:${port}/fish-setup | source`
+});
+
+const getPowershellDefinition = (port: number) => ({
+    description: "Powershell",
+    command: `Invoke-Expression (Invoke-WebRequest http://localhost:${port}/ps-setup).Content`
+});
+
+function getShellCommands(port: number): { [shellName: string]: ShellDefinition } {
+    if (process.platform === 'win32') {
+        return {
+            'Powershell': getPowershellDefinition(port)
+        }
+    } else {
+        return {
+            'Bash': getBashDefinition(port),
+            'Fish': getFishDefinition(port),
+            'Powershell': getPowershellDefinition(port)
+        };
     }
 }
 
@@ -30,16 +54,14 @@ export class ExistingTerminalInterceptor implements Interceptor {
     constructor(private config: HtkConfig) { }
 
     isActivable(): Promise<boolean> {
-        // Not supported on Windows, for now. Doesn't work in cmd or powershell of course (needs bash),
-        // and doesn't work in git bash/WSL due to path transforms. Fixable, I think, but not easily.
-        return Promise.resolve(process.platform !== 'win32');
+        return Promise.resolve(true);
     }
 
     isActive(proxyPort: number): boolean {
         return this.servers[proxyPort]?.isActive ?? false;
     }
 
-    async activate(proxyPort: number): Promise<{ port: number, commands: { [shellName: string]: { command: string, description: string } } }> {
+    async activate(proxyPort: number): Promise<{ port: number, commands: { [shellName: string]: ShellDefinition } }> {
         if (this.servers[proxyPort]) {
             // Reset isActive, so we wait again for a new request
             this.servers[proxyPort].isActive = false;
@@ -57,6 +79,7 @@ export class ExistingTerminalInterceptor implements Interceptor {
 
         const serverState = { server, isActive: false };
 
+        // Endpoints for each of the various setup scripts:
         await server.forGet('/setup').thenReply(200,
             getBashShellScript(server.urlFor('/success'), envVars),
             { "content-type": "text/x-shellscript" }
@@ -65,7 +88,12 @@ export class ExistingTerminalInterceptor implements Interceptor {
             getFishShellScript(server.urlFor('/success'), envVars),
             { "content-type": "application/x-fish" }
         );
+        await server.forGet('/ps-setup').thenReply(200,
+            getPowerShellScript(server.urlFor('/success'), envVars),
+            { "content-type": "text/plain" }
+        );
 
+        // A success endpoint, so we can mark this as active (which provides some helpful UX on the frontend)
         await server.forPost('/success').thenCallback(() => {
             serverState.isActive = true;
             return { status: 200 };
