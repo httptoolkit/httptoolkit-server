@@ -1,8 +1,8 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as envPaths from 'env-paths';
-import { getStandalone, generateCACertificate } from 'mockttp';
-import { MockttpStandalone } from 'mockttp/dist/standalone/mockttp-standalone';
+import { getAdminServer, generateCACertificate } from 'mockttp';
+import { MockttpAdminServer } from 'mockttp';
 import { Mutex } from 'async-mutex';
 
 import updateCommand from '@oclif/plugin-update/lib/commands/update';
@@ -66,18 +66,18 @@ function checkCertExpiry(certContents: string): void {
 }
 
 function manageBackgroundServices(
-    standalone: MockttpStandalone,
+    standalone: MockttpAdminServer,
     httpsConfig: { certPath: string, certContent: string }
 ) {
-    standalone.on('mock-server-started', async (server) => {
-        startDockerInterceptionServices(server.port, httpsConfig, ruleParameters)
+    standalone.on('mock-session-started', async ({ http }) => {
+        startDockerInterceptionServices(http.getMockServer().port, httpsConfig, ruleParameters)
         .catch((error) => {
             console.log("Could not start Docker components:", error);
         });
     });
 
-    standalone.on('mock-server-stopping', (server) => {
-        stopDockerInterceptionServices(server.port, ruleParameters)
+    standalone.on('mock-session-stopping', ({ http }) => {
+        stopDockerInterceptionServices(http.getMockServer().port, ruleParameters)
         .catch((error) => {
             console.log("Could not stop Docker components:", error);
         });
@@ -112,7 +112,7 @@ export async function runHTK(options: {
     console.log('Certificates setup in', certSetupTime - configCheckTime, 'ms');
 
     // Start a Mockttp standalone server
-    const standalone = getStandalone({
+    const standalone = getAdminServer({
         serverDefaults: {
             cors: false, // Don't add mocked CORS responses to intercepted traffic
             recordTraffic: false, // Don't persist traffic here (keep it in the UI)

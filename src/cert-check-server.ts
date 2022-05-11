@@ -38,12 +38,12 @@ export class CertCheckServer {
         await this.server.start(EPHEMERAL_PORT_RANGE);
 
         await Promise.all([
-            this.server.get('/test-https').thenCallback(() => {
+            this.server.forGet('/test-https').thenCallback(() => {
                 console.log('Request to /test-https successfully received');
                 this.certCheckedSuccessfully.resolve(true);
                 return { statusCode: 200 };
             }),
-            this.server.get('/check-cert').thenCallback(() => {
+            this.server.forGet('/check-cert').thenCallback(() => {
                 console.log('Request to /check-cert received');
 
                 return {
@@ -117,7 +117,7 @@ export class CertCheckServer {
                     `)
                 };
             }),
-            this.server.get('/failed-test').thenCallback(() => {
+            this.server.forGet('/failed-test').thenCallback(() => {
                 console.log('Request to /failed-test received');
                 this.certCheckedSuccessfully.resolve(false);
 

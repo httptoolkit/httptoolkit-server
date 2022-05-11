@@ -87,7 +87,6 @@ module.exports = {
         new webpack.IgnorePlugin(/^\.\/protocol.json$/, /chrome-remote-interface/),
         // Copy Mockttp's schema (read with readFile) into the output directory
         new CopyWebpackPlugin([
-            { from: path.join('node_modules', 'mockttp', 'dist', 'standalone', 'schema.gql') },
             { from: path.join('node_modules', '@httptoolkit', 'browser-launcher', 'res'), to: 'bl-resources' }
         ]),
         // If SENTRY_AUTH_TOKEN is set, upload this sourcemap to Sentry

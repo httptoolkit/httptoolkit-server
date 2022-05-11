@@ -27,7 +27,7 @@ export class HideWarningServer {
     async start(targetUrl: string) {
         await this.server.start(EPHEMERAL_PORT_RANGE);
 
-        await this.server.get('/hide-warning').thenReply(200, `
+        await this.server.forGet('/hide-warning').thenReply(200, `
             <html>
                 <title>HTTP Toolkit Warning Fix</title>
                 <meta charset="UTF-8" />

@@ -8,7 +8,7 @@ import { makeExecutableSchema } from '@graphql-tools/schema';
 import { GraphQLScalarType } from 'graphql';
 import { graphqlHTTP } from 'express-graphql';
 
-import { generateSPKIFingerprint, MockttpStandalone } from 'mockttp';
+import { generateSPKIFingerprint, MockttpAdminServer } from 'mockttp';
 import { getSystemProxy } from 'os-proxy-config';
 
 import { HtkConfig } from './config';
@@ -113,7 +113,7 @@ const INTERCEPTOR_TIMEOUT = 1000;
 const buildResolvers = (
     config: HtkConfig,
     interceptors: _.Dictionary<Interceptor>,
-    mockttpStandalone: MockttpStandalone,
+    mockttpAdminServer: MockttpAdminServer,
     eventEmitter: events.EventEmitter
 ) => {
     return {
@@ -139,7 +139,7 @@ const buildResolvers = (
                 return [`127.0.0.1:${dnsServer.address().port}`];
             },
             ruleParameterKeys: async (): Promise<String[]> => {
-                return mockttpStandalone.ruleParameterKeys;
+                return mockttpAdminServer.ruleParameterKeys;
             }
         },
 
@@ -275,14 +275,14 @@ export class HttpToolkitServerApi extends events.EventEmitter {
 
     private server: express.Application;
 
-    constructor(config: HtkConfig, mockttpStandalone: MockttpStandalone) {
+    constructor(config: HtkConfig, mockttpAdminServer: MockttpAdminServer) {
         super();
 
         let interceptors = buildInterceptors(config);
 
         const schema = makeExecutableSchema({
             typeDefs,
-            resolvers: buildResolvers(config, interceptors, mockttpStandalone, this)
+            resolvers: buildResolvers(config, interceptors, mockttpAdminServer, this)
         });
 
         this.server = express();

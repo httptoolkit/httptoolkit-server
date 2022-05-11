@@ -19,7 +19,7 @@ export class MessageServer {
         this.server = getLocal({ https: this.config.https, cors: true });
         await this.server.start(EPHEMERAL_PORT_RANGE);
 
-        await this.server.get('/')
+        await this.server.forGet('/')
             .thenCallback(() => {
                 console.log('Request to message server received');
                 this.messageSeen.resolve();

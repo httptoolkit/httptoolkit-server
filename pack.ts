@@ -51,7 +51,6 @@ const packageApp = async () => {
         // Add the fully bundled source (not normally packaged by npm):
         path.join('bundle', 'index.js'),
         path.join('bundle', 'error-tracking.js'),
-        path.join('bundle', 'schema.gql'),
         // Static resources normally stored in browser-launcher
         path.join('bundle', 'bl-resources')
     ].map((extraFile) =>
