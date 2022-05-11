@@ -16,7 +16,8 @@ import {
     injectSystemCertificate,
     stringAsStream,
     hasCertInstalled,
-    bringToFront
+    bringToFront,
+    setChromeFlags
 } from './adb-commands';
 import { streamLatestApk, clearAllApks } from './fetch-apk';
 import { parseCert, getCertificateFingerprint, getCertificateSubjectHash } from '../../certificates';
@@ -185,24 +186,32 @@ export class AndroidAdbInterceptor implements Interceptor {
             const subjectHash = getCertificateSubjectHash(cert);
             const fingerprint = getCertificateFingerprint(cert);
 
-            if (await hasCertInstalled(this.adbClient, deviceId, subjectHash, fingerprint)) {
+            if (!await hasCertInstalled(this.adbClient, deviceId, subjectHash, fingerprint)) {
+                const certPath = `${ANDROID_TEMP}/${subjectHash}.0`;
+                console.log(`Adding cert file as ${certPath}`);
+
+                await pushFile(
+                    this.adbClient,
+                    deviceId,
+                    stringAsStream(certContent.replace('\r\n', '\n')),
+                    certPath,
+                    0o444
+                );
+
+                await injectSystemCertificate(this.adbClient, deviceId, rootCmd, certPath);
+                console.log(`Cert injected`);
+            } else {
                 console.log("Cert already installed, nothing to do");
-                return;
             }
 
-            const certPath = `${ANDROID_TEMP}/${subjectHash}.0`;
-            console.log(`Adding cert file as ${certPath}`);
+            const spkiFingerprint = generateSPKIFingerprint(certContent);
 
-            await pushFile(
-                this.adbClient,
-                deviceId,
-                stringAsStream(certContent.replace('\r\n', '\n')),
-                certPath,
-                0o444
-            );
-
-            await injectSystemCertificate(this.adbClient, deviceId, rootCmd, certPath);
-            console.log(`Cert injected`);
+            // Chrome requires system certificates to use certificate transparency, which we can't do. To work
+            // around this, we need to explicitly trust our certificate in Chrome:
+            await setChromeFlags(this.adbClient, deviceId, rootCmd, [
+                `--ignore-certificate-errors-spki-list=${spkiFingerprint}`
+            ]);
+            console.log('Android Chrome flags set');
         } catch (e) {
             reportError(e);
         }

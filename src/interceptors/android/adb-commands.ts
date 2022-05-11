@@ -250,7 +250,7 @@ export async function injectSystemCertificate(
             echo "System cert successfully injected"
         `),
         injectionScriptPath,
-        // Due to an Android bug - user mode is always duplicated to group & others. We set as read-only
+        // Due to an Android bug, user mode is always duplicated to group & others. We set as read-only
         // to avoid making this writable by others before we run it as root in a moment.
         // More details: https://github.com/openstf/adbkit/issues/126
         0o444
@@ -259,6 +259,41 @@ export async function injectSystemCertificate(
     // Actually run the script that we just pushed above, as root
     const scriptOutput = await run(adbClient, deviceId, rootCmd.concat('sh', injectionScriptPath));
     console.log(scriptOutput);
+}
+
+export async function setChromeFlags(
+    adbClient: adb.AdbClient,
+    deviceId: string,
+    rootCmd: string[],
+    flags: string[]
+) {
+    const flagsFileContent = `chrome ${flags.join(' ')}`;
+
+    const chromeFlagsLocations = [
+        'chrome',
+        'android-webview',
+        'webview',
+        'content-shell'
+    ].flatMap((variant) => [
+        `/data/local/${variant}-command-line`,
+        `/data/local/tmp/${variant}-command-line`,
+    ]);
+
+    await Promise.all(chromeFlagsLocations.map((flagsFilePath) =>
+        pushFile(
+            adbClient,
+            deviceId,
+            stringAsStream(flagsFileContent),
+            flagsFilePath,
+            // Due to an Android bug, user mode is always duplicated to group & others. We set as read-only
+            // to avoid making this writable by others.
+            // More details: https://github.com/openstf/adbkit/issues/126
+            0o444 // Read-only for everybody
+        )
+    ));
+
+    // Restart chrome, now that the flags have been changed:
+    await run(adbClient, deviceId, rootCmd.concat('am', 'force-stop', 'com.android.chrome')).catch(() => {});
 }
 
 export async function bringToFront(
