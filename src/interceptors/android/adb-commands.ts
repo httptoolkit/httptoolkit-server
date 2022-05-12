@@ -332,3 +332,33 @@ export async function bringToFront(
         "am", "start", "--activity-single-top", activityName
     ]);
 }
+
+export async function startActivity(
+    adbClient: adb.AdbClient,
+    deviceId: string,
+    options: {
+        action?: string,
+        data?: string,
+        retries?: number
+    }
+): Promise<void> {
+    const retries = options.retries ?? 0;
+
+    try {
+        await adbClient.startActivity(deviceId, {
+            wait: true,
+            action: options.action,
+            data: options.data
+        });
+    } catch (e) {
+        if (retries <= 0) throw e;
+        else {
+            await delay(1000);
+
+            return startActivity(adbClient, deviceId, {
+                ...options,
+                retries: retries - 1
+            });
+        }
+    }
+}

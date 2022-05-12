@@ -17,7 +17,8 @@ import {
     stringAsStream,
     hasCertInstalled,
     bringToFront,
-    setChromeFlags
+    setChromeFlags,
+    startActivity
 } from './adb-commands';
 import { streamLatestApk, clearAllApks } from './fetch-apk';
 import { parseCert, getCertificateFingerprint, getCertificateSubjectHash } from '../../certificates';
@@ -109,10 +110,10 @@ export class AndroidAdbInterceptor implements Interceptor {
         await this.adbClient.reverse(options.deviceId, 'tcp:' + proxyPort, 'tcp:' + proxyPort).catch(() => {});
 
         // Use ADB to launch the app with the proxy details
-        await this.adbClient.startActivity(options.deviceId, {
-            wait: true,
+        await startActivity(this.adbClient, options.deviceId, {
             action: 'tech.httptoolkit.android.ACTIVATE',
-            data: `https://android.httptoolkit.tech/connect/?data=${intentData}`
+            data: `https://android.httptoolkit.tech/connect/?data=${intentData}`,
+            retries: 10
         });
 
         this.deviceProxyMapping[proxyPort] = this.deviceProxyMapping[proxyPort] || [];
