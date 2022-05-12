@@ -279,20 +279,37 @@ export async function setChromeFlags(
         `/data/local/tmp/${variant}-command-line`,
     ]);
 
-    await Promise.all(chromeFlagsLocations.map((flagsFilePath) =>
-        pushFile(
-            adbClient,
-            deviceId,
-            stringAsStream(flagsFileContent),
-            flagsFilePath,
-            // Due to an Android bug, user mode is always duplicated to group & others. We set as read-only
-            // to avoid making this writable by others.
-            // More details: https://github.com/openstf/adbkit/issues/126
-            0o444 // Read-only for everybody
-        )
-    ));
+    const chromeFlagsScriptPath = `${ANDROID_TEMP}/htk-set-chrome-flags.sh`;
 
-    // Restart chrome, now that the flags have been changed:
+    await pushFile(
+        adbClient,
+        deviceId,
+        stringAsStream(`
+            set -e # Fail on error
+
+            ${
+                chromeFlagsLocations.map((flagsFilePath) => `
+            echo "${flagsFileContent}" > "${flagsFilePath}"
+            chmod 744 "${flagsFilePath}"`
+                ).join('\n')
+            }
+
+            rm ${chromeFlagsScriptPath}
+
+            echo "Chrome flags script completed"
+        `),
+        chromeFlagsScriptPath,
+        // Due to an Android bug, user mode is always duplicated to group & others. We set as read-only
+        // to avoid making this writable by others before we run it as root in a moment.
+        // More details: https://github.com/openstf/adbkit/issues/126
+        0o444
+    );
+
+    // Actually run the script that we just pushed above, as root
+    const scriptOutput = await run(adbClient, deviceId, rootCmd.concat('sh', chromeFlagsScriptPath));
+    console.log(scriptOutput);
+
+    // Try to restart chrome, now that the flags have probably been changed:
     await run(adbClient, deviceId, rootCmd.concat('am', 'force-stop', 'com.android.chrome')).catch(() => {});
 }
 
