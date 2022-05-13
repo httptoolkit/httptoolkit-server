@@ -4,7 +4,7 @@ import { Mockttp, getLocal } from 'mockttp';
 import { Interceptor } from '..';
 import { HtkConfig } from '../../config';
 import { getTerminalEnvVars } from './terminal-env-overrides';
-import { getBashShellScript, getFishShellScript, getPowerShellScript } from './terminal-scripts';
+import { getBashShellScript, getFishShellScript, getGitBashShellScript, getPowerShellScript } from './terminal-scripts';
 
 interface ServerState {
     server: Mockttp;
@@ -16,6 +16,11 @@ type ShellDefinition = { command: string, description: string };
 const getBashDefinition = (port: number) => ({
     description: "Bash-compatible",
     command: `eval "$(curl -sS localhost:${port}/setup)"`
+});
+
+const getGitBashDefinition = (port: number) => ({
+    description: "Git Bash",
+    command: `eval "$(curl -sS localhost:${port}/gb-setup)"`
 });
 
 const getFishDefinition = (port: number) => ({
@@ -31,7 +36,8 @@ const getPowershellDefinition = (port: number) => ({
 function getShellCommands(port: number): { [shellName: string]: ShellDefinition } {
     if (process.platform === 'win32') {
         return {
-            'Powershell': getPowershellDefinition(port)
+            'Powershell': getPowershellDefinition(port),
+            'Git Bash': getGitBashDefinition(port)
         }
     } else {
         return {
@@ -82,6 +88,10 @@ export class ExistingTerminalInterceptor implements Interceptor {
         // Endpoints for each of the various setup scripts:
         await server.forGet('/setup').thenReply(200,
             getBashShellScript(server.urlFor('/success'), envVars),
+            { "content-type": "text/x-shellscript" }
+        );
+        await server.forGet('/gb-setup').thenReply(200,
+            getGitBashShellScript(server.urlFor('/success'), envVars),
             { "content-type": "text/x-shellscript" }
         );
         await server.forGet('/fish-setup').thenReply(200,

@@ -88,6 +88,19 @@ export const getBashShellScript = (callbackUrl: string, env: { [name: string]: s
     echo 'HTTP Toolkit interception enabled'
 `;
 
+// Build a Bash script, but first just translate the $PATH (which Git Bash expects to include its own
+// path-format strings) from Windows to Git Bash format.
+export const getGitBashShellScript = (callbackUrl: string, env: { [name: string]: string }) =>
+    getBashShellScript(callbackUrl, {
+        ...env,
+        // We convert path from being the override bin & ; separator to /C/path/to/overrides.
+        PATH: env['PATH']
+            .replace(
+                `${OVERRIDE_BIN_PATH};`,
+                POSIX_OVERRIDE_BIN_PATH + ':' // Unix format $PATH separator
+            )
+    });
+
 export const getFishShellScript = (callbackUrl: string, env: { [name: string]: string }) => `${
         _.map(env, (value, key) => `    set -x ${key} "${value.replace(/"/g, '\\"')}"`).join('\n')
     }
