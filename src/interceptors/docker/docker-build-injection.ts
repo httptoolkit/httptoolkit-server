@@ -44,7 +44,7 @@ export function injectIntoBuildStream(
         envVars: getTerminalEnvVars(
             config.proxyPort,
             { certPath: HTTP_TOOLKIT_INJECTED_CA_PATH },
-            'runtime-inherit', // Dockerfile commands can reference vars directly
+            'posix-runtime-inherit', // Dockerfile commands can reference vars directly
             {
                 httpToolkitIp: DOCKER_HOST_HOSTNAME,
                 overridePath: HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH,

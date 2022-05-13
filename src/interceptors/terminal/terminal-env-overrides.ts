@@ -20,7 +20,10 @@ export const OVERRIDE_JAVA_AGENT = path.join(OVERRIDES_DIR, JAVA_AGENT_JAR);
 export function getTerminalEnvVars(
     proxyPort: number,
     httpsConfig: { certPath: string },
-    currentEnv: { [key: string]: string | undefined } | 'runtime-inherit',
+    currentEnv:
+        | { [key: string]: string | undefined }
+        | 'posix-runtime-inherit'
+        | 'powershell-runtime-inherit',
     targetEnvConfig: {
         httpToolkitIp?: string,
         overridePath?: string,
@@ -33,6 +36,17 @@ export function getTerminalEnvVars(
         targetPlatform: process.platform,
         ...targetEnvConfig
     };
+
+    const runtimeInherit = currentEnv === 'posix-runtime-inherit'
+            ? (varName: string) => `$${varName}`
+        : currentEnv === 'powershell-runtime-inherit'
+            ? ((varName: string) => `$env:${varName}`)
+        : undefined;
+    currentEnv = (runtimeInherit
+        ? {} // Reset the env if we're using runtime inheritance:
+        // Or use the real values we were given if not:
+        : currentEnv
+    ) as { [key: string]: string | undefined };
 
     const pathVarSeparator = targetPlatform === 'win32' ? ';' : ':';
     const joinPath = targetPlatform === 'win32' ? path.win32.join : path.posix.join;
@@ -96,19 +110,19 @@ export function getTerminalEnvVars(
 
         // Prepend our bin overrides into $PATH
         'PATH': `${binPath}${pathVarSeparator}${
-            currentEnv == 'runtime-inherit' ? '$PATH' : currentEnv.PATH
+            runtimeInherit ? runtimeInherit('PATH') : currentEnv.PATH
         }`,
 
         // Prepend our Ruby gem overrides into $LOAD_PATH
-        'RUBYLIB': currentEnv === 'runtime-inherit'
-                ? `${rubyGemsPath}:$RUBYLIB`
+        'RUBYLIB': runtimeInherit
+                ? `${rubyGemsPath}:${runtimeInherit('RUBYLIB')}`
             : !!currentEnv.RUBYLIB
                 ? `${rubyGemsPath}:${currentEnv.RUBYLIB}`
             : rubyGemsPath,
 
         // Prepend our Python package overrides into $PYTHONPATH
-        'PYTHONPATH': currentEnv === 'runtime-inherit'
-                ? `${pythonPath}:$PYTHONPATH`
+        'PYTHONPATH': runtimeInherit
+                ? `${pythonPath}:${runtimeInherit('PYTHONPATH')}`
             : currentEnv.PYTHONPATH
                 ? `${pythonPath}:${currentEnv.PYTHONPATH}`
             : pythonPath,
@@ -116,13 +130,13 @@ export function getTerminalEnvVars(
         // We use $NODE_OPTIONS to prepend our script into node. Notably this drops existing
         // env values, when using our env, because _our_ NODE_OPTIONS aren't meant for
         // subprocesses. Otherwise e.g. --max-http-header-size breaks old Node/Electron.
-        'NODE_OPTIONS': currentEnv === 'runtime-inherit'
-            ? `$NODE_OPTIONS ${nodePrependOption}`
+        'NODE_OPTIONS': runtimeInherit
+            ? `${runtimeInherit('NODE_OPTIONS')} ${nodePrependOption}`
             : nodePrependOption,
 
         // Attach our Java agent to all launched Java processes:
-        'JAVA_TOOL_OPTIONS': currentEnv === 'runtime-inherit'
-                ? `$JAVA_TOOL_OPTIONS ${javaAgentOption}`
+        'JAVA_TOOL_OPTIONS': runtimeInherit
+                ? `${runtimeInherit('JAVA_TOOL_OPTIONS')} ${javaAgentOption}`
             : currentEnv.JAVA_TOOL_OPTIONS
                 ? `${currentEnv.JAVA_TOOL_OPTIONS} ${javaAgentOption}`
             : javaAgentOption,

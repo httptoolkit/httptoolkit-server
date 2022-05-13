@@ -81,25 +81,27 @@ export class ExistingTerminalInterceptor implements Interceptor {
         const server = getLocal();
         await server.start({ startPort: proxyPort + 1, endPort: 65535 });
 
-        const envVars = getTerminalEnvVars(proxyPort, this.config.https, 'runtime-inherit', {});
-
         const serverState = { server, isActive: false };
+
+        const posixEnvVars = getTerminalEnvVars(proxyPort, this.config.https, 'posix-runtime-inherit', {});
 
         // Endpoints for each of the various setup scripts:
         await server.forGet('/setup').thenReply(200,
-            getBashShellScript(server.urlFor('/success'), envVars),
+            getBashShellScript(server.urlFor('/success'), posixEnvVars),
             { "content-type": "text/x-shellscript" }
         );
         await server.forGet('/gb-setup').thenReply(200,
-            getGitBashShellScript(server.urlFor('/success'), envVars),
+            getGitBashShellScript(server.urlFor('/success'), posixEnvVars),
             { "content-type": "text/x-shellscript" }
         );
         await server.forGet('/fish-setup').thenReply(200,
-            getFishShellScript(server.urlFor('/success'), envVars),
+            getFishShellScript(server.urlFor('/success'), posixEnvVars),
             { "content-type": "application/x-fish" }
         );
+
+        const powerShellEnvVars = getTerminalEnvVars(proxyPort, this.config.https, 'powershell-runtime-inherit', {});
         await server.forGet('/ps-setup').thenReply(200,
-            getPowerShellScript(server.urlFor('/success'), envVars),
+            getPowerShellScript(server.urlFor('/success'), powerShellEnvVars),
             { "content-type": "text/plain" }
         );
 
