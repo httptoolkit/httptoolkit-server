@@ -113,3 +113,12 @@ if (MAJOR_NODEJS_VERSION >= 10) {
     const globalTunnel = require('global-tunnel-ng');
     globalTunnel.initialize();
 }
+
+if (MAJOR_NODEJS_VERSION >= 18 || global.fetch) {
+    // Node 18 enables fetch by default (available previously behind a flag). This does not use
+    // the existing agent API, so is not intercepted by global-agent. Instead, the only way to
+    // set the HTTP proxy is to separately import Undici (used internally by Node) and configure
+    // Undici's global proxy agent. We bundle our own Undici dep so we can do this reliably,
+    // and here we import it to trigger the Undici setup hook defined above.
+    require('undici');
+}

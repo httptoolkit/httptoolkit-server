@@ -5,6 +5,12 @@ require('http').get('http://example.test/js/http');
 require('https').get('https://example.test/js/https');
 
 function sendRequestsTo(baseUrl) {
+    if (global.fetch) {
+        // Only in Node 18+ so this isn't actually covered by unit tests, but
+        // it's useful for manually testing.
+        fetch(baseUrl + '/global-fetch');
+    }
+
     require('request').get(baseUrl + '/request');
     require('axios').get(baseUrl + '/axios');
     require('superagent').get(baseUrl + '/superagent').end(() => {});

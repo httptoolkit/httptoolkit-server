@@ -5,6 +5,7 @@
   "license": "AGPL-3.0-or-later",
   "dependencies": {
     "global-agent": "3.0.0",
-    "global-tunnel-ng": "2.7.1"
+    "global-tunnel-ng": "2.7.1",
+    "undici": "^5.2.0"
   }
 }
