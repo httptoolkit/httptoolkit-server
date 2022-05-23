@@ -7,32 +7,10 @@
  * plus tweaks various other HTTP clients that need nudges, so they
  * all correctly pick up the proxy from the environment.
  *
- * Tested against Node 6, 8, 10, 12 and 14.
-*/
+ * Tested against Node 6, 8, 10, 12, 14, 16 & 18.
+ */
 
 const wrapModule = require('./wrap-require');
-
-let httpAlreadyIntercepted = false;
-
-function interceptAllHttp() {
-    if (httpAlreadyIntercepted) return;
-    httpAlreadyIntercepted = true;
-
-    const MAJOR_NODEJS_VERSION = parseInt(process.version.slice(1).split('.')[0], 10);
-
-    if (MAJOR_NODEJS_VERSION >= 10) {
-        // `global-agent` works with Node.js v10 and above.
-        const globalAgent = require('global-agent');
-        globalAgent.bootstrap();
-    } else {
-        // `global-tunnel-ng` works only with Node.js v10 and below.
-        const globalTunnel = require('global-tunnel-ng');
-        globalTunnel.initialize();
-    }
-}
-
-wrapModule('http', interceptAllHttp, true);
-wrapModule('https', interceptAllHttp, true);
 
 wrapModule('axios', function wrapAxios (loadedModule) {
     // Global agent handles this automatically, if used (i.e. Node >= 10)
@@ -122,3 +100,16 @@ wrapModule('stripe', function wrapStripe (loadedModule) {
         { INTERCEPTED_BY_HTTPTOOLKIT: true }
     );
 });
+
+// We always install a global HTTP agent, to ensure that everything using the base HTTP module is intercepted
+// by default. This avoids issues where hooks don't fire on ESM imports by just enabling this in all cases.
+const MAJOR_NODEJS_VERSION = parseInt(process.version.slice(1).split('.')[0], 10);
+if (MAJOR_NODEJS_VERSION >= 10) {
+    // `global-agent` works with Node.js v10 and above.
+    const globalAgent = require('global-agent');
+    globalAgent.bootstrap();
+} else {
+    // `global-tunnel-ng` works only with Node.js v10 and below.
+    const globalTunnel = require('global-tunnel-ng');
+    globalTunnel.initialize();
+}

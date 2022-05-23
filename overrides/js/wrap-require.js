@@ -4,6 +4,10 @@
  * This modules intercepts all require calls. For all modules previously
  * registered via wrapModule, it runs the registered wrapper on the loaded
  * module before it is returned to the original require() call.
+ *
+ * This only works for require(), not for ESM Import. Node.js import hooks
+ * are very experimental and not yet usable, but we should extend this to
+ * support those in future: https://github.com/nodejs/modules/issues/351
  */
 
 // Grab the built-in module loader that we're going to intercept

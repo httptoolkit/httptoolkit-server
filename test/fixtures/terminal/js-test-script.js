@@ -1,4 +1,6 @@
 // Test built-ins against their specific protocol
+require('node:http').get('http://example.test/js/http');
+require('node:https').get('https://example.test/js/https');
 require('http').get('http://example.test/js/http');
 require('https').get('https://example.test/js/https');
 
