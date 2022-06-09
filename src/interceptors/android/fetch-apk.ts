@@ -112,8 +112,8 @@ async function cleanupOldApks(config: HtkConfig) {
 
 export async function streamLatestApk(config: HtkConfig): Promise<stream.Readable> {
     const [latestApkRelease, localApk] = await Promise.all([
-        await getLatestRelease(),
-        await getLatestLocalApk(config)
+        getLatestRelease(),
+        getLatestLocalApk(config)
     ]);
 
     if (!localApk) {
