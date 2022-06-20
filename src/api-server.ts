@@ -288,6 +288,16 @@ export class HttpToolkitServerApi extends events.EventEmitter {
         this.server = express();
         this.server.disable('x-powered-by');
 
+        // Allow web pages on non-local URLs (app.httptoolkit.tech, not localhost) to
+        // send requests to this admin server too. Without this, those requests will
+        // fail after rejected preflights in recent Chrome (from ~v102, ish? Unclear).
+        this.server.use((req, res, next) => {
+            if (req.headers["access-control-request-private-network"]) {
+                res.setHeader("access-control-allow-private-network", "true");
+            }
+            next(null);
+        });
+
         this.server.use(cors({
             origin: ALLOWED_ORIGINS,
             maxAge: 86400 // Cache this result for as long as possible

@@ -121,7 +121,8 @@ export async function runHTK(options: {
         corsOptions: {
             strict: true, // For the standalone admin API, require valid CORS headers
             origin: ALLOWED_ORIGINS, // Only allow requests from our origins, to avoid XSRF
-            maxAge: 86400 // Cache CORS responses for as long as possible
+            maxAge: 86400, // Cache CORS responses for as long as possible
+            allowPrivateNetworkAccess: true // Allow access from non-local domains in Chrome 102+
         },
         webSocketKeepAlive: 20000, // Send a keep-alive ping to Mockttp clients every minute
         ruleParameters // Rule parameter dictionary
