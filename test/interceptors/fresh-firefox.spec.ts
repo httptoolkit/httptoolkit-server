@@ -10,7 +10,7 @@ describe('Firefox interceptor', function () {
     beforeEach(async () => {
         const { server } = await interceptorSetup;
         await server.start();
-        await server.anyRequest().thenPassThrough();
+        await server.forAnyRequest().thenPassThrough();
     });
 
     afterEach(async () => {

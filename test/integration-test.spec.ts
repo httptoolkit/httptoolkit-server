@@ -110,14 +110,14 @@ describe('Integration test', function () {
 
     it('starts a Mockttp server', async () => {
         const mockttp = getRemote({
-            standaloneServerUrl: 'http://localhost:45456',
+            adminServerUrl: 'http://localhost:45456',
             client: {
                 // Pretend to be a browser on the real site:
                 headers: { origin: 'https://app.httptoolkit.tech' }
             }
         });
         await mockttp.start();
-        await mockttp.get('https://google.com').thenReply(200, 'Mock response');
+        await mockttp.forGet('https://google.com').thenReply(200, 'Mock response');
 
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         const response = await request.get('https://google.com', { proxy: mockttp.url });

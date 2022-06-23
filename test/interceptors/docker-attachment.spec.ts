@@ -106,7 +106,7 @@ describe('Docker single-container interceptor', function () {
         it(`should intercept external ${target} requests`, async function () {
             this.timeout(60000);
             const { interceptor, server } = await interceptorSetup;
-            const mainRule = await server.get('https://example.com').thenReply(404);
+            const mainRule = await server.forGet('https://example.com').thenReply(404);
 
             const containerId = await buildAndRun(target.toLowerCase(), 'https://example.com');
 

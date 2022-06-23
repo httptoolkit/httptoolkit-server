@@ -25,7 +25,7 @@ describe('Fresh terminal interceptor', function () {
 
         beforeEach(async () => {
             const { server } = await interceptorSetup;
-            await server.anyRequest().thenPassThrough();
+            await server.forAnyRequest().thenPassThrough();
         });
 
         afterEach(async () => {
@@ -44,8 +44,8 @@ describe('Fresh terminal interceptor', function () {
 
             const { server, httpsConfig } = await interceptorSetup;
 
-            const mainRule = await server.get(/https?:\/\/example.test\/js\/.*/).thenReply(200);
-            const stripeRule = await server.get('https://api.stripe.com/v1/customers').thenJson(200, {});
+            const mainRule = await server.forGet(/https?:\/\/example.test\/js\/.*/).thenReply(200);
+            const stripeRule = await server.forGet('https://api.stripe.com/v1/customers').thenJson(200, {});
 
             // Spawn node, as if it was run inside an intercepted terminal
             const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env);
