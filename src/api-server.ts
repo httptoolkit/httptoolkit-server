@@ -7,6 +7,7 @@ import corsGate = require('cors-gate');
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import { GraphQLScalarType } from 'graphql';
 import { graphqlHTTP } from 'express-graphql';
+import gql from 'graphql-tag';
 
 import { generateSPKIFingerprint, MockttpAdminServer } from 'mockttp';
 import { getSystemProxy } from 'os-proxy-config';
@@ -40,7 +41,7 @@ const packageJson = require('../package.json');
  *   --token at startup.
  */
 
-const typeDefs = `
+const typeDefs = gql`
     type Query {
         version: String!
         config: InterceptionConfig!
