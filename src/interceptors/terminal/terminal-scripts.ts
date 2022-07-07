@@ -4,7 +4,7 @@ import * as util from 'util';
 import * as os from 'os';
 import * as path from 'path';
 
-import { canAccess, writeFile, renameFile, readFile } from '../../util/fs';
+import { canAccess, writeFile, renameFile, readFile, getRealPath } from '../../util/fs';
 import { reportError } from '../../error-tracking';
 import { OVERRIDE_BIN_PATH } from './terminal-env-overrides';
 
@@ -18,14 +18,21 @@ const SHELL = (process.env.SHELL || '').split('/').slice(-1)[0];
 const appendOrCreateFile = util.promisify(fs.appendFile);
 const appendToFirstExisting = async (paths: string[], forceWrite: boolean, contents: string) => {
     for (let path of paths) {
-        // Small race here, but end result is ok either way
-        if (await canAccess(path)) {
-            return appendOrCreateFile(path, contents);
+        // Follow the path through symlinks (relatively common for terminal config):
+        const realPath = await getRealPath(path);
+        if (!realPath) continue; // File (or linked file) does not exist
+
+        if (await canAccess(realPath)) {
+            // Found our first valid readable file - append our extra config
+            return appendOrCreateFile(realPath, contents);
         }
+
+        // ^ Small races here, if the file content/perms change between check and write, but
+        // unlikely to be a major concern - we'll just fail to write, it'll work next time.
     }
 
     if (forceWrite) {
-        // If force write is set, write the last file anyway
+        // If force write is set, write the last file anyway, even though it didn't exist before:
         return appendOrCreateFile(paths.slice(-1)[0], contents);
     }
 };
@@ -146,8 +153,13 @@ export const editShellStartupScripts = async () => {
     // git-bash ignoring the inherited $PATH.
 
     // .profile is used by Dash, Bash sometimes, and by Sh:
-    appendOrCreateFile(path.join(os.homedir(), '.profile'), SH_SHELL_PATH_CONFIG)
-        .catch(reportError);
+    appendToFirstExisting(
+        [
+            path.join(os.homedir(), '.profile')
+        ],
+        true, // We always write .profile
+        SH_SHELL_PATH_CONFIG
+    ).catch(reportError);
 
     // Bash login shells use some other files by preference, if they exist.
     // Note that on OSX, all shells are login - elsewhere they only are at actual login time.
@@ -192,8 +204,11 @@ export const editShellStartupScripts = async () => {
 const removeConfigSectionsFromFile = async (path: string) => {
     let fileLines: string[];
 
+    const targetPath = await getRealPath(path); // Follow symlinks, if present
+    if (!targetPath) return; // File doesn't exist, no need to clean it up
+
     try {
-        fileLines = (await readFile(path, 'utf8')).split('\n');
+        fileLines = (await readFile(targetPath, 'utf8')).split('\n');
     } catch (e) {
         // Silently skip any files we can't read
         return;
@@ -211,9 +226,9 @@ const removeConfigSectionsFromFile = async (path: string) => {
 
     // Write & rename to ensure this is atomic, and avoid races here
     // as much as we reasonably can.
-    const tempFile = path + Date.now() + '.temp';
+    const tempFile = targetPath + Date.now() + '.temp';
     await writeFile(tempFile, fileLines.join('\n'));
-    return renameFile(tempFile, path);
+    return renameFile(tempFile, targetPath);
 };
 
 // Cleanup: strip our extra config line from all config files
