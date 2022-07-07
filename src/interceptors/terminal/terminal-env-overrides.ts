@@ -5,6 +5,7 @@ import { getDockerPipePath } from '../docker/docker-proxy';
 
 const BIN_OVERRIDE_DIR = 'path';
 const RUBY_OVERRIDE_DIR = 'gems';
+const PHP_OVERRIDE_DIR = 'php';
 const PYTHON_OVERRIDE_DIR = 'pythonpath';
 const NODE_PREPEND_SCRIPT = ['js', 'prepend-node.js'];
 const JAVA_AGENT_JAR = 'java-agent.jar';
@@ -61,6 +62,7 @@ export function getTerminalEnvVars(
 
     const rubyGemsPath = joinPath(overridePath, RUBY_OVERRIDE_DIR);
     const pythonPath = joinPath(overridePath, PYTHON_OVERRIDE_DIR);
+    const phpPath = joinPath(overridePath, PHP_OVERRIDE_DIR);
     const nodePrependScript = joinPath(overridePath, ...NODE_PREPEND_SCRIPT);
     const nodePrependOption = `--require ${
         // Avoid quoting except when necessary, because node 8 doesn't support quotes here
@@ -107,6 +109,8 @@ export function getTerminalEnvVars(
 
         // Flag used by subprocesses to check they're running in an intercepted env
         'HTTP_TOOLKIT_ACTIVE': 'true',
+        // Useful downstream to derive the raw paths elsewhere, e.g. in php.ini override config.
+        'HTTP_TOOLKIT_OVERRIDE_PATH': overridePath,
 
         // Prepend our bin overrides into $PATH
         'PATH': `${binPath}${pathVarSeparator}${
@@ -140,6 +144,12 @@ export function getTerminalEnvVars(
             : currentEnv.JAVA_TOOL_OPTIONS
                 ? `${currentEnv.JAVA_TOOL_OPTIONS} ${javaAgentOption}`
             : javaAgentOption,
+
+        'PHP_INI_SCAN_DIR': runtimeInherit
+                ? `${runtimeInherit('PHP_INI_SCAN_DIR')}${pathVarSeparator}${phpPath}`
+            : currentEnv.PHP_INI_SCAN_DIR
+                ? `${currentEnv.PHP_INI_SCAN_DIR}${pathVarSeparator}${phpPath}`
+            : phpPath,
 
         // Run all Docker operations through our Docker-hooking proxy:
         'DOCKER_HOST': dockerHost,

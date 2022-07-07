@@ -6,6 +6,14 @@ PATH="${PATH//`dirname "$0"`:/}"
 real_php=`command -v php`
 PATH="`dirname "$0"`:$PATH"
 
+# Strip out our PHP_INI_SCAN_DIR - if this file has been run succesfully, then it's not necessary,
+# and it can cause problems (since it overrides any default scan directories configured)
+export PHP_INI_SCAN_DIR="${PHP_INI_SCAN_DIR//:`echo $HTTP_TOOLKIT_OVERRIDE_PATH/php`/}"
+export PHP_INI_SCAN_DIR="${PHP_INI_SCAN_DIR//`echo $HTTP_TOOLKIT_OVERRIDE_PATH/php`/}"
+if [ -z "$PHP_INI_SCAN_DIR" ]; then
+    unset PHP_INI_SCAN_DIR
+fi
+
 # Call PHP with the given arguments, and a few extra
 PHP_ARGS=(
     # Make OpenSSL trust us
@@ -13,7 +21,7 @@ PHP_ARGS=(
     # Make cURL trust us
     -d "curl.cainfo=$SSL_CERT_FILE" \
     # Prepend a script that enables the proxy
-    -d "auto_prepend_file=`dirname "$0"`/prepend.php" \
+    -d "auto_prepend_file=`dirname "$0"`/../php/prepend.php" \
     # Pass through all other provided arguments
     "$@"
 )
