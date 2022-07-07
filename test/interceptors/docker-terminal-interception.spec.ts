@@ -181,6 +181,34 @@ Successfully built <hash>
         expect(stderr).to.equal('');
     });
 
+    it("should support proxying 'docker exec'", async function () {
+        const { server, httpsConfig } = await testSetup;
+
+        const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env, {});
+
+        // Launch a background Node.js container that stays running for 10 seconds
+        const runResult = await spawnToResult(
+            'docker', ['run', '-d', '--rm', 'node:14', '-e', 'setTimeout(() => {}, 10000000)'],
+            {
+                env: { ...process.env, ...terminalEnvOverrides }
+            }
+        );
+
+        expect(runResult.exitCode).to.equal(0);
+        const containerId = runResult.stdout.trim();
+
+        const execResult = await spawnToResult(
+            'docker', ['exec', containerId, 'node', '-e', 'console.log("exec" + "-test-" + "output")'],
+            {
+                env: { ...process.env, ...terminalEnvOverrides },
+            }
+        );
+
+        expect(execResult.exitCode).to.equal(0);
+        expect(execResult.stderr).to.equal('');
+        expect(execResult.stdout).to.include('exec-test-output'); // Executed command is run & output returned
+    });
+
     it("should intercept 'docker-compose up'", async function () {
         this.timeout(30000);
 

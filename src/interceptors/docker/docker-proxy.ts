@@ -94,7 +94,6 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
             path: req.url,
         });
 
-
         bodyStream.pipe(dockerReq);
 
         return dockerReq;
@@ -282,6 +281,11 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
             return;
         }
 
+        // We have to include initial data in the upstream request. This is especially important for
+        // commands like /exec/.../start, which send JSON config {detach:...} in the initial request,
+        // which the docker daemon waits before it will accept the upgrade (or 400s, if it's missing).
+        req.unshift(head);
+
         const dockerReq = sendToDocker(req);
         dockerReq.on('error', (e) => {
             console.error('Docker proxy error', e);
@@ -339,7 +343,6 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
             // We only write upgrade head data if it's non-empty. For some bizarre reason on
             // Windows, writing empty data to a named pipe here kills the connection entirely.
             if (dockerHead.length) socket.write(dockerHead);
-            if (head.length) dockerSocket.write(head);
 
             dockerSocket.on('error', (e) => {
                 console.error('Docker proxy error', e);
