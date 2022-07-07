@@ -39,18 +39,24 @@ export function injectIntoBuildStream(
 
     let commandsAddedToDockerfile = getDeferred<number>();
 
+    const envVars = getTerminalEnvVars(
+        config.proxyPort,
+        { certPath: HTTP_TOOLKIT_INJECTED_CA_PATH },
+        'posix-runtime-inherit', // Dockerfile commands can reference vars directly
+        {
+            httpToolkitIp: DOCKER_HOST_HOSTNAME,
+            overridePath: HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH,
+            targetPlatform: 'linux'
+        }
+    );
+
+    // For now, we don't inject DOCKER_HOST into the container, so we don't try to intercept DinD. It
+    // should be doable in theory, but it seems complicated and of limited value.
+    delete envVars['DOCKER_HOST'];
+
     const dockerfileConfig = {
         ...config,
-        envVars: getTerminalEnvVars(
-            config.proxyPort,
-            { certPath: HTTP_TOOLKIT_INJECTED_CA_PATH },
-            'posix-runtime-inherit', // Dockerfile commands can reference vars directly
-            {
-                httpToolkitIp: DOCKER_HOST_HOSTNAME,
-                overridePath: HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH,
-                targetPlatform: 'linux'
-            }
-        )
+        envVars
     };
 
     extractionStream.on('entry', async (headers, entryStream, next) => {

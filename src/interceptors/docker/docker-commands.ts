@@ -129,6 +129,21 @@ export function transformContainerCreationConfig(
         }
     };
 
+    const envVarsToInject = getTerminalEnvVars(
+        proxyPort,
+        { certPath: HTTP_TOOLKIT_INJECTED_CA_PATH },
+        envArrayToObject(currentConfig.Env),
+        {
+            httpToolkitIp: DOCKER_HOST_HOSTNAME,
+            overridePath: HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH,
+            targetPlatform: 'linux'
+        }
+    );
+
+    // For now, we don't inject DOCKER_HOST into the container, so we don't try to intercept DinD. It
+    // should be doable in theory, but it seems complicated and of limited value.
+    delete envVarsToInject['DOCKER_HOST'];
+
     const hostConfig: Docker.HostConfig = {
         ...currentConfig.HostConfig,
         // To intercept without modifying the container, we bind mount our overrides and certificate
@@ -165,18 +180,7 @@ export function transformContainerCreationConfig(
         HostConfig: hostConfig,
         Env: [
             ...(currentConfig.Env ?? []),
-            ...envObjectToArray(
-                getTerminalEnvVars(
-                    proxyPort,
-                    { certPath: HTTP_TOOLKIT_INJECTED_CA_PATH },
-                    envArrayToObject(currentConfig.Env),
-                    {
-                        httpToolkitIp: DOCKER_HOST_HOSTNAME,
-                        overridePath: HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH,
-                        targetPlatform: 'linux'
-                    }
-                )
-            )
+            ...envObjectToArray(envVarsToInject)
         ],
         Labels: {
             ...transformComposeCreationLabels(proxyPort, currentConfig.Labels),
