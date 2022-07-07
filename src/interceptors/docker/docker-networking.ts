@@ -80,6 +80,7 @@ const dockerNetworkMonitors: { [proxyPort: string]: DockerNetworkMonitor | undef
  * explicitly shut down with stopMonitoringDockerNetworkAliases for this proxy port.
  */
 export async function monitorDockerNetworkAliases(proxyPort: number): Promise<DockerNetworkMonitor | undefined> {
+    if (dockerNetworkMonitors[proxyPort]) return dockerNetworkMonitors[proxyPort];
     if (!await isDockerAvailable()) return undefined;
 
     if (!dockerNetworkMonitors[proxyPort]) {
