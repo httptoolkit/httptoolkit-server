@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import { expect } from 'chai';
 
 import * as Docker from 'dockerode';
+import fetch from 'node-fetch';
 
 import { setupInterceptor, itIsAvailable } from './interceptor-test-utils';
 import { delay } from '../../src/util/promise';
@@ -12,7 +13,15 @@ import { delay } from '../../src/util/promise';
 const docker = new Docker();
 const DOCKER_FIXTURES = path.join(__dirname, '..', 'fixtures', 'docker');
 
-async function buildAndRun(dockerFolder: string, argument: string) {
+async function buildAndRun(dockerFolder: string, options: {
+    arguments?: string[],
+    attach?: boolean,
+    portBindings?: { [key: string]: {} },
+} = {}) {
+    const shouldAttach = options.attach ?? true;
+    const containerArguments = options.arguments ?? [];
+    const portBindings = options.portBindings ?? {};
+
     const imageName = `test-${dockerFolder}:latest`;
 
     const dockerContext = {
@@ -46,27 +55,38 @@ async function buildAndRun(dockerFolder: string, argument: string) {
     // Run the container, using its default entrypoint
     const container = await docker.createContainer({
         Image: imageName,
-        HostConfig: { AutoRemove: true },
-        Cmd: [argument],
-        Tty: true,
+        HostConfig: {
+            AutoRemove: true,
+            PortBindings: portBindings
+        },
+        Cmd: containerArguments,
+        Tty: shouldAttach
     });
 
-    const stream = await container.attach({
-        stream: true,
-        stdout: true,
-        stderr: true
-    });
+    let startupPromise: Promise<void>
+    if (shouldAttach) {
+        const stream = await container.attach({
+            stream: true,
+            stdout: true,
+            stderr: true
+        });
 
-    stream.setEncoding('utf8');
-    stream.pipe(process.stdout);
+        stream.setEncoding('utf8');
+        stream.pipe(process.stdout);
+
+        // The promise that docker.run returns waits for the container to *finish*. To wait until
+        // the container has started, we wait for the first stream output:
+        startupPromise = new Promise((resolve) => stream.on('data', resolve));
+    } else {
+        // When we can't attach to wait for input (e.g. PHP Apache, where window events cause
+        // problems) we just wait briefly instead:
+        startupPromise = delay(500);
+    }
 
     console.log('Container created');
 
-    container.start();
-
-    // The promise that docker.run returns waits for the container to *finish*. To wait until the
-    // container has started, we wait for the first stream output:
-    await new Promise((resolve) => stream.on('data', resolve));
+    await container.start();
+    await startupPromise;
 
     return container.id;
 }
@@ -108,7 +128,9 @@ describe('Docker single-container interceptor', function () {
             const { interceptor, server } = await interceptorSetup;
             const mainRule = await server.forGet('https://example.com').thenReply(404);
 
-            const containerId = await buildAndRun(target.toLowerCase(), 'https://example.com');
+            const containerId = await buildAndRun(target.toLowerCase(), {
+                arguments: ['https://example.com']
+            });
 
             await delay(500);
             expect(
@@ -117,12 +139,41 @@ describe('Docker single-container interceptor', function () {
 
             await interceptor.activate(server.port, { containerId });
             console.log('Container intercepted');
-
             await new Promise((resolve) => server.on('response', resolve));
 
             const seenRequests = await mainRule.getSeenRequests();
             expect(seenRequests.map(r => r.url)).to.include('https://example.com/');
         });
+    });
+
+    // PHP is a special case: we have to make a request to trigger it:
+    it(`should intercept external PHP requests`, async function () {
+        this.timeout(60000);
+        const { interceptor, server } = await interceptorSetup;
+        const mainRule = await server.forGet('https://example.com').thenReply(404);
+
+        const containerId = await buildAndRun('php', {
+            attach: false,
+            portBindings: { '80/tcp': [{ HostPort: '48080' }] }
+        });
+
+        await delay(500);
+        expect(
+            _.map(((await interceptor.getMetadata!('summary')).targets), ({ id }: any) => id)
+        ).to.include(containerId);
+
+        await interceptor.activate(server.port, { containerId });
+        console.log('Container intercepted');
+
+        await delay(500);
+        fetch('http://localhost:48080/?target=https://example.com')
+            .catch(() => {});
+
+        // Wait for the resulting request to example.com:
+        await new Promise((resolve) => server.on('response', resolve));
+
+        const seenRequests = await mainRule.getSeenRequests();
+        expect(seenRequests.map(r => r.url)).to.include('https://example.com/');
     });
 
 });
