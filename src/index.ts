@@ -144,7 +144,7 @@ export async function runHTK(options: {
         configPath,
         authToken: options.authToken,
         https: httpsConfig
-    }, standalone);
+    }, standalone.ruleParameterKeys);
 
     const updateMutex = new Mutex();
     apiServer.on('update-requested', () => {
