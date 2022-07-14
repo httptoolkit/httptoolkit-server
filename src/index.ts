@@ -10,7 +10,7 @@ import updateCommand from '@oclif/plugin-update/lib/commands/update';
 import { HttpToolkitServerApi } from './api-server';
 import { checkBrowserConfig } from './browsers';
 import { reportError } from './error-tracking';
-import { ALLOWED_ORIGINS } from './constants';
+import { MOCKTTP_ALLOWED_ORIGINS } from './constants';
 
 import { delay } from './util/promise';
 import { isErrorLike } from './util/error';
@@ -121,7 +121,7 @@ export async function runHTK(options: {
         },
         corsOptions: {
             strict: true, // For the standalone admin API, require valid CORS headers
-            origin: ALLOWED_ORIGINS, // Only allow requests from our origins, to avoid XSRF
+            origin: MOCKTTP_ALLOWED_ORIGINS, // Only allow mock admin control from our origins
             maxAge: 86400, // Cache CORS responses for as long as possible
             allowPrivateNetworkAccess: true // Allow access from non-local domains in Chrome 102+
         },

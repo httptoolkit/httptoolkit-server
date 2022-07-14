@@ -21,8 +21,15 @@ export const ALLOWED_ORIGINS = IS_PROD_BUILD
         // resolving to localhost and never hitting the network).
         /^https?:\/\/localhost(:\d+)?$/,
         /^http:\/\/local\.httptoolkit\.tech(:\d+)?$/,
-        /^https:\/\/app\.httptoolkit\.tech$/
-    ]
+        /^https:\/\/app\.httptoolkit\.tech$/,
+    ];
+
+export const MOCKTTP_ALLOWED_ORIGINS = [
+    ...ALLOWED_ORIGINS,
+    // The Chromium webextension is allowed to make requests from the
+    // browser directly into the Mockttp admin API (but not into our API server).
+    'chrome-extension://jggocihfdfgogbofcmdlfbakdkgdkdoe'
+];
 
 // The range of ports that should be used by invisible ephemeral services, such as Firefox's
 // certificate check server and Chrome's "hide warning" server. These ports are extra likely
