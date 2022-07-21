@@ -40,7 +40,8 @@ async function generateHTTPSConfig(configPath: string) {
         // Cert doesn't exist, or is too close/past expiry. Generate a new one:
 
         const newCertPair = await generateCACertificate({
-            commonName: APP_NAME + ' CA'
+            commonName: APP_NAME + ' CA',
+            organizationName: APP_NAME + ' CA'
         });
 
         return Promise.all([
