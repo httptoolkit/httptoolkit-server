@@ -62,6 +62,7 @@ module.exports = {
         '@oclif/plugin-update/lib/commands/update', // Lots of complicated dynamic requires in @oclif
         'registry-js', // Native module
         'win-version-info', // Native module
+        'node-datachannel', // Native module
         'vm2', // Does odd things with require, can't be webpack'd
         function (context, request, callback) {
             if (context !== __dirname && request.endsWith('/error-tracking')) {

@@ -1,9 +1,18 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as envPaths from 'env-paths';
-import { getAdminServer, generateCACertificate } from 'mockttp';
-import { MockttpAdminServer } from 'mockttp';
 import { Mutex } from 'async-mutex';
+
+import {
+    PluggableAdmin,
+    generateCACertificate
+} from 'mockttp';
+import {
+    MockttpAdminPlugin
+} from 'mockttp/dist/pluggable-admin-api/mockttp-pluggable-admin';
+import {
+    MockRTCAdminPlugin
+} from 'mockrtc';
 
 import updateCommand from '@oclif/plugin-update/lib/commands/update';
 
@@ -67,7 +76,10 @@ function checkCertExpiry(certContents: string): void {
 }
 
 function manageBackgroundServices(
-    standalone: MockttpAdminServer,
+    standalone: PluggableAdmin.AdminServer<{
+        http: MockttpAdminPlugin,
+        webrtc: MockRTCAdminPlugin
+    }>,
     httpsConfig: { certPath: string, certContent: string }
 ) {
     standalone.on('mock-session-started', async ({ http }) => {
@@ -113,11 +125,25 @@ export async function runHTK(options: {
     console.log('Certificates setup in', certSetupTime - configCheckTime, 'ms');
 
     // Start a Mockttp standalone server
-    const standalone = getAdminServer({
-        serverDefaults: {
-            cors: false, // Don't add mocked CORS responses to intercepted traffic
-            recordTraffic: false, // Don't persist traffic here (keep it in the UI)
-            https: httpsConfig // Use our HTTPS config for HTTPS MITMs.
+    const standalone = new PluggableAdmin.AdminServer<{
+        http: MockttpAdminPlugin,
+        webrtc: MockRTCAdminPlugin
+    }>({
+        adminPlugins: {
+            http: MockttpAdminPlugin,
+            webrtc: MockRTCAdminPlugin
+        },
+        pluginDefaults: {
+            http: {
+                options: {
+                    cors: false, // Don't add mocked CORS responses to intercepted traffic
+                    recordTraffic: false, // Don't persist traffic here (keep it in the UI)
+                    https: httpsConfig // Use our HTTPS config for HTTPS MITMs.
+                }
+            },
+            webrtc: {
+                recordMessages: false // Don't persist WebRTC traffic server-side either.
+            }
         },
         corsOptions: {
             strict: true, // For the standalone admin API, require valid CORS headers
