@@ -59,7 +59,7 @@ export class DockerContainerInterceptor implements Interceptor {
                 state: containerData.State,
                 status: containerData.Status,
                 image: containerData.Image,
-                ips: Object.values(containerData.NetworkSettings.Networks)
+                ips: Object.values(containerData.NetworkSettings?.Networks ?? {})
                     .map(network => network.IPAddress)
             }))
             .keyBy('id')
