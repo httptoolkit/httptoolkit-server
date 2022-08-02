@@ -16,6 +16,7 @@ import { listRunningProcesses, windowsClose, waitForExit } from '../util/process
 import { HideWarningServer } from '../hide-warning-server';
 import { Interceptor } from '.';
 import { reportError } from '../error-tracking';
+import { WEBEXTENSION_PATH } from '../webextension';
 
 const getBrowserDetails = async (config: HtkConfig, variant: string): Promise<Browser | undefined> => {
     const browsers = await getAvailableBrowsers(config.configPath);
@@ -28,7 +29,8 @@ const getChromiumLaunchOptions = async (
     browser: string,
     config: HtkConfig,
     proxyPort: number,
-    hideWarningServer: HideWarningServer
+    hideWarningServer: HideWarningServer,
+    webExtensionEnabled: boolean
 ): Promise<LaunchOptions & { options: Required<LaunchOptions>['options'] }> => {
     const certificatePem = await readFile(config.https.certPath, 'utf8');
     const spkiFingerprint = generateSPKIFingerprint(certificatePem);
@@ -42,7 +44,11 @@ const getChromiumLaunchOptions = async (
             '<-loopback>',
             // Don't intercept our warning hiding requests. Note that this must be
             // the 2nd rule here, or <-loopback> would override it.
-            hideWarningServer.host
+            hideWarningServer.host,
+            // We use httptoolkit-internal.localhost (always resolves to localhost,
+            // enforced by Chrome) to skip the proxy for internal requests from the
+            // our webextension.
+            'internal.httptoolkit.localhost'
         ],
         options: [
             // Trust our CA certificate's fingerprint:
@@ -52,7 +58,16 @@ const getChromiumLaunchOptions = async (
             // Avoid annoying extra network noise:
             '--disable-background-networking',
             '--disable-component-update',
-            '--check-for-update-interval=31536000' // Don't update for a year
+            '--check-for-update-interval=31536000', // Don't update for a year
+            ...(webExtensionEnabled
+                // Install HTTP Toolkit's extension, for advanced hook setup. Feature
+                // flagged for now as it's still new & largely untested.
+                ? [
+
+                    `--load-extension=${WEBEXTENSION_PATH}`
+                ]
+                : []
+            )
         ]
     };
 }
@@ -80,7 +95,7 @@ abstract class FreshChromiumBasedInterceptor implements Interceptor {
         return !!browserDetails;
     }
 
-    async activate(proxyPort: number) {
+    async activate(proxyPort: number, options: { webExtensionEnabled?: boolean } = {}) {
         if (this.isActive(proxyPort)) return;
 
         const hideWarningServer = new HideWarningServer(this.config);
@@ -93,7 +108,8 @@ abstract class FreshChromiumBasedInterceptor implements Interceptor {
                 browserDetails ? browserDetails.name : this.variantName,
                 this.config,
                 proxyPort,
-                hideWarningServer
+                hideWarningServer,
+                !!options.webExtensionEnabled
             )
         , this.config.configPath);
 
@@ -220,7 +236,10 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
         return defaultRootProcess && defaultRootProcess.pid;
     }
 
-    async activate(proxyPort: number, options: { closeConfirmed: boolean } = { closeConfirmed: false }) {
+    async activate(proxyPort: number, options: {
+        closeConfirmed: boolean,
+        webExtensionEnabled?: boolean
+    } = { closeConfirmed: false }) {
         if (!this.isActivable()) return;
 
         const hideWarningServer = new HideWarningServer(this.config);
@@ -257,7 +276,8 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
             browserDetails ? browserDetails.name : this.variantName,
             this.config,
             proxyPort,
-            hideWarningServer
+            hideWarningServer,
+            !!options.webExtensionEnabled
         );
 
         // Remove almost all default arguments. Each of these changes behaviour in maybe unexpected
