@@ -32,6 +32,7 @@ import {
     startDockerInterceptionServices,
     stopDockerInterceptionServices
 } from './interceptors/docker/docker-interception-services';
+import { clearWebExtensionConfig, updateWebExtensionConfig } from './webextension';
 
 const APP_NAME = "HTTP Toolkit";
 
@@ -82,18 +83,29 @@ function manageBackgroundServices(
     }>,
     httpsConfig: { certPath: string, certContent: string }
 ) {
-    standalone.on('mock-session-started', async ({ http }) => {
-        startDockerInterceptionServices(http.getMockServer().port, httpsConfig, ruleParameters)
+    standalone.on('mock-session-started', async ({ http, webrtc }, sessionId) => {
+        const httpProxyPort = http.getMockServer().port;
+
+        startDockerInterceptionServices(httpProxyPort, httpsConfig, ruleParameters)
         .catch((error) => {
             console.log("Could not start Docker components:", error);
+        });
+
+        updateWebExtensionConfig(sessionId, httpProxyPort, !!webrtc)
+        .catch((error) => {
+            console.log("Could not update WebRTC config:", error);
         });
     });
 
     standalone.on('mock-session-stopping', ({ http }) => {
-        stopDockerInterceptionServices(http.getMockServer().port, ruleParameters)
+        const httpProxyPort = http.getMockServer().port;
+
+        stopDockerInterceptionServices(httpProxyPort, ruleParameters)
         .catch((error) => {
             console.log("Could not stop Docker components:", error);
         });
+
+        clearWebExtensionConfig(httpProxyPort);
     });
 }
 
