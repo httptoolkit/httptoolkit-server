@@ -29,7 +29,7 @@
     "@devicefarmer/adbkit": "^2.11.2",
     "@graphql-tools/schema": "^8.5.0",
     "@graphql-tools/utils": "^8.8.0",
-    "@httptoolkit/browser-launcher": "^2.0.1",
+    "@httptoolkit/browser-launcher": "^2.0.2",
     "@httptoolkit/osx-find-executable": "^2.0.1",
     "@oclif/command": "^1.5.4",
     "@oclif/config": "^1.13.3",
@@ -81,7 +81,7 @@
     "tar-stream": "^2.2.0",
     "tmp": "0.0.33",
     "tslib": "^1.9.3",
-    "win-version-info": "^3.1.1"
+    "win-version-info": "^5.0.1"
   },
   "devDependencies": {
     "@oclif/dev-cli": "^1.19.4",
@@ -181,7 +181,7 @@
         }
       },
       "node": {
-        "version": "14.18.3",
+        "version": "16.16.0",
         "targets": [
           "win32-x64",
           "linux-x64",

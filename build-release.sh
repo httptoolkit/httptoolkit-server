@@ -27,6 +27,11 @@ export npm_config_platform=$TARGET_PLATFORM
 # Pick the target platform for node-pre-gyp:
 export npm_config_target_platform=$TARGET_PLATFORM
 
+# Disable node-gyp-build for win-version-info only. Without this, it's
+# rebuilt for Linux, even given $TARGET_PLATFORM=win32, and then breaks
+# at runtime even though there are valid win32 prebuilds available.
+export WIN_VERSION_INFO=disable-prebuild
+
 TARGET=$TARGET_PLATFORM-$TARGET_ARCH
 
 # ------------------------------------------------------------------------
@@ -60,8 +65,9 @@ PACKAGE_WHITELIST=''
 case "$TARGET_PLATFORM" in
     linux)
         EXPECTED_BIN_STRING="ELF"
-        # Builds raw on non-Windows, but never used
-        PACKAGE_WHITELIST="registry-js"
+        # Registry-js builds raw on non-Windows, but never used
+        # Win-version info includes prebuilds for Windows on all platforms
+        PACKAGE_WHITELIST="registry-js|win-version-info/prebuilds"
         ;;
     win32)
         EXPECTED_BIN_STRING="MS Windows"
@@ -69,8 +75,9 @@ case "$TARGET_PLATFORM" in
         ;;
     darwin)
         EXPECTED_BIN_STRING="Mach-O"
-        # Builds raw on non-Windows, but never used
-        PACKAGE_WHITELIST="registry-js"
+        # Registry-js builds raw on non-Windows, but never used
+        # Win-version info includes prebuilds for Windows on all platforms
+        PACKAGE_WHITELIST="registry-js|win-version-info/prebuilds"
         ;;
     *)
         echo "Unknown platform $TARGET_PLATFORM"

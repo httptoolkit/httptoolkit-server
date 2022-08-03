@@ -16,7 +16,7 @@ jobs:
 
       - uses: actions/setup-node@v1
         with:
-          node-version: 14.18.3
+          node-version: 16.16.0
 
       - run: npm install -g npm@^8
 
