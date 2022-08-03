@@ -18680,6 +18680,7 @@
           mockPeerPromise = getDeferred();
           isActive = void 0;
           while (isActive === void 0) {
+            yield new Promise((resolve) => setTimeout(resolve, 500));
             yield updateMockRTCPeerConnection();
           }
         });

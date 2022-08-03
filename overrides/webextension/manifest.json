@@ -6,8 +6,8 @@
         "48": "icon-48.png",
         "128": "icon-128.png"
     },
-    "key": "jggocihfdfgogbofcmdlfbakdkgdkdoe",
-    "version": "1.1.0",
+    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyP7cZAF3QssK5iB59HYUdKPCf+hSqlY8M6UXIhemXvmpTKQE1gfPFLACSKP9wB+oWJnJChq/IkpgC3nlKbLbcKO8lGVyU5ecvq3A5v/znovmeVs4FKZOkq+tKnYdRCD7nIH9ycAksKPXqM3aBopOPVvoQFfDp3MFlHeW5TpxVaRj02IW7say4jOvNLRBoekczQTHUXw8NpYrpJPC9YqahMaB5tz4l9SGFiXNf/ga611jzzlFcQGhqtJAXQ6EmnQUoBtt/35qiTdL3VlBxqSdVTfdU23zKgEIJ5Uf6x0SOe6vdO0jAPvx8maKbw0ZRd2fvxOQ2qgxP2NcDsXjoGll4wIDAQAB",
+    "version": "1.1.1",
     "manifest_version": 3,
     "background": {
         "service_worker": "build/background.js"
