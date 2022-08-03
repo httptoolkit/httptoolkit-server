@@ -12,6 +12,8 @@ import { commandExists, canAccess } from '../util/fs';
 
 type JvmTarget = { pid: string, name: string, interceptedByProxy: number | undefined };
 
+const OLD_JAVA_MISSING_ATTACH_CLASS = 'com/sun/tools/attach/AgentLoadException';
+
 // Check that Java is present, and that it's compatible with agent attachment:
 const javaBinPromise: Promise<string | false> = (async () => {
     // Check what Java binaries might exist:
@@ -45,15 +47,29 @@ const javaBinPromise: Promise<string | false> = (async () => {
     )[0];
 
     if (javaTestResults.length && !bestJava) {
-        // If some Java is present, but none are working, we report the failures. Hoping that this will hunt
-        // down some specific incompatibilities that we can better work around/detect.
+        // Some Java binaries are present, but none are usable. Log the error output for debugging:
         javaTestResults.forEach((testResult) => {
             console.log(`Running ${testResult.javaBin}:`);
             console.log(testResult.output.stdout);
             console.log(testResult.output.stderr);
         });
 
-        throw new Error(`JVM attach not available, exited with ${javaTestResults[0].output.exitCode}`);
+        // The most common reason for this is that outdated Java versions (most notably Java 8) don't include
+        // the necessary APIs to attach to remote JVMs. That's inconvenient, but unavoidable & not unusual.
+        // Fortunately, I think most active Java developers do have a recent version of Java installed.
+        const nonOutdatedJavaErrors = javaTestResults.filter(({ output }) =>
+            !output.stderr.includes(OLD_JAVA_MISSING_ATTACH_CLASS) &&
+            !output.stdout.includes(OLD_JAVA_MISSING_ATTACH_CLASS)
+        );
+
+        if (nonOutdatedJavaErrors.length === 0) {
+            console.warn('Only older Java versions were detected - Java attach APIs are not available');
+            return false;
+        } else {
+            // If we find any other unexpected Java errors, we report them, to aid with debugging and
+            // detecting issues with unusual JVMs.
+            throw new Error(`JVM attach test failed unusually - exited with ${nonOutdatedJavaErrors[0].output.exitCode}`);
+        }
     } else if (bestJava) {
         return bestJava.javaBin;
     } else {
