@@ -1,9 +1,10 @@
 import * as path from 'path';
 import { OVERRIDES_DIR } from './interceptors/terminal/terminal-env-overrides';
 
-import { deleteFile, writeFile } from "./util/fs";
+import { deleteFile, mkDir, writeFile } from "./util/fs";
 
 export const WEBEXTENSION_PATH = path.join(OVERRIDES_DIR, 'webextension');
+const WEBEXTENSION_CONFIG_PATH = path.join(WEBEXTENSION_PATH, 'config');
 
 interface WebExtensionConfig { // Should match config in the WebExtension itself
     mockRtc: {
@@ -16,7 +17,7 @@ const getConfigKey = (proxyPort: number) =>
     `127_0_0_1.${proxyPort}`; // Filename-safe proxy address
 
 const getConfigPath = (proxyPort: number) =>
-    path.join(WEBEXTENSION_PATH, 'config', getConfigKey(proxyPort));
+    path.join(WEBEXTENSION_CONFIG_PATH, getConfigKey(proxyPort));
 
 export function clearWebExtensionConfig(httpProxyPort: number) {
     return deleteFile(getConfigPath(httpProxyPort))
@@ -42,5 +43,6 @@ export async function updateWebExtensionConfig(
 }
 
 async function writeConfig(proxyPort: number, config: WebExtensionConfig) {
+    await mkDir(WEBEXTENSION_CONFIG_PATH).catch(() => {}); // Make sure the config dir exists
     return writeFile(getConfigPath(proxyPort), JSON.stringify(config));
 }
