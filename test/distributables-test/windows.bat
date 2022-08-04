@@ -9,7 +9,7 @@ tar -xvzf %TAR_PATH%
 
 echo Starting server...
 
-START "server" .\httptoolkit-server\bin\httptoolkit-server start
+START "server" /b .\httptoolkit-server\bin\httptoolkit-server start
 
 REM The closest we can get to a 10 second delay on Windows in CI, ick:
 ping -n 10 127.0.0.1 >NUL
