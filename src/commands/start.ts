@@ -15,15 +15,8 @@ import { IS_PROD_BUILD } from '../constants';
 
 function maybeBundleImport<T>(moduleName: string): T {
     if (IS_PROD_BUILD || process.env.OCLIF_TS_NODE === '0') {
-        // Full package: try to explicitly load the bundle
-        try {
-            return require('../../bundle/' + moduleName);
-        } catch (e) {
-            console.log(e);
-            // Fallback (bundle is included in real package)
-            console.log(`Could not load bundle ${moduleName}, loading raw`);
-            return require('../' + moduleName);
-        }
+        // Full built package: load the bundle
+        return require('../../bundle/' + moduleName);
     } else {
         // Npm or dev: run the raw code
         return require('../' + moduleName);
