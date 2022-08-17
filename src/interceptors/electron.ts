@@ -11,7 +11,7 @@ import { Interceptor } from '.';
 import { HtkConfig } from '../config';
 import { delay } from '../util/promise';
 import { isErrorLike } from '../util/error';
-import { readFile } from '../util/fs';
+import { canAccess, readFile } from '../util/fs';
 import { windowsClose } from '../util/process-management';
 import { getTerminalEnvVars, OVERRIDES_DIR } from './terminal/terminal-env-overrides';
 import { reportError, addBreadcrumb } from '../error-tracking';
@@ -21,6 +21,13 @@ const isAppBundle = (path: string) => {
     return process.platform === "darwin" &&
         path.endsWith(".app");
 };
+
+// Returns true if this path is wrong, but path.app is a real app bundle.
+const shouldBeAppBundle = async (path: string) => {
+    if (process.platform !== 'darwin') return false;
+    if (await canAccess(path)) return false;
+    return canAccess(path + '.app');
+}
 
 export class ElectronInterceptor implements Interceptor {
     readonly id = 'electron';
@@ -49,9 +56,14 @@ export class ElectronInterceptor implements Interceptor {
         const debugPort = await getPort({ port: proxyPort });
         const { pathToApplication } = options;
 
+        // We're very flexible with paths for app bundles, because on Mac in reality most people
+        // never see the executable itself, except when developing their own Electron apps.
         const cmd = isAppBundle(pathToApplication)
-            ? await findExecutableInApp(pathToApplication)
-            : pathToApplication;
+                ? await findExecutableInApp(pathToApplication)
+            : await shouldBeAppBundle(pathToApplication)
+                ? await findExecutableInApp(pathToApplication + '.app')
+            // Non-darwin, or darwin with a full path to the binary:
+                : pathToApplication;
 
         const appProcess = spawn(cmd, [`--inspect-brk=${debugPort}`], {
             stdio: 'inherit',
