@@ -64,6 +64,7 @@ module.exports = {
         'win-version-info', // Native module
         'node-datachannel', // Native module
         'vm2', // Does odd things with require, can't be webpack'd
+        'cpu-features', // Native module, optionally used in ssh2, used within Dockerode, we skip it
         function (context, request, callback) {
             if (context !== __dirname && request.endsWith('/error-tracking')) {
                 // Direct all requires of error-tracking to its entrypoint at the top level,
