@@ -1,8 +1,12 @@
-#!/usr/bin/env bash
+#!/bin/sh
+# ^ Note that we use sh, not bash, for alpine compatibility
 set -e
 
 # Exclude ourselves from PATH, find the real node, then reset PATH
-PATH="${PATH//`dirname "$0"`:/}"
+PATH="$(printf '%s\n' "$PATH" | sed "s:$(dirname "$0")\:::g")"
+    # ^ This is made more complicated by sh, since we can't use variable expansion, but this
+    # should be equivalent. We use : as a safe sed delim here, though it is confusing!
+
 real_node=`command -v node`
 PATH="`dirname "$0"`:$PATH"
 
