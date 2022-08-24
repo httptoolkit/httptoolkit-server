@@ -10,22 +10,28 @@ set -e
 # ------------------------------------------------------------------------
 
 TARGET_PLATFORM=$1
+TARGET_ARCH=$2
 
-echo "CONFIGURING FOR $TARGET_PLATFORM"
+echo "CONFIGURING FOR $TARGET_PLATFORM $TARGET_ARCH"
 
 if [ -z "$TARGET_PLATFORM" ]; then
     echo 'A target platform (linux/win32/darwin) is required'
     exit 1
 fi
 
-TARGET_ARCH=`node -e 'console.log(process.arch)'`
+if [ -z "$TARGET_ARCH" ]; then
+    echo 'A target architecture (arm64/x64/etc) is required'
+    exit 1
+fi
 
 export PATH=./node_modules/.bin:$PATH
 
 # Pick the target platform for prebuild-install:
 export npm_config_platform=$TARGET_PLATFORM
+export npm_config_arch=$TARGET_ARCH
 # Pick the target platform for node-pre-gyp:
 export npm_config_target_platform=$TARGET_PLATFORM
+export npm_config_target_arch=$TARGET_PLATFORM
 
 # Disable node-gyp-build for win-version-info only. Without this, it's
 # rebuilt for Linux, even given $TARGET_PLATFORM=win32, and then breaks
