@@ -86,6 +86,12 @@ function manageBackgroundServices(
     standalone.on('mock-session-started', async ({ http, webrtc }, sessionId) => {
         const httpProxyPort = http.getMockServer().port;
 
+        console.log(`Mock session started, http on port ${
+            httpProxyPort
+        }, webrtc ${
+            !!webrtc ? 'enabled' : 'disabled'
+        }`);
+
         startDockerInterceptionServices(httpProxyPort, httpsConfig, ruleParameters)
         .catch((error) => {
             console.log("Could not start Docker components:", error);
