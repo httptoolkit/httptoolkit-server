@@ -19,6 +19,18 @@ export const writeFile = promisify(fs.writeFile);
 export const renameFile = promisify(fs.rename);
 export const copyFile = promisify(fs.copyFile);
 
+export const copyRecursive = async (from: string, to: string) => {
+    // fs.cp is only available in Node 16.7.0+
+    if (!fs.cp) throw new Error("fs.cp not available");
+
+    return new Promise<void>((resolve, reject) => {
+        fs.cp(from, to, { recursive: true }, (err) => {
+            if (err) reject(err);
+            else resolve();
+        });
+    });
+};
+
 export const canAccess = (path: string) => checkAccess(path).then(() => true).catch(() => false);
 
 // Takes a path, follows any links present (if possible) until we reach a non-link file. This

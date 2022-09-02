@@ -16,7 +16,7 @@ import { listRunningProcesses, windowsClose, waitForExit } from '../util/process
 import { HideWarningServer } from '../hide-warning-server';
 import { Interceptor } from '.';
 import { reportError } from '../error-tracking';
-import { WEBEXTENSION_PATH } from '../webextension';
+import { WEBEXTENSION_INSTALL } from '../webextension';
 
 const getBrowserDetails = async (config: HtkConfig, variant: string): Promise<Browser | undefined> => {
     const browsers = await getAvailableBrowsers(config.configPath);
@@ -59,12 +59,12 @@ const getChromiumLaunchOptions = async (
             '--disable-background-networking',
             '--disable-component-update',
             '--check-for-update-interval=31536000', // Don't update for a year
-            ...(webExtensionEnabled
+            ...(webExtensionEnabled && WEBEXTENSION_INSTALL
                 // Install HTTP Toolkit's extension, for advanced hook setup. Feature
                 // flagged for now as it's still new & largely untested.
                 ? [
 
-                    `--load-extension=${WEBEXTENSION_PATH}`
+                    `--load-extension=${WEBEXTENSION_INSTALL.path}`
                 ]
                 : []
             )
