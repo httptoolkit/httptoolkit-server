@@ -35,7 +35,14 @@ function getDockerEventStream(docker: Docker) {
             EventStream.split(),
             EventStream.mapSync((buffer: Buffer) => buffer.toString('utf8')),
             EventStream.filterSync((line: string) => line.length > 0),
-            EventStream.mapSync((rawLine: string) => JSON.parse(rawLine))
+            EventStream.mapSync((rawLine: string) => {
+                try {
+                    return JSON.parse(rawLine);
+                } catch (e) {
+                    console.warn(`Unparseable Docker event data: ${rawLine}`);
+                    return {};
+                }
+            })
         );
 
         // We expose the stream immediately, even though no data is coming yet
