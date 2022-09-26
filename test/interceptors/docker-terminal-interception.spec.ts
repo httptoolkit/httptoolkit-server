@@ -258,7 +258,7 @@ Successfully built <hash>
         expect(seenInternalUrls).to.include("http://127.0.0.1:9876/");
     });
 
-    it("should intercept all network modes", async function () {
+    it.skip("should intercept all network modes", async function () {
         this.timeout(30000);
 
         const { server, httpsConfig, getPassThroughOptions } = await testSetup;
