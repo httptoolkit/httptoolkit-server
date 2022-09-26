@@ -96,7 +96,7 @@ abstract class FreshChromiumBasedInterceptor implements Interceptor {
     }
 
     async activate(proxyPort: number, options: { webExtensionEnabled?: boolean } = {}) {
-        if (this.isActive(proxyPort)) return;
+        const alreadyActive = this.isActive(proxyPort);
 
         const hideWarningServer = new HideWarningServer(this.config);
         await hideWarningServer.start('https://amiusing.httptoolkit.tech');
@@ -118,6 +118,8 @@ abstract class FreshChromiumBasedInterceptor implements Interceptor {
 
         await hideWarningServer.completedPromise;
         await hideWarningServer.stop();
+
+        if (alreadyActive) return; // If we're just opening a new tab, we're done, don't track the process.
 
         this.activeBrowsers[proxyPort] = browser;
         browser.process.once('close', async () => {
