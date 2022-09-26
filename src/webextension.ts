@@ -26,7 +26,10 @@ async function ensureWebExtensionInstalled() {
         const configPath = path.join(webExtensionPath, 'config');
 
         await copyRecursive(WEBEXTENSION_BASE_PATH, webExtensionPath);
-        await mkDir(configPath);
+        await mkDir(configPath).catch((e: any) => {
+            if (e.code === 'EEXIST') return; // Already exists, no problem
+            else throw e;
+        });
 
         WEBEXTENSION_INSTALL = { path: webExtensionPath, configPath };
         console.log(`Webextension installed at ${WEBEXTENSION_INSTALL.path}`);
