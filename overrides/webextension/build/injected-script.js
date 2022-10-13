@@ -1951,7 +1951,10 @@
             mockOffer = mockPeer2.createOffer({
               mirrorSDP: remoteDescription.sdp,
               addDataStream: true,
-              connectionMetadata: { userAgent: navigator.userAgent }
+              connectionMetadata: {
+                userAgent: navigator.userAgent,
+                sourceURL: window.location.href
+              }
             });
             yield _setRemoteDescription((yield mockOffer).offer);
           } else {
@@ -1960,7 +1963,10 @@
               setAnswer(remoteDescription),
               mockPeer2.answerOffer(realOffer, {
                 mirrorSDP: remoteDescription.sdp,
-                connectionMetadata: { userAgent: navigator.userAgent }
+                connectionMetadata: {
+                  userAgent: navigator.userAgent,
+                  sourceURL: window.location.href
+                }
               }).then(({ answer }) => _setRemoteDescription(answer))
             ]);
             currentLocalDescription = pendingLocalDescription;
