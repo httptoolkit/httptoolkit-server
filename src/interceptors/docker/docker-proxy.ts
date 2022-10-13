@@ -10,7 +10,7 @@ import { AbortController } from 'node-abort-controller';
 
 import { chmod, deleteFile, readDir } from '../../util/fs';
 import { rawHeadersToHeaders } from '../../util/http';
-import { destroyable, DestroyableServer } from '../../destroyable-server';
+import { makeDestroyable, DestroyableServer } from 'destroyable-server';
 import { reportError } from '../../error-tracking';
 import { addShutdownHandler } from '../../shutdown';
 
@@ -49,7 +49,9 @@ const ATTACH_CONTAINER_MATCHER = /^\/[^\/]+\/containers\/([^\/]+)\/attach/;
 const CONTAINER_LIST_MATCHER = /^\/[^\/]+\/containers\/json/;
 const CONTAINER_INSPECT_MATCHER = /^\/[^\/]+\/containers\/[^\/]+\/json/;
 
-const DOCKER_PROXY_MAP: { [mockServerPort: number]: Promise<DestroyableServer> | undefined } = {};
+const DOCKER_PROXY_MAP: {
+    [mockServerPort: number]: Promise<DestroyableServer<net.Server>> | undefined
+} = {};
 
 export async function ensureDockerProxyRunning(
     proxyPort: number,
@@ -381,5 +383,5 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
         await chmod(proxyListenPath, 0o700);
     }
 
-    return destroyable(server);
+    return makeDestroyable(server);
 };
