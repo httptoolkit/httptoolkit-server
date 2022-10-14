@@ -290,7 +290,8 @@ export async function setChromeFlags(
             ${
                 chromeFlagsLocations.map((flagsFilePath) => `
             echo "${flagsFileContent}" > "${flagsFilePath}"
-            chmod 744 "${flagsFilePath}"`
+            chmod 744 "${flagsFilePath}"
+            chcon "u:object_r:shell_data_file:s0" "${flagsFilePath}"`
                 ).join('\n')
             }
 
