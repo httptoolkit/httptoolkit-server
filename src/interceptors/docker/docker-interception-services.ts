@@ -40,6 +40,16 @@ export async function startDockerInterceptionServices(
     httpsConfig: { certPath: string, certContent: string },
     ruleParameters: { [key: `docker-tunnel-proxy-${number}`]: ProxySettingCallback }
 ) {
+    // For now we don't support SSH-based Docker connections at all - for starters,
+    // they won't be able to use the file system references we set up. If you try
+    // to set one, we just ignore it.
+    if (process.env.DOCKER_HOST?.startsWith('ssh://')) {
+        console.log(`Ignoring unsupported DOCKER_HOST value: ${
+            process.env.DOCKER_HOST
+        }`);
+        delete process.env.DOCKER_HOST;
+    }
+
     // Prepare (pull) the tunnel image, but we don't actually start the tunnel itself until some
     // Docker interception happens while HTTP Toolkit is running - e.g. proxy use, container attach,
     // or an intercepted container connecting to a network.
