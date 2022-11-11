@@ -62,17 +62,15 @@ class DnsServer extends dns2.UDPServer {
             console.log(`Multiple hosts in internal DNS for hostname ${question.name}:`, answers);
         }
 
-        if (answers) {
-            answers.forEach((answer) => {
-                response.answers.push({
-                    name: question.name,
-                    type: dns2.Packet.TYPE.A,
-                    class: dns2.Packet.CLASS.IN,
-                    ttl: 0,
-                    address: answer
-                });
+        answers.forEach((answer) => {
+            response.answers.push({
+                name: question.name,
+                type: dns2.Packet.TYPE.A,
+                class: dns2.Packet.CLASS.IN,
+                ttl: 0,
+                address: answer
             });
-        }
+        });
 
         sendResponse(response);
     }
