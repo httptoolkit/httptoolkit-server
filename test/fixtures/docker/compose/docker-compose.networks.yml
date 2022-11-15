@@ -28,11 +28,20 @@ services:
     links:
       - "default-service-a:a"
 
+  extra-host-service:
+    build: .
+    extra_hosts:
+      - 'custom.host.address.example:host-gateway'
+    environment:
+      EXTRA_TARGET: 'http://custom.host.address.example:9876' # The host container
+
   multi-network-a:
     build: .
     networks:
       - custom_net_1
       - custom_net_2
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     environment:
       EXTRA_TARGET: 'http://host.docker.internal:9876' # The host container
 

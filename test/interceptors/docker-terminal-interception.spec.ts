@@ -303,6 +303,7 @@ Successfully built <hash>
             `host_1`,
             `default-service-a_1`,
             `default-linked-service-b_1`,
+            `extra-host-service_1`,
             `multi-network-a_1`,
             `multi-network-b_1`
         ].forEach((container) => {

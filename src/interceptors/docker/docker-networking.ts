@@ -151,7 +151,9 @@ function combineSets<T>(...sets: ReadonlySet<T>[]): ReadonlySet<T> {
     return new Set(result);
 }
 
-function combineSetMaps<T>(...setMaps: Array<{ [key: string]: ReadonlySet<T> }>): { [key: string]: ReadonlySet<T> } {
+function combineSetMaps<T>(...setMaps: Array<{ [key: string]: ReadonlySet<T> }>): {
+    [key: string]: ReadonlySet<T>
+} {
     const keys = _.uniq(_.flatMap(setMaps, (mapping) => Object.keys(mapping)));
 
     return _.fromPairs(
@@ -162,6 +164,12 @@ function combineSetMaps<T>(...setMaps: Array<{ [key: string]: ReadonlySet<T> }>)
         )
     );
 }
+
+// We treat host gateway routes totally separately to other routes. They resolve to 127.0.0.1,
+// but from the *host* POV (not the container/tunnel) so we have to handle them separately.
+const HostGateway = Symbol('host-gateway');
+type HostGateway = typeof HostGateway;
+const HostGatewaySet = new Set<HostGateway>([HostGateway]);
 
 /**
  * Network monitors tracks which networks the intercepted containers are connected to, and
@@ -192,7 +200,7 @@ class DockerNetworkMonitor {
 
     private readonly networkTargets: {
         [networkId: string]: {
-            [hostname: string]: ReadonlySet<string>
+            [hostname: string]: ReadonlySet<string | HostGateway>
         }
     } = mobx.observable({});
 
@@ -206,20 +214,34 @@ class DockerNetworkMonitor {
         return new Set([
             ..._.flatten(
                 Object.values(this.networkTargets)
-                    .map((networkMap) => Object.keys(networkMap))
-            ).filter((host) =>
-                // We don't reroute the host hostname - the host is accessible from the host already
-                host !== DOCKER_HOST_HOSTNAME
+                    .map((networkMap) =>
+                        Object.entries(networkMap)
+                        // Exclude any aliases that might map to the host itself:
+                        .filter(([_alias, targets]) => ![...targets].some(t => t === HostGateway))
+                        .map(([alias]) => alias)
+                    )
             )
         ]);
     }
 
-    // The list of mappings per-network, binding aliases to their (0+) target IPs
+    // The list of mappings per-network, binding aliases to their (0+) target IPs.
+    // For aliases returned by dockerRoutedAliases, this should be the tunnel-relative
+    // IP. For other aliases, this should be host-relative.
     get aliasIpMap(): { [host: string]: ReadonlySet<string> } {
-        return combineSetMaps(...Object.values(this.networkTargets), {
+        const aliasMap = combineSetMaps(...Object.values(this.networkTargets), {
             // The Docker hostname always maps to the host's localhost, and it's not automatically included
             // on platforms (Windows & Mac) where Docker resolves it implicitly.
-            [DOCKER_HOST_HOSTNAME]: new Set(['127.0.0.1'])
+            'host.docker.internal': HostGatewaySet
+        });
+
+        return _.mapValues(aliasMap, (targets): ReadonlySet<string> => {
+            if ([...targets].some(t => t === HostGateway)) {
+                // For all host-gateway targets, we simplify to direct traffic
+                // directly back to the host itself:
+                return new Set(['127.0.0.1']);
+            } else {
+                return targets as ReadonlySet<string>;
+            }
         });
     }
 
@@ -281,7 +303,9 @@ class DockerNetworkMonitor {
         return isInterceptedContainer(container, this.proxyPort);
     }
 
-    private async getNetworkAliases(networkId: string): Promise<{ [host: string]: ReadonlySet<string> } | undefined> {
+    private async getNetworkAliases(networkId: string): Promise<
+        { [host: string]: ReadonlySet<string | HostGateway> } | undefined
+    > {
         const networkDetails: Docker.NetworkInspectInfo = await this.docker.getNetwork(networkId).inspect();
         const isDefaultBridge = networkDetails.Options?.['com.docker.network.bridge.default_bridge'] === 'true';
 
@@ -304,7 +328,14 @@ class DockerNetworkMonitor {
             return undefined;
         }
 
-        const aliases: Array<readonly [alias: string, targetIp: string]> = [];
+        const aliases: Array<readonly [alias: string, targetIp: string | HostGateway]> = [];
+
+        aliases.push(['host.docker.internal', HostGateway]);
+        aliases.push(['gateway.docker.internal', HostGateway]); // Seems equivalent? Very rarely used AFAICT.
+        // Deprecated but still functional Docker Desktop aliases:
+        if (process.platform === 'darwin') aliases.push(['docker.for.mac.localhost', HostGateway]);
+        if (process.platform === 'win32') aliases.push(['docker.for.win.localhost', HostGateway]);
+
 
         /*
          * So, what names are resolveable on a network?
@@ -370,7 +401,7 @@ class DockerNetworkMonitor {
                         const alias = hostParts[0];
                         const target = hostParts.slice(1).join(':');
                         const targetIp = target === 'host-gateway'
-                            ? '127.0.0.1'
+                            ? HostGateway
                             : target;
                         return [alias, targetIp] as const
                     })
@@ -417,6 +448,6 @@ class DockerNetworkMonitor {
             if (!aliasMap[alias]) aliasMap[alias] = new Set();
             aliasMap[alias].add(target);
             return aliasMap;
-        }, {} as { [alias: string]: Set<string> });
+        }, {} as { [alias: string]: Set<string | HostGateway> });
     }
 }
