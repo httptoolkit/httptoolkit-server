@@ -6,7 +6,7 @@ import * as mobx from 'mobx';
 
 import { reportError } from '../../error-tracking';
 
-import { DOCKER_HOST_HOSTNAME, isInterceptedContainer } from './docker-commands';
+import { isInterceptedContainer } from './docker-commands';
 import { isDockerAvailable } from './docker-interception-services';
 import { updateDockerTunnelledNetworks } from './docker-tunnel-proxy';
 import { getDnsServer } from '../../dns-server';

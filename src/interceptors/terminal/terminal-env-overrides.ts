@@ -26,13 +26,13 @@ export function getTerminalEnvVars(
         | 'posix-runtime-inherit'
         | 'powershell-runtime-inherit',
     targetEnvConfig: {
-        httpToolkitIp?: string,
+        httpToolkitHost?: string,
         overridePath?: string,
         targetPlatform?: NodeJS.Platform
     } = {}
 ): { [key: string]: string } {
-    const { overridePath, targetPlatform, httpToolkitIp } = {
-        httpToolkitIp: '127.0.0.1',
+    const { overridePath, targetPlatform, httpToolkitHost } = {
+        httpToolkitHost: '127.0.0.1',
         overridePath: OVERRIDES_DIR,
         targetPlatform: process.platform,
         ...targetEnvConfig
@@ -52,7 +52,7 @@ export function getTerminalEnvVars(
     const pathVarSeparator = targetPlatform === 'win32' ? ';' : ':';
     const joinPath = targetPlatform === 'win32' ? path.win32.join : path.posix.join;
 
-    const proxyUrl = `http://${httpToolkitIp}:${proxyPort}`;
+    const proxyUrl = `http://${httpToolkitHost}:${proxyPort}`;
 
     const dockerHost = `${
         targetPlatform === 'win32'
@@ -73,7 +73,7 @@ export function getTerminalEnvVars(
 
     const javaAgentOption = `-javaagent:"${
         joinPath(overridePath, JAVA_AGENT_JAR)
-    }"=${httpToolkitIp}|${proxyPort}|${httpsConfig.certPath}`;
+    }"=${httpToolkitHost}|${proxyPort}|${httpsConfig.certPath}`;
 
     const binPath = joinPath(overridePath, BIN_OVERRIDE_DIR);
 

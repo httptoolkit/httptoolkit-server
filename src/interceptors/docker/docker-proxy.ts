@@ -15,10 +15,9 @@ import { reportError } from '../../error-tracking';
 import { addShutdownHandler } from '../../shutdown';
 
 import {
+    getDockerHostAddress,
     isInterceptedContainer,
-    transformContainerCreationConfig,
-    DOCKER_HOST_HOSTNAME,
-    getDockerHostIp
+    transformContainerCreationConfig
 } from './docker-commands';
 import { injectIntoBuildStream, getBuildOutputPipeline } from './docker-build-injection';
 import { ensureDockerServicesRunning, isDockerAvailable } from './docker-interception-services';
@@ -127,10 +126,7 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
                 // create will fail, and will be re-run after the image is pulled in a minute.
                 .catch(() => undefined);
 
-            const proxyHost = getDockerHostIp(
-                process.platform,
-                { apiVersion: dockerApiVersion! },
-            );
+            const proxyHost = getDockerHostAddress(process.platform);
 
             const transformedConfig = transformContainerCreationConfig(
                 config,
@@ -182,18 +178,6 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
 
             requestBodyStream = streamInjection.injectedStream;
             extraDockerCommandCount = streamInjection.totalCommandsAddedPromise;
-
-            // Make sure that host.docker.internal resolves on Linux too:
-            if (process.platform === 'linux') {
-                reqUrl.searchParams.append(
-                    'extrahosts',
-                    `${DOCKER_HOST_HOSTNAME}:${getDockerHostIp(
-                        process.platform,
-                        { apiVersion: dockerApiVersion! }
-                    )}`
-                );
-                req.url = reqUrl.toString();
-            }
         }
 
         const dockerReq = sendToDocker(req, requestBodyStream);

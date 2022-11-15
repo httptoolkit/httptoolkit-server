@@ -22,51 +22,28 @@ const HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH = path.posix.join(HTTP_TOOLKIT_INJECT
 const HTTP_TOOLKIT_INJECTED_CA_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'ca.pem');
 
 /**
- * The hostname that resolves to the host OS (i.e. generally: where HTTP Toolkit is running)
+ * Get the hostname that resolves to the host OS (i.e. generally: where HTTP Toolkit is running)
  * from inside containers.
  *
  * In Docker for Windows & Mac, host.docker.internal is supported automatically:
  * https://docs.docker.com/docker-for-windows/networking/#use-cases-and-workarounds
  * https://docs.docker.com/docker-for-mac/networking/#use-cases-and-workarounds
  *
- * On Linux this is _not_ supported, so we add it ourselves with (--add-host).
+ * On Linux this is _not_ supported, and we need to be more clever.
  */
-export const DOCKER_HOST_HOSTNAME = "host.docker.internal";
-
-/**
- * To make the above hostname work on Linux, where it's not supported by default, we need to map it to the
- * host ip. This method works out the host IP to use to do so.
- */
-export const getDockerHostIp = (
+export function getDockerHostAddress(
     platform: typeof process.platform,
-    dockerVersion: { apiVersion: string } | { engineVersion: string },
     containerMetadata?: Docker.ContainerInspectInfo
-) => {
-    const semverVersion = semver.coerce(
-        'apiVersion' in dockerVersion
-        ? dockerVersion.apiVersion
-        : dockerVersion.engineVersion
-    );
-
-    if (platform !== 'linux') {
-        // On non-linux platforms this method isn't necessary - host.docker.internal is always supported
-        // so we can just use that.
-        return DOCKER_HOST_HOSTNAME;
-    } else if (
-        semver.satisfies(
-            semverVersion ?? '0.0.0',
-            'apiVersion' in dockerVersion ? '>=1.41' : '>=20.10'
-        )
-    ) {
-        // This is supported in Docker Engine 20.10, so always supported at least in API 1.41+
-        // Special name defined in new Docker versions, that refers to the host gateway
-        return 'host-gateway';
-    } else if (containerMetadata) {
-        // Old/Unknown Linux with known container: query the metadata, and if _that_ fails, use the default gateway IP.
-        return containerMetadata.NetworkSettings.Gateway || "172.17.0.1";
+) {
+    if (platform === 'win32' || platform === 'darwin') {
+        // On Docker Desktop, this alias always points to the host (outside the VM) IP:
+        return 'host.docker.internal';
     } else {
-        // Old/Unknown Linux without a container (e.g. during a build). Always use the default gateway IP:
-        return "172.17.0.1";
+        // Elsewhere (Linux) we should be able to always use the gateway address. We avoid
+        // using ExtraHosts with host-gateway, because that uses /etc/hosts, and not all
+        // clients use that for resolution (some use _only_ DNS lookups). IPs avoid this.
+        return containerMetadata?.NetworkSettings.Gateway
+            || "172.17.0.1";
     }
 }
 
@@ -134,7 +111,7 @@ export function transformContainerCreationConfig(
         { certPath: HTTP_TOOLKIT_INJECTED_CA_PATH },
         envArrayToObject(currentConfig.Env),
         {
-            httpToolkitIp: DOCKER_HOST_HOSTNAME,
+            httpToolkitHost: getDockerHostAddress(process.platform),
             overridePath: HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH,
             targetPlatform: 'linux'
         }
@@ -160,18 +137,7 @@ export function transformContainerCreationConfig(
             // Bind-mount the overrides directory into the container:
             `${OVERRIDES_DIR}:${HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH}:ro`
             // ^ Both 'ro' - untrusted containers must not be able to mess with these!
-        ],
-        ...(process.platform === 'linux'
-            // On Linux only, we need to add an explicit host to make host.docker.internal work:
-            ? {
-                ExtraHosts: [
-                    `${DOCKER_HOST_HOSTNAME}:${proxyHost}`,
-                    // Seems that first host wins conflicts, so we go before existing values
-                    ...(currentConfig.HostConfig?.ExtraHosts ?? [])
-                ]
-            }
-            : {}
-        )
+        ]
     };
 
     // Extend that config, injecting our custom overrides:
@@ -256,11 +222,7 @@ export async function restartAndInjectContainer(
         }
     });
 
-    const proxyHost = getDockerHostIp(
-        process.platform,
-        { engineVersion: (await docker.version()).Version },
-        containerDetails
-    );
+    const proxyHost = getDockerHostAddress(process.platform, containerDetails);
 
     // First we clone the continer, injecting our custom settings:
     const newContainer = await docker.createContainer(

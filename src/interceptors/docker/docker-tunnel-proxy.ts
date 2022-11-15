@@ -3,7 +3,7 @@ import * as Docker from 'dockerode';
 import * as semver from 'semver';
 import { Mutex } from 'async-mutex';
 
-import { DOCKER_HOST_HOSTNAME, isImageAvailable } from './docker-commands';
+import { getDockerHostAddress, isImageAvailable } from './docker-commands';
 import { isDockerAvailable } from './docker-interception-services';
 import { delay } from '../../util/promise';
 import { reportError } from '../../error-tracking';
@@ -73,21 +73,6 @@ export function ensureDockerTunnelRunning(proxyPort: number) {
                 },
                 HostConfig: {
                     AutoRemove: true,
-                    ...(process.platform === 'linux' ? {
-                        ExtraHosts: [
-                            // Make sure the host hostname is defined (not set by default on Linux).
-                            // We use the host-gateway address on engines where that's possible, or
-                            // the default Docker bridge host IP when it's not, because we're always
-                            // connected to that network.
-                            `${DOCKER_HOST_HOSTNAME}:${
-                                semver.satisfies(engineVersion, '>= 20.10')
-                                    ? 'host-gateway'
-                                    : defaultBridgeGateway || '172.17.0.1'
-                            }`
-                            // (This doesn't reuse getDockerHostIp, since the logic is slightly
-                            // simpler  and we never have container metadata/network state).
-                        ]
-                    } : {}),
                     PortBindings: {
                         '1080/tcp': [{
                             // Bind host-locally only: we don't want to let remote clients
