@@ -47,16 +47,16 @@ export function ensureDockerTunnelRunning(proxyPort: number) {
     ongoingEnsureTunnelRunningChecks[proxyPort] = containerMutex.runExclusive(async () => {
         const docker = new Docker();
 
-        // Make sure we have the image available (should've been pre-pulled, but just in case)
-        if (!await docker.getImage(DOCKER_TUNNEL_IMAGE).inspect().catch(() => false)) {
-            await pullTunnelImage(docker);
-        }
-
         // Ensure we have a ready-to-use container here:
         const containerName = getDockerTunnelContainerName(proxyPort);
         let container = await docker.getContainer(containerName)
             .inspect().catch(() => undefined);
         if (!container) {
+            // Make sure we have the image available (should've been pre-pulled, but just in case)
+            if (!await docker.getImage(DOCKER_TUNNEL_IMAGE).inspect().catch(() => false)) {
+                await pullTunnelImage(docker);
+            }
+
             await docker.createContainer({
                 name: containerName,
                 Image: DOCKER_TUNNEL_IMAGE,
