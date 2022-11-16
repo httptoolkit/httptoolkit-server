@@ -14,7 +14,7 @@ export const DOCKER_CONTAINER_LABEL = "tech.httptoolkit.docker.proxy";
  * The path inside the container where injected files will be stored, and so the paths that
  * env vars injected into the container need to reference.
  */
-const HTTP_TOOLKIT_INJECTED_PATH = '/http-toolkit-injections';
+const HTTP_TOOLKIT_INJECTED_PATH = '/.http-toolkit-injections';
 const HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'overrides');
 const HTTP_TOOLKIT_INJECTED_CA_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'ca.pem');
 

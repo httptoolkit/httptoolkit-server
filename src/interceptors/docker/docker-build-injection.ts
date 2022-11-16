@@ -12,7 +12,7 @@ import { getDeferred } from '../../util/promise';
 import { getDockerHostAddress } from './docker-commands';
 import { packOverrideFiles } from './docker-data-injection';
 
-const HTTP_TOOLKIT_INJECTED_PATH = '/http-toolkit-injections';
+const HTTP_TOOLKIT_INJECTED_PATH = '/.http-toolkit-injections';
 const HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'overrides');
 const HTTP_TOOLKIT_INJECTED_CA_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'ca.pem');
 
