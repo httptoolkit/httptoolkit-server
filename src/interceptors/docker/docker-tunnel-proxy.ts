@@ -1,9 +1,8 @@
 import _ = require('lodash');
 import * as Docker from 'dockerode';
-import * as semver from 'semver';
 import { Mutex } from 'async-mutex';
 
-import { getDockerHostAddress, isImageAvailable } from './docker-commands';
+import { isImageAvailable } from './docker-commands';
 import { isDockerAvailable } from './docker-interception-services';
 import { delay } from '../../util/promise';
 import { reportError } from '../../error-tracking';
@@ -58,18 +57,6 @@ export function ensureDockerTunnelRunning(proxyPort: number) {
         let container = await docker.getContainer(containerName)
             .inspect().catch(() => undefined);
         if (!container) {
-            const versionData = await docker.version();
-            const engineVersion = semver.coerce(versionData.Version) || '0.0.0';
-
-            const defaultBridgeGateway = await docker.listNetworks({
-                filters: JSON.stringify({
-                    driver: ['bridge'],
-                    type: ['builtin']
-                })
-            }).then(([builtinBridge]) =>
-                builtinBridge?.IPAM?.Config?.[0].Gateway
-            );
-
             await docker.createContainer({
                 name: containerName,
                 Image: DOCKER_TUNNEL_IMAGE,

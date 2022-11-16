@@ -5,15 +5,12 @@ import * as EventStream from 'event-stream';
 import * as getRawBody from 'raw-body';
 import maybeGunzip = require('gunzip-maybe');
 import * as tarStream from 'tar-stream';
-import * as tarFs from 'tar-fs';
 import { parse as parseDockerfile, CommandEntry } from 'docker-file-parser';
 
-import {
-    getTerminalEnvVars,
-    OVERRIDES_DIR
-} from '../terminal/terminal-env-overrides';
+import { getTerminalEnvVars } from '../terminal/terminal-env-overrides';
 import { getDeferred } from '../../util/promise';
 import { getDockerHostAddress } from './docker-commands';
+import { packOverrideFiles } from './docker-data-injection';
 
 const HTTP_TOOLKIT_INJECTED_PATH = '/http-toolkit-injections';
 const HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'overrides');
@@ -74,7 +71,7 @@ export function injectIntoBuildStream(
     });
     extractionStream.on('finish', async () => {
         repackStream.entry({ name: HTTP_TOOLKIT_CONTEXT_CA_PATH }, config.certContent);
-        await packOverrideFiles(repackStream);
+        await packOverrideFiles(repackStream, HTTP_TOOLKIT_CONTEXT_OVERRIDES_PATH);
         repackStream.finalize();
     });
 
@@ -89,28 +86,6 @@ export function injectIntoBuildStream(
             new Promise((resolve) => extractionStream.on('finish', resolve)).then(() => 0)
         ])
     };
-}
-
-function packOverrideFiles(existingPackStream: tarStream.Pack) {
-    return new Promise<tarStream.Pack>((resolve) => {
-        tarFs.pack(OVERRIDES_DIR, {
-            pack: existingPackStream,
-            map: (fileHeader) => {
-                fileHeader.name = path.posix.join(HTTP_TOOLKIT_CONTEXT_OVERRIDES_PATH, fileHeader.name);
-
-                // Owned by root by default
-                fileHeader.uid = 0;
-                fileHeader.gid = 0;
-
-                // But ensure everything is globally readable & runnable
-                fileHeader.mode = parseInt('555', 8);
-
-                return fileHeader;
-            },
-            finalize: false,
-            finish: resolve
-        });
-    });
 }
 
 // Simplify to just the params we care about

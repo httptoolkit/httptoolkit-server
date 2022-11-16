@@ -9,20 +9,18 @@ import { GraphQLScalarType } from 'graphql';
 import { graphqlHTTP } from 'express-graphql';
 import gql from 'graphql-tag';
 
-import { generateSPKIFingerprint, MockttpAdminServer } from 'mockttp';
+import { generateSPKIFingerprint } from 'mockttp';
 import { getSystemProxy } from 'os-proxy-config';
 
 import { HtkConfig } from './config';
 import { reportError, addBreadcrumb } from './error-tracking';
 import { buildInterceptors, Interceptor, ActivationError } from './interceptors';
-import { ALLOWED_ORIGINS } from './constants';
+import { ALLOWED_ORIGINS, SERVER_VERSION } from './constants';
 import { delay } from './util/promise';
 import { getDnsServer } from './dns-server';
 import { shutdown } from './shutdown';
 
 const ENABLE_PLAYGROUND = false;
-
-const packageJson = require('../package.json');
 
 /**
  * This file contains the core server API, used by the UI to query
@@ -119,7 +117,7 @@ const buildResolvers = (
 ) => {
     return {
         Query: {
-            version: () => packageJson.version,
+            version: () => SERVER_VERSION,
             interceptors: () => _.values(interceptors),
             interceptor: (_: any, { id } : { id: string }) => interceptors[id],
             config: () => ({

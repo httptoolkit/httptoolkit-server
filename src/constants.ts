@@ -36,3 +36,5 @@ export const MOCKTTP_ALLOWED_ORIGINS = [
 // not to conflict with normal user usage, and are specifically designated by the IANA for
 // use for dynamic ports.
 export const EPHEMERAL_PORT_RANGE = { startPort: 49152, endPort: 65535 } as const;
+
+export const SERVER_VERSION = require('../package.json').version as string;

@@ -15,7 +15,6 @@ import { reportError } from '../../error-tracking';
 import { addShutdownHandler } from '../../shutdown';
 
 import {
-    getDockerHostAddress,
     isInterceptedContainer,
     transformContainerCreationConfig
 } from './docker-commands';
@@ -71,7 +70,10 @@ export async function stopDockerProxy(proxyPort: number) {
     await proxy.destroy();
 }
 
-async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: string, certContent: string }) {
+async function createDockerProxy(
+    proxyPort: number,
+    httpsConfig: { certPath: string, certContent: string }
+) {
     const docker = new Dockerode();
 
     // Hacky logic to reuse docker-modem's internal env + OS parsing logic to
@@ -112,8 +114,6 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
         const reqUrl = new URL(req.url!, 'http://localhost');
         const reqPath = reqUrl.pathname;
 
-        const dockerApiVersion = API_VERSION_MATCH.exec(reqPath)?.[1];
-
         ensureDockerServicesRunning(proxyPort);
 
         // Intercept container creation (e.g. docker run):
@@ -126,16 +126,10 @@ async function createDockerProxy(proxyPort: number, httpsConfig: { certPath: str
                 // create will fail, and will be re-run after the image is pulled in a minute.
                 .catch(() => undefined);
 
-            const proxyHost = getDockerHostAddress(process.platform);
-
-            const transformedConfig = transformContainerCreationConfig(
+            const transformedConfig = await transformContainerCreationConfig(
                 config,
                 imageConfig,
-                {
-                    certPath: httpsConfig.certPath,
-                    proxyPort,
-                    proxyHost
-                }
+                { proxyPort, certContent: httpsConfig.certContent }
             );
             requestBodyStream = stream.Readable.from(JSON.stringify(transformedConfig));
         }

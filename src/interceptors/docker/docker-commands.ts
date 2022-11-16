@@ -1,13 +1,10 @@
 import * as _ from 'lodash';
 import * as Docker from 'dockerode';
 import * as path from 'path';
-import * as semver from 'semver';
 
-import {
-    getTerminalEnvVars,
-    OVERRIDES_DIR
-} from '../terminal/terminal-env-overrides';
+import { getTerminalEnvVars } from '../terminal/terminal-env-overrides';
 import { transformComposeCreationLabels } from './docker-compose';
+import { getDockerDataVolumeName } from './docker-data-injection';
 
 // Used to label intercepted docker containers with the port of the proxy
 // that's currently intercepting them.
@@ -76,15 +73,14 @@ const envObjectToArray = (envObject: { [key: string]: string }): string[] =>
  * the container (to make sure we get *all* env vars, for example) and then
  * combine that with the inter
  */
-export function transformContainerCreationConfig(
+export async function transformContainerCreationConfig(
     containerConfig: Docker.ContainerCreateOptions,
     baseImageConfig: Docker.ImageInspectInfo | undefined,
-    { proxyPort, proxyHost, certPath }: {
+    { proxyPort, certContent }: {
         proxyPort: number,
-        proxyHost: string,
-        certPath: string
+        certContent: string
     }
-): Docker.ContainerCreateOptions {
+): Promise<Docker.ContainerCreateOptions> {
     // Get the container-relevant config from the image config first.
     // The image has both .Config and .ContainerConfig. The former
     // is preferred, seems that .ContainerConfig is backward compat.
@@ -127,16 +123,13 @@ export function transformContainerCreationConfig(
         // files into place on top of the existing content:
         Binds: [
             ...(currentConfig.HostConfig?.Binds ?? []).filter((existingMount) =>
-                // Drop any existing mounts for these folders - this allows re-intercepting containers, e.g.
-                // to switch from one proxy port to another.
-                !existingMount.startsWith(`${certPath}:`) &&
-                !existingMount.startsWith(`${OVERRIDES_DIR}:`)
+                // Drop any existing mounts for these folders - this allows re-intercepting containers,
+                // e.g. to switch from one proxy port to another.
+                !existingMount.endsWith(`:${HTTP_TOOLKIT_INJECTED_PATH}:ro`)
             ),
-            // Bind-mount the CA certificate file individually too:
-            `${certPath}:${HTTP_TOOLKIT_INJECTED_CA_PATH}:ro`,
-            // Bind-mount the overrides directory into the container:
-            `${OVERRIDES_DIR}:${HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH}:ro`
-            // ^ Both 'ro' - untrusted containers must not be able to mess with these!
+            // Bind-mount the injected data volume:
+            `${await getDockerDataVolumeName(certContent)}:${HTTP_TOOLKIT_INJECTED_PATH}:ro`,
+            // ^ Note the 'ro' - untrusted containers must not be able to mess with this!
         ]
     };
 
@@ -195,10 +188,9 @@ async function connectNetworks(
 export async function restartAndInjectContainer(
     docker: Docker,
     containerId: string,
-    { proxyPort, certContent, certPath }: {
+    { proxyPort, certContent }: {
         proxyPort: number,
         certContent: string
-        certPath: string
     }
 ) {
     // We intercept containers by stopping them, cloning them, injecting our settings,
@@ -222,22 +214,16 @@ export async function restartAndInjectContainer(
         }
     });
 
-    const proxyHost = getDockerHostAddress(process.platform, containerDetails);
-
     // First we clone the continer, injecting our custom settings:
     const newContainer = await docker.createContainer(
-        transformContainerCreationConfig(
+        await transformContainerCreationConfig(
             // Get options required to directly recreate this container
             deriveContainerCreationConfigFromInspection(
                 containerDetails
             ),
             // We don't need image config - inspect result has *everything*
             undefined,
-            { // The settings to inject:
-                certPath,
-                proxyPort,
-                proxyHost
-            }
+            { proxyPort, certContent }
         )
     );
 
