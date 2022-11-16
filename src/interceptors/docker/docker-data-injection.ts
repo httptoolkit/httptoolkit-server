@@ -89,96 +89,103 @@ async function createBlankImage(docker: Docker) {
     return DOCKER_BLANK_TAG;
 }
 
-export async function ensureDockerInjectionVolumeExists(
-    certContent: string
-) {
-    if (!await isDockerAvailable()) return;
+// Parallel processing of a single Docker volume and the other assorted containers is asking for trouble,
+// and inefficient, so we collapse parallel attempts into one:
+let volumeSetupPromise: Promise<void> | undefined;
 
-    const docker = new Docker();
+export function ensureDockerInjectionVolumeExists(certContent: string) {
+    if (volumeSetupPromise) return volumeSetupPromise;
+    return volumeSetupPromise = (async () => { // Run as an async IIFE
+        if (!await isDockerAvailable()) return;
+        const docker = new Docker();
 
-    const existingVolume = await docker.getVolume(DOCKER_DATA_VOLUME_NAME).inspect()
-        .catch<false>(() => false);
-    const isCertOutdated = existingVolume &&
-        existingVolume.Labels[DOCKER_VOLUME_CERT_LABEL] !== certContent;
+        const existingVolume = await docker.getVolume(DOCKER_DATA_VOLUME_NAME).inspect()
+            .catch<false>(() => false);
+        const isCertOutdated = existingVolume &&
+            existingVolume.Labels[DOCKER_VOLUME_CERT_LABEL] !== certContent;
 
-    if (existingVolume && !isCertOutdated) return; // We're all good!
+        if (existingVolume && !isCertOutdated) return; // We're all good!
 
-    try {
-        const startTime = Date.now();
+        try {
+            const startTime = Date.now();
 
-        // Clean up any leftover setup components that are hanging around (since they might
-        // conflict with these next steps):
-        await cleanupDataInjectionTools(docker);
+            // Clean up any leftover setup components that are hanging around (since they might
+            // conflict with these next steps):
+            await cleanupDataInjectionTools(docker);
 
-        // If cert is outdated, we just recreate the volume from scratch - cleaner to reset
-        // then try and update, and it only takes a couple of seconds anyway:
-        if (isCertOutdated) await docker.getVolume(DOCKER_DATA_VOLUME_NAME).remove({ force: true });
+            // If cert is outdated, we just recreate the volume from scratch - cleaner to reset
+            // then try and update, and it only takes a couple of seconds anyway:
+            if (isCertOutdated) await docker.getVolume(DOCKER_DATA_VOLUME_NAME).remove({ force: true });
 
-        // No volume. We need to create a Docker volume that contains our override files,
-        // and the CA certificate, which can be mounted into containers for interception.
-        // We can't directly write to volumes, so we work around this by mounting a new volume
-        // inside a stopped empty container, and writing to the container.
+            // No volume. We need to create a Docker volume that contains our override files,
+            // and the CA certificate, which can be mounted into containers for interception.
+            // We can't directly write to volumes, so we work around this by mounting a new volume
+            // inside a stopped empty container, and writing to the container.
 
-        // First, we need an empty volume, and build blank image for our container:
-        await Promise.all([
-            docker.createVolume({
-                Name: DOCKER_DATA_VOLUME_NAME,
-                Labels: {
-                    [DOCKER_VOLUME_LABEL]: SERVER_VERSION,
-                    [DOCKER_VOLUME_CERT_LABEL]: certContent // Used to detect when we need to recreate
+            // First, we need an empty volume, and build blank image for our container:
+            await Promise.all([
+                docker.createVolume({
+                    Name: DOCKER_DATA_VOLUME_NAME,
+                    Labels: {
+                        [DOCKER_VOLUME_LABEL]: SERVER_VERSION,
+                        [DOCKER_VOLUME_CERT_LABEL]: certContent // Used to detect when we need to recreate
+                    }
+                }),
+                createBlankImage(docker)
+            ]);
+
+            // Then we create a blank container from the blank image with the volume mounted:
+            const blankContainer = await docker.createContainer({
+                Image: DOCKER_BLANK_TAG,
+                Labels: { [DOCKER_BLANK_TAG]: '' },
+                HostConfig: {
+                    Binds: [`${DOCKER_DATA_VOLUME_NAME}:/data-volume`]
                 }
-            }),
-            createBlankImage(docker)
-        ]);
-
-        // Then we create a blank container from the blank image with the volume mounted:
-        const blankContainer = await docker.createContainer({
-            Image: DOCKER_BLANK_TAG,
-            Labels: { [DOCKER_BLANK_TAG]: '' },
-            HostConfig: {
-                Binds: [`${DOCKER_DATA_VOLUME_NAME}:/data-volume`]
-            }
-        });
-
-        const blankContainerSetupTime = Date.now() - startTime;
-        let overrideStreamTime: number | undefined;
-
-        // Then we use the container to write to the volume, without ever starting it:
-        const volumeStream = TarStream.pack();
-        // We write the CA cert, read-only:
-        volumeStream.entry({ name: 'ca.pem', mode: parseInt('444', 8) }, certContent);
-        // And all the override filesL
-        const packOverridesPromise = packOverrideFiles(volumeStream, '/overrides')
-            .then(() => {
-                volumeStream.finalize();
-                overrideStreamTime = Date.now() - startTime;
             });
 
-        const writeVolumePromise = blankContainer.putArchive(
-            volumeStream,
-            { path: '/data-volume/' }
-        );
+            const blankContainerSetupTime = Date.now() - startTime;
+            let overrideStreamTime: number | undefined;
 
-        await Promise.all([packOverridesPromise, writeVolumePromise]);
-        const volumeCompleteTime = Date.now() - startTime;
-        console.log(`Created Docker injection volume (took ${
-            volumeCompleteTime
-        }ms: ${blankContainerSetupTime}ms for setup & ${overrideStreamTime!}ms to pack)`);
+            // Then we use the container to write to the volume, without ever starting it:
+            const volumeStream = TarStream.pack();
+            // We write the CA cert, read-only:
+            volumeStream.entry({ name: 'ca.pem', mode: parseInt('444', 8) }, certContent);
+            // And all the override filesL
+            const packOverridesPromise = packOverrideFiles(volumeStream, '/overrides')
+                .then(() => {
+                    volumeStream.finalize();
+                    overrideStreamTime = Date.now() - startTime;
+                });
 
-        // After success, we cleanup the tools (blank image & containers etc) and all old HTTP
-        // Toolkit volumes, i.e. all matching volumes _except_ the current one.
-        await cleanupDataInjectionTools(docker);
-        await cleanupDataInjectionVolumes(docker, { keepCurrent: true }).catch(console.log);
-    } catch (e) {
-        console.warn('Docker injection volume setup error, cleaning up...');
+            const writeVolumePromise = blankContainer.putArchive(
+                volumeStream,
+                { path: '/data-volume/' }
+            );
 
-        // In a failure case, we delete the setup components and the volume too, so that at
-        // least we have a clean slate next time:
-        await cleanupDataInjectionTools(docker).catch(console.log);
-        await cleanupDataInjectionVolumes(docker, { keepCurrent: false }).catch(console.log);
+            await Promise.all([packOverridesPromise, writeVolumePromise]);
+            const volumeCompleteTime = Date.now() - startTime;
+            console.log(`Created Docker injection volume (took ${
+                volumeCompleteTime
+            }ms: ${blankContainerSetupTime}ms for setup & ${overrideStreamTime!}ms to pack)`);
 
-        throw e;
-    }
+            // After success, we cleanup the tools (blank image & containers etc) and all old HTTP
+            // Toolkit volumes, i.e. all matching volumes _except_ the current one.
+            await cleanupDataInjectionTools(docker);
+            await cleanupDataInjectionVolumes(docker, { keepCurrent: true }).catch(console.log);
+        } catch (e) {
+            console.warn('Docker injection volume setup error, cleaning up...');
+
+            // In a failure case, we delete the setup components and the volume too, so that at
+            // least we have a clean slate next time:
+            await cleanupDataInjectionTools(docker).catch(console.log);
+            await cleanupDataInjectionVolumes(docker, { keepCurrent: false }).catch(console.log);
+
+            throw e;
+        }
+    })().then(() => {
+        // Reset the promise, so we can try again
+        volumeSetupPromise = undefined;
+    });
 }
 
 async function cleanupDataInjectionVolumes(docker: Docker, options: { keepCurrent: boolean }) {
