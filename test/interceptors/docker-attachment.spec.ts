@@ -35,9 +35,11 @@ async function buildAndRun(dockerFolder: string, options: {
         t: imageName
     });
 
-    buildStream.on('data', (output) => {
-        const data = JSON.parse(output);
-        if (data.stream) console.log(data.stream.replace(/\n$/, ''));
+    buildStream.on('data', (output: Buffer) => {
+        output.toString().split('\n').filter(line => !!line).forEach((line) => {
+            const data = JSON.parse(line);
+            if (data.stream) console.log(data.stream.replace(/\n$/, ''));
+        });
     });
 
     await waitForDockerStream(docker, buildStream);
