@@ -51,7 +51,7 @@ export function isImageAvailable(docker: Docker, name: string) {
 }
 
 export function isInterceptedContainer(container: Docker.ContainerInspectInfo, port: string | number) {
-    return container.Config.Labels[DOCKER_CONTAINER_LABEL] === port.toString();
+    return container.Config.Labels?.[DOCKER_CONTAINER_LABEL] === port.toString();
 }
 
 const envArrayToObject = (envArray: string[] | null | undefined) =>

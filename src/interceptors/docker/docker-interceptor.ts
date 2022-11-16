@@ -55,7 +55,7 @@ export class DockerContainerInterceptor implements Interceptor {
                 id: containerData.Id,
                 names: containerData.Names,
                 command: containerData.Command,
-                labels: containerData.Labels,
+                labels: containerData.Labels ?? {},
                 state: containerData.State,
                 status: containerData.Status,
                 image: containerData.Image,
@@ -83,7 +83,7 @@ export class DockerContainerInterceptor implements Interceptor {
         if (!await this.isActivable()) return false;
 
         return Object.values((await this.getContainers())).some((target) => {
-            target.Labels[DOCKER_CONTAINER_LABEL] === proxyPort.toString()
+            target.Labels?.[DOCKER_CONTAINER_LABEL] === proxyPort.toString()
         });
     }
 

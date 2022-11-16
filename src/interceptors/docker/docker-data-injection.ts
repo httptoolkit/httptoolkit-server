@@ -102,7 +102,7 @@ export function ensureDockerInjectionVolumeExists(certContent: string) {
         const existingVolume = await docker.getVolume(DOCKER_DATA_VOLUME_NAME).inspect()
             .catch<false>(() => false);
         const isCertOutdated = existingVolume &&
-            existingVolume.Labels[DOCKER_VOLUME_CERT_LABEL] !== certContent;
+            existingVolume.Labels?.[DOCKER_VOLUME_CERT_LABEL] !== certContent;
 
         if (existingVolume && !isCertOutdated) return; // We're all good!
 
@@ -214,7 +214,7 @@ async function cleanupDataInjectionTools(docker: Docker) {
     });
     await Promise.all(
         blankContainers
-        .filter(c => c.Labels[DOCKER_BLANK_TAG] !== undefined) // Be extra careful
+        .filter(c => c.Labels?.[DOCKER_BLANK_TAG] !== undefined) // Be extra careful
         .map(c => docker.getContainer(c.Id).remove({ force: true }))
     );
 
@@ -224,7 +224,7 @@ async function cleanupDataInjectionTools(docker: Docker) {
 
     await Promise.all(
         blankImages
-        .filter(i => i.Labels[DOCKER_BLANK_TAG] !== undefined) // Be extra careful
+        .filter(i => i.Labels?.[DOCKER_BLANK_TAG] !== undefined) // Be extra careful
         .map(i => docker.getImage(i.Id).remove({ force: true }))
     );
 }
