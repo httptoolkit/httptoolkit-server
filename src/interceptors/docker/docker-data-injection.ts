@@ -104,6 +104,8 @@ export async function ensureDockerInjectionVolumeExists(
     if (existingVolume && !isCertOutdated) return; // We're all good!
 
     try {
+        const startTime = Date.now();
+
         // Clean up any leftover setup components that are hanging around (since they might
         // conflict with these next steps):
         await cleanupDataInjectionTools(docker);
@@ -138,13 +140,19 @@ export async function ensureDockerInjectionVolumeExists(
             }
         });
 
+        const blankContainerSetupTime = Date.now() - startTime;
+        let overrideStreamTime: number | undefined;
+
         // Then we use the container to write to the volume, without ever starting it:
         const volumeStream = TarStream.pack();
         // We write the CA cert, read-only:
         volumeStream.entry({ name: 'ca.pem', mode: parseInt('444', 8) }, certContent);
         // And all the override filesL
         const packOverridesPromise = packOverrideFiles(volumeStream, '/overrides')
-            .then(() => volumeStream.finalize());
+            .then(() => {
+                volumeStream.finalize();
+                overrideStreamTime = Date.now() - startTime;
+            });
 
         const writeVolumePromise = blankContainer.putArchive(
             volumeStream,
@@ -152,7 +160,10 @@ export async function ensureDockerInjectionVolumeExists(
         );
 
         await Promise.all([packOverridesPromise, writeVolumePromise]);
-        console.log('Created Docker injection volume');
+        const volumeCompleteTime = Date.now() - startTime;
+        console.log(`Created Docker injection volume (took ${
+            volumeCompleteTime
+        }ms: ${blankContainerSetupTime}ms for setup & ${overrideStreamTime!}ms to pack)`);
 
         // After success, we cleanup the tools (blank image & containers etc) and all old HTTP
         // Toolkit volumes, i.e. all matching volumes _except_ the current one.
