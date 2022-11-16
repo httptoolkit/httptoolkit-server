@@ -7,8 +7,9 @@ import { expect } from 'chai';
 import * as Docker from 'dockerode';
 import fetch from 'node-fetch';
 
-import { setupInterceptor, itIsAvailable } from './interceptor-test-utils';
 import { delay } from '../../src/util/promise';
+import { setupInterceptor, itIsAvailable } from './interceptor-test-utils';
+import { waitForDockerStream } from '../../src/interceptors/docker/docker-utils';
 
 const docker = new Docker();
 const DOCKER_FIXTURES = path.join(__dirname, '..', 'fixtures', 'docker');
@@ -39,17 +40,7 @@ async function buildAndRun(dockerFolder: string, options: {
         if (data.stream) console.log(data.stream.replace(/\n$/, ''));
     });
 
-    // Wait for the build to complete without errors:
-    await new Promise<void>((resolve, reject) => {
-        docker.modem.followProgress(buildStream, (err: Error | null, stream: Array<{ error?: string }>) => {
-            if (err) reject(err);
-
-            const firstError = stream.find((msg) => !!msg.error);
-            if (firstError) reject(new Error(firstError.error));
-
-            resolve();
-        });
-    });
+    await waitForDockerStream(docker, buildStream);
     console.log(`${dockerFolder} image built`);
 
     // Run the container, using its default entrypoint

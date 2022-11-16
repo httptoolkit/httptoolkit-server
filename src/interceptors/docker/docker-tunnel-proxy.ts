@@ -7,12 +7,17 @@ import { getDockerHostAddress, isImageAvailable } from './docker-commands';
 import { isDockerAvailable } from './docker-interception-services';
 import { delay } from '../../util/promise';
 import { reportError } from '../../error-tracking';
+import { waitForDockerStream } from './docker-utils';
 
 const DOCKER_TUNNEL_IMAGE = "httptoolkit/docker-socks-tunnel:v1.1.0";
 const DOCKER_TUNNEL_LABEL = "tech.httptoolkit.docker.tunnel";
 
 const getDockerTunnelContainerName = (proxyPort: number) =>
     `httptoolkit-docker-tunnel-${proxyPort}`;
+
+const pullTunnelImage = (docker: Docker) =>
+    docker.pull(DOCKER_TUNNEL_IMAGE)
+    .then(stream => waitForDockerStream(docker, stream));
 
 // Parallel mutation of a single Docker container's state is asking for trouble, so we use
 // a simple lock over all operations (across all proxes, not per-proxy, just for simplicity/safety).
@@ -25,7 +30,7 @@ export async function prepareDockerTunnel() {
     await containerMutex.runExclusive(async () => {
         const docker = new Docker();
         if (await isImageAvailable(docker, DOCKER_TUNNEL_IMAGE)) return;
-        else await docker.pull(DOCKER_TUNNEL_IMAGE).catch(console.warn);
+        else await pullTunnelImage(docker).catch(console.warn);
     });
 }
 
@@ -45,7 +50,7 @@ export function ensureDockerTunnelRunning(proxyPort: number) {
 
         // Make sure we have the image available (should've been pre-pulled, but just in case)
         if (!await docker.getImage(DOCKER_TUNNEL_IMAGE).inspect().catch(() => false)) {
-            await docker.pull(DOCKER_TUNNEL_IMAGE);
+            await pullTunnelImage(docker);
         }
 
         // Ensure we have a ready-to-use container here:
@@ -195,7 +200,7 @@ export async function getDockerTunnelPort(proxyPort: number): Promise<number> {
     return portCache[proxyPort]!;
 }
 
-export async function refreshDockerTunnelPortCache(proxyPort: number, { force } = { force: false }): Promise<number> {
+async function refreshDockerTunnelPortCache(proxyPort: number, { force } = { force: false }): Promise<number> {
     console.log("Querying Docker tunnel port...");
     try {
         if (!force && _.isObject(portCache[proxyPort])) {
