@@ -112,7 +112,7 @@ const INTERCEPTOR_TIMEOUT = 1000;
 const buildResolvers = (
     config: HtkConfig,
     interceptors: _.Dictionary<Interceptor>,
-    ruleParamKeys: string[],
+    getRuleParamKeys: () => string[],
     eventEmitter: events.EventEmitter
 ) => {
     return {
@@ -138,7 +138,7 @@ const buildResolvers = (
                 return [`127.0.0.1:${dnsServer.address().port}`];
             },
             ruleParameterKeys: async (): Promise<String[]> => {
-                return ruleParamKeys;
+                return getRuleParamKeys();
             }
         },
 
@@ -274,14 +274,14 @@ export class HttpToolkitServerApi extends events.EventEmitter {
 
     private server: express.Application;
 
-    constructor(config: HtkConfig, ruleParamKeys: string[]) {
+    constructor(config: HtkConfig, getRuleParamKeys: () => string[]) {
         super();
 
         let interceptors = buildInterceptors(config);
 
         const schema = makeExecutableSchema({
             typeDefs,
-            resolvers: buildResolvers(config, interceptors, ruleParamKeys, this)
+            resolvers: buildResolvers(config, interceptors, getRuleParamKeys, this)
         });
 
         this.server = express();
