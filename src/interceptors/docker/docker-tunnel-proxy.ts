@@ -116,7 +116,11 @@ export async function updateDockerTunnelledNetworks(
     proxyPort: number,
     interceptedNetworks: string[]
 ) {
-    console.log(`Updating intercepted Docker networks to: ${interceptedNetworks.join(', ')}`);
+    if (interceptedNetworks.length) {
+        console.log(`Updating intercepted Docker networks to: ${interceptedNetworks.join(', ')}`);
+    } else {
+        console.log('No Docker networks contain intercepted containers');
+    }
 
     const docker = new Docker();
 
