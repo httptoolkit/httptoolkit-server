@@ -38,8 +38,9 @@ export class DockerContainerInterceptor implements Interceptor {
             // We cache the containers query whilst it's active, because this gets hit a lot,
             // usually directly in parallel by getMetadata and isActive, and this ensures
             // that concurrent calls all just run one lookup and use the same result.
-            this._containersPromise = this.getDocker().listContainers()
-                .finally(() => { this._containersPromise = undefined; });
+            this._containersPromise = this.getDocker().listContainers({
+                all: true
+            }).finally(() => { this._containersPromise = undefined; });
         }
         return this._containersPromise;
     }
