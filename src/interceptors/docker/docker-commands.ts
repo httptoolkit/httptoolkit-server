@@ -2,6 +2,8 @@ import * as _ from 'lodash';
 import * as Docker from 'dockerode';
 import * as path from 'path';
 
+import { delay } from '../../util/promise';
+
 import { getTerminalEnvVars } from '../terminal/terminal-env-overrides';
 import { transformComposeCreationLabels } from './docker-compose';
 import { getDockerDataVolumeName } from './docker-data-injection';
@@ -213,6 +215,11 @@ export async function restartAndInjectContainer(
             throw e;
         }
     });
+
+    // There can be a delay here - wait until the container disappears
+    while (await container.inspect().catch(() => false)) {
+        await delay(100);
+    }
 
     // First we clone the continer, injecting our custom settings:
     const newContainer = await docker.createContainer(
