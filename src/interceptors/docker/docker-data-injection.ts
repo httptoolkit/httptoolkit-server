@@ -8,7 +8,8 @@ import { OVERRIDES_DIR } from '../terminal/terminal-env-overrides';
 import { isDockerAvailable } from "./docker-interception-services";
 import { waitForDockerStream } from './docker-utils';
 
-const DOCKER_BLANK_TAG = 'tech.httptoolkit.docker.scratch';
+const DOCKER_BLANK_IMAGE_NAME = 'httptoolkit/scratch';
+const DOCKER_BLANK_LABEL = 'tech.httptoolkit.docker.scratch';
 const DOCKER_VOLUME_LABEL = 'tech.httptoolkit.docker.data-volume';
 const DOCKER_VOLUME_CERT_LABEL = 'tech.httptoolkit.docker.data-volume.cert-content';
 
@@ -70,10 +71,10 @@ async function createBlankImage(docker: Docker) {
     // Dockerfile, sending no context, so it's super fast.
 
     // Skip image creation if it already exists:
-    const existingImage = await docker.getImage(DOCKER_BLANK_TAG).inspect()
+    const existingImage = await docker.getImage(DOCKER_BLANK_IMAGE_NAME).inspect()
         .then(() => true)
         .catch(() => false);
-    if (existingImage) return DOCKER_BLANK_TAG;
+    if (existingImage) return DOCKER_BLANK_IMAGE_NAME;
 
     const blankImageContextStream = await buildTarStream([{
         path: 'Dockerfile',
@@ -81,12 +82,13 @@ async function createBlankImage(docker: Docker) {
     }]);
     const buildStream = await docker.buildImage(blankImageContextStream, {
         dockerfile: 'Dockerfile',
-        t: DOCKER_BLANK_TAG
+        t: DOCKER_BLANK_IMAGE_NAME,
+        labels: { [DOCKER_BLANK_LABEL]: '' }
     });
 
     await waitForDockerStream(docker, buildStream);
 
-    return DOCKER_BLANK_TAG;
+    return DOCKER_BLANK_IMAGE_NAME;
 }
 
 // Parallel processing of a single Docker volume and the other assorted containers is asking for trouble,
@@ -136,8 +138,8 @@ export function ensureDockerInjectionVolumeExists(certContent: string) {
 
             // Then we create a blank container from the blank image with the volume mounted:
             const blankContainer = await docker.createContainer({
-                Image: DOCKER_BLANK_TAG,
-                Labels: { [DOCKER_BLANK_TAG]: '' },
+                Image: DOCKER_BLANK_IMAGE_NAME,
+                Labels: { [DOCKER_BLANK_LABEL]: '' },
                 HostConfig: {
                     Binds: [`${DOCKER_DATA_VOLUME_NAME}:/data-volume`]
                 }
@@ -210,21 +212,21 @@ async function cleanupDataInjectionVolumes(docker: Docker, options: { keepCurren
 async function cleanupDataInjectionTools(docker: Docker) {
     const blankContainers = await docker.listContainers({
         all: true,
-        filters: JSON.stringify({ label: [DOCKER_BLANK_TAG] })
+        filters: JSON.stringify({ label: [DOCKER_BLANK_LABEL] })
     });
     await Promise.all(
         blankContainers
-        .filter(c => c.Labels?.[DOCKER_BLANK_TAG] !== undefined) // Be extra careful
+        .filter(c => c.Labels?.[DOCKER_BLANK_LABEL] !== undefined) // Be extra careful
         .map(c => docker.getContainer(c.Id).remove({ force: true }))
     );
 
     const blankImages = await docker.listImages({
-        filters: JSON.stringify({ label: [DOCKER_BLANK_TAG] })
+        filters: JSON.stringify({ label: [DOCKER_BLANK_LABEL] })
     });
 
     await Promise.all(
         blankImages
-        .filter(i => i.Labels?.[DOCKER_BLANK_TAG] !== undefined) // Be extra careful
+        .filter(i => i.Labels?.[DOCKER_BLANK_LABEL] !== undefined) // Be extra careful
         .map(i => docker.getImage(i.Id).remove({ force: true }))
     );
 }
