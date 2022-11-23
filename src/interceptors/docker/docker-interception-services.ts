@@ -64,6 +64,14 @@ export async function startDockerInterceptionServices(
         delete process.env.DOCKER_HOST;
     }
 
+    // Log if Docker was not available at proxy start, and why, for debugging later:
+    (async () => { // Catch sync & async setup errors
+        await new Docker().ping();
+        console.log('Connected to Docker');
+    })().catch((error) => {
+        console.warn(`Docker not available: ${error.message}`);
+    });
+
     const networkMonitor = monitorDockerNetworkAliases(proxyPort);
 
     ruleParameters[`docker-tunnel-proxy-${proxyPort}`] = async ({ hostname }: { hostname: any }) => {
