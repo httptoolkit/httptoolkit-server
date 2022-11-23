@@ -9,6 +9,7 @@ import { OVERRIDE_JAVA_AGENT } from './terminal/terminal-env-overrides';
 import { reportError } from '../error-tracking';
 import { delay } from '../util/promise';
 import { commandExists, canAccess } from '../util/fs';
+import { ErrorLike } from '../util/error';
 
 type JvmTarget = { pid: string, name: string, interceptedByProxy: number | undefined };
 
@@ -38,7 +39,12 @@ const javaBinPromise: Promise<string | false> = (async () => {
     const javaTestResults = await Promise.all(javaBinPaths.map(async (possibleJavaBin) => ({
         javaBin: possibleJavaBin,
         output: await testJavaBin(possibleJavaBin)
-            .catch((e) => ({ exitCode: -1, stdout: '', stderr: e.toString() }))
+            .catch((e) => ({
+                exitCode: -1,
+                spawnError: e as ErrorLike,
+                stdout: '',
+                stderr: ''
+            }))
     })))
 
     // Use the first Java in the list that succeeds:
@@ -50,26 +56,35 @@ const javaBinPromise: Promise<string | false> = (async () => {
         // Some Java binaries are present, but none are usable. Log the error output for debugging:
         javaTestResults.forEach((testResult) => {
             console.log(`Running ${testResult.javaBin}:`);
-            console.log(testResult.output.stdout);
-            console.log(testResult.output.stderr);
+
+            const { stdout, stderr } = testResult.output;
+            if (stdout) console.log(stdout);
+            if (stderr) console.log(stderr);
+            if (!stdout && !stderr) console.log('[No output]');
+
+            if ('spawnError' in testResult.output) {
+                const { spawnError } = testResult.output;
+                console.log(spawnError.message || spawnError);
+            }
         });
 
         // The most common reason for this is that outdated Java versions (most notably Java 8) don't include
         // the necessary APIs to attach to remote JVMs. That's inconvenient, but unavoidable & not unusual.
         // Fortunately, I think most active Java developers do have a recent version of Java installed.
-        const nonOutdatedJavaErrors = javaTestResults.filter(({ output }) =>
+        const unusualJavaErrors = javaTestResults.filter(({ output }) =>
             !output.stderr.includes(OLD_JAVA_MISSING_ATTACH_CLASS) &&
-            !output.stdout.includes(OLD_JAVA_MISSING_ATTACH_CLASS)
+            !output.stdout.includes(OLD_JAVA_MISSING_ATTACH_CLASS) &&
+            !('spawnError' in output && output.spawnError.code === 'ENOENT')
         );
 
-        if (nonOutdatedJavaErrors.length === 0) {
-            console.warn('Only older Java versions were detected - Java attach APIs are not available');
-            return false;
+        if (unusualJavaErrors.length === 0) {
+            console.warn('=> Java attach APIs are not available');
         } else {
             // If we find any other unexpected Java errors, we report them, to aid with debugging and
             // detecting issues with unusual JVMs.
-            throw new Error(`JVM attach test failed unusually - exited with ${nonOutdatedJavaErrors[0].output.exitCode}`);
+            reportError(new Error(`JVM attach test failed unusually - exited with ${unusualJavaErrors[0].output.exitCode}`));
         }
+        return false;
     } else if (bestJava) {
         return bestJava.javaBin;
     } else {
