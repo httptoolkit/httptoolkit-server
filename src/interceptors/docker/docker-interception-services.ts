@@ -21,10 +21,23 @@ import {
 } from './docker-tunnel-proxy';
 import { ensureDockerInjectionVolumeExists } from './docker-data-injection';
 
-export const isDockerAvailable = () =>
-    (async () => new Docker().ping())() // Catch sync & async setup errors
-    .then(() => true)
-    .catch(() => false);
+let dockerAvailableCache: Promise<boolean> | undefined;
+
+export const isDockerAvailable = () => {
+    if (dockerAvailableCache) return dockerAvailableCache;
+    else {
+        dockerAvailableCache = (async () => { // Catch sync & async setup errors
+            await new Docker().ping()
+        })()
+        .then(() => true)
+        .catch(() => false);
+
+        // Cache the resulting status for 3 seconds:
+        setTimeout(() => { dockerAvailableCache = undefined; }, 3000);
+
+        return dockerAvailableCache;
+    }
+}
 
 const IPv4_IPv6_PREFIX = "::ffff:";
 
