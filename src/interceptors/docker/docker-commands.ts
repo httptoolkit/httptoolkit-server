@@ -205,7 +205,11 @@ export async function restartAndInjectContainer(
     const container = docker.getContainer(containerId);
     const containerDetails = await container.inspect();
 
-    await container.stop({ t: 1 });
+    await container.stop({ t: 1 }).catch((e) => {
+        // Ignore already-stopped errors:
+        if (e.message?.includes('container already stopped')) return;
+        else throw e;
+    });
     await container.remove().catch((e) => {
         if ([409, 404, 304].includes(e.statusCode)) {
             // Generally this means the container was running with --rm, so
