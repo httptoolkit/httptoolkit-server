@@ -39,6 +39,7 @@ declare module '@devicefarmer/adbkit' {
         root(id: string): Promise<true>;
         on(type: 'error', handler: (error: Error) => void): void;
         reverse(id: string, remote: string, local: string): Promise<true>;
+        connect(host: string, port?: number): Promise<void>;
     }
 
     export function createClient(options?: {

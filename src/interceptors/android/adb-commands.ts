@@ -20,6 +20,18 @@ export function createAdbClient() {
             : 'adb'
     });
 
+    if (process.platform === 'win32') {
+        // If ADB is connected (=if list works) then we try to connect to 58526 automatically
+        // (but asychronously) at start up. This is the local debug port for Windows
+        // Subsystem for Android:
+        // https://learn.microsoft.com/en-us/windows/android/wsa/#connect-to-the-windows-subsystem-for-android-for-debugging
+
+        client.listDevices()
+            .then(() => client.connect('127.0.0.1', 58526))
+            .then(() => console.log('Connected to WSA via ADB'))
+            .catch(() => {}); // Just best-efforts, so we ignore any failures here
+    }
+
     // We listen for errors and report them. This only happens if adbkit completely
     // fails to handle or listen to a connection error. We'd rather report that than crash.
     client.on('error', reportError);
