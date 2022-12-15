@@ -68,7 +68,7 @@
     "mime-types": "^2.1.27",
     "mobx": "^6.3.5",
     "mockrtc": "^0.3.0",
-    "mockttp": "^3.6.1",
+    "mockttp": "^3.6.2",
     "node-abort-controller": "^3.0.1",
     "node-fetch": "^2.6.1",
     "node-forge": "^1.3.0",
