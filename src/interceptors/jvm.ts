@@ -14,6 +14,8 @@ import { ErrorLike } from '../util/error';
 type JvmTarget = { pid: string, name: string, interceptedByProxy: number | undefined };
 
 const OLD_JAVA_MISSING_ATTACH_CLASS = 'com/sun/tools/attach/AgentLoadException';
+const MISSING_ATTACH_LIB_MESSAGE = 'java.lang.UnsatisfiedLinkError: no attach in java.library.path';
+const JRE_NOT_JDK_MESSAGE = 'Are we running in a JRE instead of a JDK';
 
 // Check that Java is present, and that it's compatible with agent attachment:
 const javaBinPromise: Promise<string | false> = (async () => {
@@ -72,8 +74,13 @@ const javaBinPromise: Promise<string | false> = (async () => {
         // the necessary APIs to attach to remote JVMs. That's inconvenient, but unavoidable & not unusual.
         // Fortunately, I think most active Java developers do have a recent version of Java installed.
         const unusualJavaErrors = javaTestResults.filter(({ output }) =>
-            !output.stderr.includes(OLD_JAVA_MISSING_ATTACH_CLASS) &&
-            !output.stdout.includes(OLD_JAVA_MISSING_ATTACH_CLASS) &&
+            // Not caused by a known normal not-supported-in-your-env error:
+            ![
+                MISSING_ATTACH_LIB_MESSAGE, OLD_JAVA_MISSING_ATTACH_CLASS, JRE_NOT_JDK_MESSAGE
+            ].some(knownError =>
+                output.stderr.includes(knownError) || output.stdout.includes(knownError)
+            ) &&
+            // And not caused by ENOENT for an invalid Java path:
             !('spawnError' in output && output.spawnError.code === 'ENOENT')
         );
 
