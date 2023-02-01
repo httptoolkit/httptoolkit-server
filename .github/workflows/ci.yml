@@ -7,7 +7,7 @@ jobs:
     name: Build & test
     runs-on: ubuntu-18.04
     container:
-      image: httptoolkit/act-build-base:v2.0.0
+      image: httptoolkit/act-build-base@sha256:f6f39d94ee4fadf85d2ad1d2c80a8df4c06b2e6eef559cda4269841265ba2643
       options: "--privileged" # Required for DIND tests
     env:
       DIND_HOST: unix:///tmp/docker.sock
@@ -33,11 +33,14 @@ jobs:
 
       - name: Prepare test environment
         run: |
+          # Fix annoying Yarn issue: https://github.com/yarnpkg/yarn/issues/7866
+          curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
+
           sudo apt-get update
-          sudo apt-get install p7zip-full xterm
+          sudo apt-get install -y p7zip-full xterm
 
           wget https://downloads.slack-edge.com/linux_releases/slack-desktop-4.12.2-amd64.deb
-          sudo apt install ./slack-desktop-4.12.2-amd64.deb
+          sudo apt install -y ./slack-desktop-4.12.2-amd64.deb
 
           sudo cp test/no-sandbox-docker-wrapper.sh /usr/local/bin/google-chrome
           sudo cp test/no-sandbox-docker-wrapper.sh /usr/local/bin/slack
