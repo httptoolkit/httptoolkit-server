@@ -7,7 +7,7 @@ jobs:
     name: Build & test
     runs-on: ubuntu-18.04
     container:
-      image: httptoolkit/act-build-base@sha256:f6f39d94ee4fadf85d2ad1d2c80a8df4c06b2e6eef559cda4269841265ba2643
+      image: httptoolkit/act-build-base:v3.0.0
       options: "--privileged" # Required for DIND tests
     env:
       DIND_HOST: unix:///tmp/docker.sock
