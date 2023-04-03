@@ -84,14 +84,26 @@ jobs:
     strategy:
       matrix:
         include:
-          - platform: Linux
-            os: "ubuntu-latest"
+          - platform: Ubuntu 22.04
+            os: "ubuntu-22.04"
             test-script: "./unix.sh linux"
-          - platform: Mac
-            os: "macos-latest"
+          - platform: Ubuntu 20.04
+            os: "ubuntu-20.04"
+            test-script: "./unix.sh linux"
+          - platform: MacOS 12
+            os: "macos-12"
             test-script: "./unix.sh darwin"
-          - platform: Windows
-            os: "windows-latest"
+          - platform: MacOS 11
+            os: "macos-11"
+            test-script: "./unix.sh darwin"
+          - platform: MacOS 10.15
+            os: "macos-10.15" # Deprecated - nice-to-test now, but remove this entirely once GitHub stops supporting it
+            test-script: "./unix.sh darwin"
+          - platform: Windows 2022
+            os: "windows-2022"
+            test-script: ".\\windows.bat"
+          - platform: Windows 2019
+            os: "windows-2019"
             test-script: ".\\windows.bat"
       fail-fast: false
     name: Test on ${{ matrix.platform }}
