@@ -236,7 +236,7 @@ export async function injectSystemCertificate(
 
             # Create a separate temp directory, to hold the current certificates
             # Without this, when we add the mount we can't read the current certs anymore.
-            mkdir -m 700 /data/local/tmp/htk-ca-copy
+            mkdir -p -m 700 /data/local/tmp/htk-ca-copy
 
             # Copy out the existing certificates
             cp /system/etc/security/cacerts/* /data/local/tmp/htk-ca-copy/
