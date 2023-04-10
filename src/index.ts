@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import * as envPaths from 'env-paths';
+import envPaths from 'env-paths';
 import { Mutex } from 'async-mutex';
 
 import {

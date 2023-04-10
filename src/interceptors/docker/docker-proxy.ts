@@ -1,11 +1,11 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import * as os from 'os';
 import * as path from 'path';
 import * as stream from 'stream';
 import * as net from 'net';
 import * as http from 'http';
-import * as Dockerode from 'dockerode';
-import * as getRawBody from 'raw-body';
+import Dockerode from 'dockerode';
+import getRawBody from 'raw-body';
 import { AbortController } from 'node-abort-controller';
 
 import { chmod, deleteFile, readDir } from '../../util/fs';

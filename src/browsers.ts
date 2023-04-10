@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { promisify } from 'util';
 
-import * as getBrowserLauncherCb from '@httptoolkit/browser-launcher';
+import getBrowserLauncherCb from '@httptoolkit/browser-launcher';
 import {
     LaunchOptions,
     Launch,

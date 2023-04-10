@@ -1,4 +1,4 @@
-import * as Docker from 'dockerode';
+import Docker from 'dockerode';
 import { ProxySettingCallback } from 'mockttp';
 
 import { reportError } from '../../error-tracking';

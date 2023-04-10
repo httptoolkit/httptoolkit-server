@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import * as _ from 'lodash';
+import _ from 'lodash';
 import { spawn as spawnAsync, SpawnOptions } from 'child_process';
 
 const OUTPUT_DIR = path.join(__dirname, 'build');

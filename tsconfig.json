@@ -9,6 +9,7 @@
         "strict": true,
         "target": "es2017",
         "resolveJsonModule": true,
+        "esModuleInterop": true,
         "composite": true,
         "typeRoots" : [
             "./node_modules/@types",

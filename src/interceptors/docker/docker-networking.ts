@@ -1,6 +1,6 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import * as stream from 'stream';
-import * as Docker from 'dockerode';
+import Docker from 'dockerode';
 import * as EventStream from 'event-stream';
 import * as mobx from 'mobx';
 

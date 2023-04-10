@@ -1,4 +1,4 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import { fork } from 'child_process';
 
 import { expect } from 'chai';

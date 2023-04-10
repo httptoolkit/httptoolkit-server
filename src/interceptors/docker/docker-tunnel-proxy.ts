@@ -1,5 +1,5 @@
 import _ = require('lodash');
-import * as Docker from 'dockerode';
+import Docker from 'dockerode';
 import { Mutex } from 'async-mutex';
 
 import { isImageAvailable } from './docker-commands';

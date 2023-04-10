@@ -1,5 +1,5 @@
-import * as _ from 'lodash';
-import * as Docker from 'dockerode';
+import _ from 'lodash';
+import Docker from 'dockerode';
 import * as path from 'path';
 
 import { delay } from '../../util/promise';

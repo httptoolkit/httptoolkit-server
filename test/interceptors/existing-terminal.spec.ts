@@ -1,4 +1,4 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import * as util from 'util';
 import { exec } from 'child_process';
 

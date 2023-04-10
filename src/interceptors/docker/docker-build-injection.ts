@@ -1,8 +1,8 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import * as path from 'path';
 import * as stream from 'stream';
 import * as EventStream from 'event-stream';
-import * as getRawBody from 'raw-body';
+import getRawBody from 'raw-body';
 import maybeGunzip = require('gunzip-maybe');
 import * as tarStream from 'tar-stream';
 import { parse as parseDockerfile, CommandEntry } from 'docker-file-parser';

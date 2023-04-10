@@ -1,9 +1,9 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import * as os from 'os';
 import * as events from 'events';
-import * as express from 'express';
-import * as cors from 'cors';
-import corsGate = require('cors-gate');
+import express from 'express';
+import cors from 'cors';
+import corsGate from 'cors-gate';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import { GraphQLScalarType } from 'graphql';
 import { graphqlHTTP } from 'express-graphql';

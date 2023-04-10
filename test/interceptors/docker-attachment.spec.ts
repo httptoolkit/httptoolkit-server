@@ -1,10 +1,10 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import * as path from 'path';
 import * as fs from 'fs';
 
 import { expect } from 'chai';
 
-import * as Docker from 'dockerode';
+import Docker from 'dockerode';
 import fetch from 'node-fetch';
 
 import { delay } from '../../src/util/promise';

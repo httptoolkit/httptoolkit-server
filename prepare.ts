@@ -1,7 +1,7 @@
 import * as path from 'path';
 import type { Stats } from 'fs';
 import * as fs from 'fs/promises';
-import * as klaw from 'klaw';
+import klaw from 'klaw';
 import { spawn as spawnAsync, SpawnOptions } from 'child_process';
 
 const spawn = (command: string, args: string[] = [], options: SpawnOptions = {}) => {
@@ -17,11 +17,10 @@ const spawn = (command: string, args: string[] = [], options: SpawnOptions = {})
 }
 
 const collectAsyncIterator = async (asyncIterator: any) => {
-    const result = [];
+    const result: any[] = [];
     for await (const value of asyncIterator) result.push(value);
     return result;
 }
-
 
 const OVERRIDES_DIR = path.join(__dirname, 'overrides');
 

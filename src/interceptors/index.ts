@@ -1,4 +1,4 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 
 import { HtkConfig } from '../config';
 import { addShutdownHandler } from '../shutdown';

@@ -1,5 +1,5 @@
-import * as _ from 'lodash';
-import * as Docker from 'dockerode';
+import _ from 'lodash';
+import Docker from 'dockerode';
 
 import { Interceptor } from "..";
 import { HtkConfig } from '../../config';

@@ -1,4 +1,4 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import * as path from 'path';
 import { spawn } from 'child_process';
 

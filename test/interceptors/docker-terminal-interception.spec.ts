@@ -1,7 +1,7 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import * as path from 'path';
 import * as childProc from 'child_process';
-import * as Docker from 'dockerode';
+import Docker from 'dockerode';
 import { ProxySettingCallback } from 'mockttp';
 
 import { expect } from 'chai';

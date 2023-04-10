@@ -1,4 +1,4 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import * as fs from 'fs';
 import * as util from 'util';
 import * as os from 'os';

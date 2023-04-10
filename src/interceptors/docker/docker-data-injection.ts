@@ -1,5 +1,5 @@
 import * as path from 'path';
-import * as Docker from 'dockerode';
+import Docker from 'dockerode';
 import * as TarStream from 'tar-stream';
 import * as TarFs from 'tar-fs';
 
