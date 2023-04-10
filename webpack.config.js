@@ -84,11 +84,6 @@ module.exports = {
         new webpack.IgnorePlugin({ resourceRegExp: /^utf-8-validate$/ }),
         // Optimistically required in headless, falls back to child_process
         new webpack.IgnorePlugin({ resourceRegExp: /^child-killer$/ }),
-        // Dev-only require format, used in various adbkit modules
-        new webpack.IgnorePlugin({
-            resourceRegExp: /^\.\/src\/(adb|logcat|monkey)$/,
-            contextRegExp: /adbkit/
-        }),
         // GraphQL playground - required but never used in production bundles
         new webpack.NormalModuleReplacementPlugin(/^\.\/renderGraphiQL$/, 'node-noop'),
         // SSH2 - used within Dockerode, but we don't support it and it has awkward native deps

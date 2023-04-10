@@ -1,6 +1,6 @@
 import * as stream from 'stream';
 import * as path from 'path';
-import * as adb from '@devicefarmer/adbkit';
+import adb, * as Adb from '@devicefarmer/adbkit';
 import { reportError } from '../../error-tracking';
 import { isErrorLike } from '../../util/error';
 import { delay, waitUntil } from '../../util/promise';
@@ -63,11 +63,11 @@ const batchCalls = <A extends any[], R>(
     };
 }
 
-export const getConnectedDevices = batchCalls(async (adbClient: adb.AdbClient) => {
+export const getConnectedDevices = batchCalls(async (adbClient: Adb.Client) => {
     try {
-        const devices = await adbClient.listDevices();
+        const devices = await (adbClient.listDevices() as Promise<Adb.Device[]>);
         return devices
-            .filter(d =>
+            .filter((d: { type: string }) => // Required until https://github.com/DeviceFarmer/adbkit/pull/437 is merged
                 d.type !== 'offline' &&
                 d.type !== 'unauthorized' &&
                 !d.type.startsWith("no permissions")
@@ -106,8 +106,7 @@ export function stringAsStream(input: string) {
 }
 
 async function run(
-    adbClient: adb.AdbClient,
-    deviceId: string,
+    adbClient: Adb.DeviceClient,
     command: string[],
     options: {
         timeout?: number
@@ -116,9 +115,9 @@ async function run(
     }
 ): Promise<string> {
     return Promise.race([
-        adbClient.shell(deviceId, command)
+        adbClient.shell(command)
             .then(adb.util.readAll)
-            .then(buffer => buffer.toString('utf8')),
+            .then((buffer: Buffer) => buffer.toString('utf8')),
         ...(options.timeout
             ? [
                 delay(options.timeout)
@@ -130,13 +129,13 @@ async function run(
 }
 
 export async function pushFile(
-    adbClient: adb.AdbClient,
-    deviceId: string,
+    adbClient: Adb.DeviceClient,
     contents: string | stream.Readable,
     path: string,
     mode?: number
 ) {
-    const transfer = await adbClient.push(deviceId, contents, path, mode);
+    const transfer = await adbClient.push(contents as any, path, mode);
+    // Any required until https://github.com/DeviceFarmer/adbkit/pull/436 is released
 
     return new Promise((resolve, reject) => {
         transfer.on('end', resolve);
@@ -149,11 +148,11 @@ const runAsRootCommands = [
     ['su', '-c'] // Normal root
 ];
 
-export async function getRootCommand(adbClient: adb.AdbClient, deviceId: string): Promise<string[] | undefined> {
+export async function getRootCommand(adbClient: Adb.DeviceClient): Promise<string[] | undefined> {
     // Run whoami with each of the possible root commands
     const rootCheckResults = await Promise.all(
         runAsRootCommands.map((cmd) =>
-            run(adbClient, deviceId, cmd.concat('whoami'), { timeout: 1000 }).catch(console.log)
+            run(adbClient, cmd.concat('whoami'), { timeout: 1000 }).catch(console.log)
             .then((whoami) => ({ cmd, whoami }))
         )
     )
@@ -168,8 +167,8 @@ export async function getRootCommand(adbClient: adb.AdbClient, deviceId: string)
     // If no explicit root commands are available, try to restart adb in root
     // mode instead. If this works, *all* commands will run as root.
     // We prefer explicit "su" calls if possible, to limit access & side effects.
-    await adbClient.root(deviceId).catch((e) => {
-        if (e.message && e.message.includes("adbd is already running as root")) return;
+    await adbClient.root().catch((e: any) => {
+        if (isErrorLike(e) && e.message?.includes("adbd is already running as root")) return;
         else console.log(e);
     });
 
@@ -178,7 +177,7 @@ export async function getRootCommand(adbClient: adb.AdbClient, deviceId: string)
 
     await delay(500); // Wait, since they may not disconnect immediately
     const whoami = await waitUntil(250, 10, (): Promise<string | false> => {
-        return run(adbClient, deviceId, ['whoami']).catch(() => false)
+        return run(adbClient, ['whoami']).catch(() => false)
     }).catch(console.log);
 
     return (whoami || '').trim() === 'root'
@@ -187,14 +186,13 @@ export async function getRootCommand(adbClient: adb.AdbClient, deviceId: string)
 }
 
 export async function hasCertInstalled(
-    adbClient: adb.AdbClient,
-    deviceId: string,
+    adbClient: Adb.DeviceClient,
     certHash: string,
     certFingerprint: string
 ) {
     try {
         const certPath = `/system/etc/security/cacerts/${certHash}.0`;
-        const certStream = await adbClient.pull(deviceId, certPath);
+        const certStream = await adbClient.pull(certPath);
 
         // Wait until it's clear that the read is successful
         const data = await new Promise<Buffer>((resolve, reject) => {
@@ -218,8 +216,7 @@ export async function hasCertInstalled(
 }
 
 export async function injectSystemCertificate(
-    adbClient: adb.AdbClient,
-    deviceId: string,
+    adbClient: Adb.DeviceClient,
     rootCmd: string[],
     certificatePath: string
 ) {
@@ -230,7 +227,6 @@ export async function injectSystemCertificate(
     // args to allow RW system files). Solution: mount a virtual temporary FS on top of it.
     await pushFile(
         adbClient,
-        deviceId,
         stringAsStream(`
             set -e # Fail on error
 
@@ -269,13 +265,12 @@ export async function injectSystemCertificate(
     );
 
     // Actually run the script that we just pushed above, as root
-    const scriptOutput = await run(adbClient, deviceId, rootCmd.concat('sh', injectionScriptPath));
+    const scriptOutput = await run(adbClient, rootCmd.concat('sh', injectionScriptPath));
     console.log(scriptOutput);
 }
 
 export async function setChromeFlags(
-    adbClient: adb.AdbClient,
-    deviceId: string,
+    adbClient: Adb.DeviceClient,
     rootCmd: string[],
     flags: string[]
 ) {
@@ -295,7 +290,6 @@ export async function setChromeFlags(
 
     await pushFile(
         adbClient,
-        deviceId,
         stringAsStream(`
             set -e # Fail on error
 
@@ -319,21 +313,20 @@ export async function setChromeFlags(
     );
 
     // Actually run the script that we just pushed above, as root
-    const scriptOutput = await run(adbClient, deviceId, rootCmd.concat('sh', chromeFlagsScriptPath));
+    const scriptOutput = await run(adbClient, rootCmd.concat('sh', chromeFlagsScriptPath));
     console.log(scriptOutput);
 
     // Try to restart chrome, now that the flags have probably been changed:
-    await run(adbClient, deviceId, rootCmd.concat('am', 'force-stop', 'com.android.chrome')).catch(() => {});
+    await run(adbClient, rootCmd.concat('am', 'force-stop', 'com.android.chrome')).catch(() => {});
 }
 
 export async function bringToFront(
-    adbClient: adb.AdbClient,
-    deviceId: string,
+    adbClient: Adb.DeviceClient,
     activityName: string // Of the form: com.package/com.package.YourActivity
 ) {
     // Wake the device up, so it's at least obviously locked if locked.
     // It's not possible to unlock the device over ADB. Does nothing if already awake.
-    await adbClient.shell(deviceId, [
+    await adbClient.shell([
         "input", "keyevent", "KEYCODE_WAKEUP"
     ]);
 
@@ -341,14 +334,13 @@ export async function bringToFront(
 
     // Bring the activity to the front, so we can interact with it (this will
     // silently fail if the device is locked, but we're ok with that).
-    await adbClient.shell(deviceId, [
+    await adbClient.shell([
         "am", "start", "--activity-single-top", activityName
     ]);
 }
 
 export async function startActivity(
-    adbClient: adb.AdbClient,
-    deviceId: string,
+    adbClient: Adb.DeviceClient,
     options: {
         action?: string,
         data?: string,
@@ -358,7 +350,7 @@ export async function startActivity(
     const retries = options.retries ?? 0;
 
     try {
-        await adbClient.startActivity(deviceId, {
+        await adbClient.startActivity({
             wait: true,
             action: options.action,
             data: options.data
@@ -368,7 +360,7 @@ export async function startActivity(
         else {
             await delay(1000);
 
-            return startActivity(adbClient, deviceId, {
+            return startActivity(adbClient, {
                 ...options,
                 retries: retries - 1
             });
