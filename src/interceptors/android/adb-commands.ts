@@ -144,16 +144,20 @@ export async function pushFile(
 }
 
 const runAsRootCommands = [
-    ['su', 'root'], // Used on official emulators
-    ['su', '-c'] // Normal root
+    // 'su' as available on official emulators:
+    (...cmd: string[]) => ['su', 'root', ...cmd],
+    // Su on many physical rooted devices requires quotes:
+    (...cmd: string[]) => ['su', '-c', `'${cmd.join(' ')}'`]
 ];
 
-export async function getRootCommand(adbClient: Adb.DeviceClient): Promise<string[] | undefined> {
+type RootCmd = (...cmd: string[]) => string[];
+
+export async function getRootCommand(adbClient: Adb.DeviceClient): Promise<RootCmd | undefined> {
     // Run whoami with each of the possible root commands
     const rootCheckResults = await Promise.all(
-        runAsRootCommands.map((cmd) =>
-            run(adbClient, cmd.concat('whoami'), { timeout: 1000 }).catch(console.log)
-            .then((whoami) => ({ cmd, whoami }))
+        runAsRootCommands.map((runAsRoot) =>
+            run(adbClient, runAsRoot('whoami'), { timeout: 1000 }).catch(console.log)
+            .then((whoami) => ({ cmd: runAsRoot, whoami }))
         )
     )
 
@@ -181,7 +185,7 @@ export async function getRootCommand(adbClient: Adb.DeviceClient): Promise<strin
     }).catch(console.log);
 
     return (whoami || '').trim() === 'root'
-        ? [] // all commands now run as root, so no prefix required.
+        ? (...cmd: string[]) => cmd // All commands now run as root
         : undefined; // Still not root, no luck.
 }
 
@@ -217,7 +221,7 @@ export async function hasCertInstalled(
 
 export async function injectSystemCertificate(
     adbClient: Adb.DeviceClient,
-    rootCmd: string[],
+    runAsRoot: RootCmd,
     certificatePath: string
 ) {
     const injectionScriptPath = `${ANDROID_TEMP}/htk-inject-system-cert.sh`;
@@ -265,13 +269,13 @@ export async function injectSystemCertificate(
     );
 
     // Actually run the script that we just pushed above, as root
-    const scriptOutput = await run(adbClient, rootCmd.concat('sh', injectionScriptPath));
+    const scriptOutput = await run(adbClient, runAsRoot('sh', injectionScriptPath));
     console.log(scriptOutput);
 }
 
 export async function setChromeFlags(
     adbClient: Adb.DeviceClient,
-    rootCmd: string[],
+    runAsRoot: RootCmd,
     flags: string[]
 ) {
     const flagsFileContent = `chrome ${flags.join(' ')}`;
@@ -313,11 +317,11 @@ export async function setChromeFlags(
     );
 
     // Actually run the script that we just pushed above, as root
-    const scriptOutput = await run(adbClient, rootCmd.concat('sh', chromeFlagsScriptPath));
+    const scriptOutput = await run(adbClient, runAsRoot('sh', chromeFlagsScriptPath));
     console.log(scriptOutput);
 
     // Try to restart chrome, now that the flags have probably been changed:
-    await run(adbClient, rootCmd.concat('am', 'force-stop', 'com.android.chrome')).catch(() => {});
+    await run(adbClient, runAsRoot('am', 'force-stop', 'com.android.chrome')).catch(() => {});
 }
 
 export async function bringToFront(
