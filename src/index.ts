@@ -151,7 +151,6 @@ export async function runHTK(options: {
         webrtc: MockRTCAdminPlugin,
         securityCheck: MockSecurityCheckAdminPlugin
     }>({
-        debug: true,
         adminPlugins: {
             http: MockttpAdminPlugin,
             webrtc: MockRTCAdminPlugin,
@@ -160,7 +159,6 @@ export async function runHTK(options: {
         pluginDefaults: {
             http: {
                 options: {
-                    debug: true,
                     cors: false, // Don't add mocked CORS responses to intercepted traffic
                     recordTraffic: false, // Don't persist traffic here (keep it in the UI)
                     https: httpsConfig // Use our HTTPS config for HTTPS MITMs.
