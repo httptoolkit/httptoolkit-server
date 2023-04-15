@@ -12,7 +12,7 @@
             "args": ["start"],
             "outFiles": [
                 "${workspaceFolder}/**/*.js",
-                "${workspaceFolder}/../mockttp/dist/**/*.js"
+                "${workspaceFolder}/../mocksecurity-check/dist/**/*.js"
             ],
             "sourceMaps": true,
         }
