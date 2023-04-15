@@ -2,7 +2,7 @@ import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as tmp from 'tmp';
-import * as rimraf from 'rimraf';
+import rimraf from 'rimraf';
 import { lookpath } from 'lookpath';
 
 import { isErrorLike } from './error';

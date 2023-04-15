@@ -40,10 +40,18 @@ const TARGETS = [
     // Can we remotely resolve our own loopback address?
     [`http://localhost:${SERVER_PORT}/`, isOurHostname],
     [`http://127.0.0.1:${SERVER_PORT}/`, isOurHostname],
+    // (This works because Mockttp replaces localhost addresses in requests with
+    // the client's IP)
+
     // We can remote resolve our Docker hostname?
     [`http://${OUR_HOSTNAME}:${SERVER_PORT}/`, isOurHostname],
-    // Can we resolve a mocked-only URL? (This will always fail normally)
+    // (This works because our hostname is picked up by the network monitor, so the
+    // request is sent via the tunnel, and our DNS server routes it to our IP.
+
+    // Can we resolve a mocked-only URL?
     [`https://example.test/`, is('Mock response')],
+    // (This will always fail normally, but works in testing because we specifically
+    // spot this and inject the response).
 ];
 
 if (process.env.EXTRA_TARGET) {
@@ -84,10 +92,10 @@ const pollInterval = setInterval(async () => {
         console.log("All requests ok");
         clearInterval(pollInterval);
 
-        // Exit OK, but after a delay, so the other container can still make requests to us.
+        // Exit OK, but after a delay, so the other containers can still make requests to us.
         setTimeout(() => {
             process.exit(0);
-        }, 2000);
+        }, 5000);
     } else {
         console.log("Requests failed with", responses.map(r => r.message || r.statusCode));
     }

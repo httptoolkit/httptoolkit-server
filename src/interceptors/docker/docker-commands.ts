@@ -1,13 +1,12 @@
-import * as _ from 'lodash';
-import * as Docker from 'dockerode';
+import _ from 'lodash';
+import Docker from 'dockerode';
 import * as path from 'path';
-import * as semver from 'semver';
 
-import {
-    getTerminalEnvVars,
-    OVERRIDES_DIR
-} from '../terminal/terminal-env-overrides';
+import { delay } from '../../util/promise';
+
+import { getTerminalEnvVars } from '../terminal/terminal-env-overrides';
 import { transformComposeCreationLabels } from './docker-compose';
+import { getDockerDataVolumeName } from './docker-data-injection';
 
 // Used to label intercepted docker containers with the port of the proxy
 // that's currently intercepting them.
@@ -17,56 +16,33 @@ export const DOCKER_CONTAINER_LABEL = "tech.httptoolkit.docker.proxy";
  * The path inside the container where injected files will be stored, and so the paths that
  * env vars injected into the container need to reference.
  */
-const HTTP_TOOLKIT_INJECTED_PATH = '/http-toolkit-injections';
+const HTTP_TOOLKIT_INJECTED_PATH = '/.http-toolkit-injections';
 const HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'overrides');
 const HTTP_TOOLKIT_INJECTED_CA_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'ca.pem');
 
 /**
- * The hostname that resolves to the host OS (i.e. generally: where HTTP Toolkit is running)
+ * Get the hostname that resolves to the host OS (i.e. generally: where HTTP Toolkit is running)
  * from inside containers.
  *
  * In Docker for Windows & Mac, host.docker.internal is supported automatically:
  * https://docs.docker.com/docker-for-windows/networking/#use-cases-and-workarounds
  * https://docs.docker.com/docker-for-mac/networking/#use-cases-and-workarounds
  *
- * On Linux this is _not_ supported, so we add it ourselves with (--add-host).
+ * On Linux this is _not_ supported, and we need to be more clever.
  */
-export const DOCKER_HOST_HOSTNAME = "host.docker.internal";
-
-/**
- * To make the above hostname work on Linux, where it's not supported by default, we need to map it to the
- * host ip. This method works out the host IP to use to do so.
- */
-export const getDockerHostIp = (
+export function getDockerHostAddress(
     platform: typeof process.platform,
-    dockerVersion: { apiVersion: string } | { engineVersion: string },
     containerMetadata?: Docker.ContainerInspectInfo
-) => {
-    const semverVersion = semver.coerce(
-        'apiVersion' in dockerVersion
-        ? dockerVersion.apiVersion
-        : dockerVersion.engineVersion
-    );
-
-    if (platform !== 'linux') {
-        // On non-linux platforms this method isn't necessary - host.docker.internal is always supported
-        // so we can just use that.
-        return DOCKER_HOST_HOSTNAME;
-    } else if (
-        semver.satisfies(
-            semverVersion ?? '0.0.0',
-            'apiVersion' in dockerVersion ? '>=1.41' : '>=20.10'
-        )
-    ) {
-        // This is supported in Docker Engine 20.10, so always supported at least in API 1.41+
-        // Special name defined in new Docker versions, that refers to the host gateway
-        return 'host-gateway';
-    } else if (containerMetadata) {
-        // Old/Unknown Linux with known container: query the metadata, and if _that_ fails, use the default gateway IP.
-        return containerMetadata.NetworkSettings.Gateway || "172.17.0.1";
+) {
+    if (platform === 'win32' || platform === 'darwin') {
+        // On Docker Desktop, this alias always points to the host (outside the VM) IP:
+        return 'host.docker.internal';
     } else {
-        // Old/Unknown Linux without a container (e.g. during a build). Always use the default gateway IP:
-        return "172.17.0.1";
+        // Elsewhere (Linux) we should be able to always use the gateway address. We avoid
+        // using ExtraHosts with host-gateway, because that uses /etc/hosts, and not all
+        // clients use that for resolution (some use _only_ DNS lookups). IPs avoid this.
+        return containerMetadata?.NetworkSettings.Gateway
+            || "172.17.0.1";
     }
 }
 
@@ -77,7 +53,7 @@ export function isImageAvailable(docker: Docker, name: string) {
 }
 
 export function isInterceptedContainer(container: Docker.ContainerInspectInfo, port: string | number) {
-    return container.Config.Labels[DOCKER_CONTAINER_LABEL] === port.toString();
+    return container.Config.Labels?.[DOCKER_CONTAINER_LABEL] === port.toString();
 }
 
 const envArrayToObject = (envArray: string[] | null | undefined) =>
@@ -99,15 +75,14 @@ const envObjectToArray = (envObject: { [key: string]: string }): string[] =>
  * the container (to make sure we get *all* env vars, for example) and then
  * combine that with the inter
  */
-export function transformContainerCreationConfig(
+export async function transformContainerCreationConfig(
     containerConfig: Docker.ContainerCreateOptions,
     baseImageConfig: Docker.ImageInspectInfo | undefined,
-    { proxyPort, proxyHost, certPath }: {
+    { proxyPort, certContent }: {
         proxyPort: number,
-        proxyHost: string,
-        certPath: string
+        certContent: string
     }
-): Docker.ContainerCreateOptions {
+): Promise<Docker.ContainerCreateOptions> {
     // Get the container-relevant config from the image config first.
     // The image has both .Config and .ContainerConfig. The former
     // is preferred, seems that .ContainerConfig is backward compat.
@@ -134,7 +109,7 @@ export function transformContainerCreationConfig(
         { certPath: HTTP_TOOLKIT_INJECTED_CA_PATH },
         envArrayToObject(currentConfig.Env),
         {
-            httpToolkitIp: DOCKER_HOST_HOSTNAME,
+            httpToolkitHost: getDockerHostAddress(process.platform),
             overridePath: HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH,
             targetPlatform: 'linux'
         }
@@ -150,28 +125,14 @@ export function transformContainerCreationConfig(
         // files into place on top of the existing content:
         Binds: [
             ...(currentConfig.HostConfig?.Binds ?? []).filter((existingMount) =>
-                // Drop any existing mounts for these folders - this allows re-intercepting containers, e.g.
-                // to switch from one proxy port to another.
-                !existingMount.startsWith(`${certPath}:`) &&
-                !existingMount.startsWith(`${OVERRIDES_DIR}:`)
+                // Drop any existing mounts for these folders - this allows re-intercepting containers,
+                // e.g. to switch from one proxy port to another.
+                !existingMount.endsWith(`:${HTTP_TOOLKIT_INJECTED_PATH}:ro`)
             ),
-            // Bind-mount the CA certificate file individually too:
-            `${certPath}:${HTTP_TOOLKIT_INJECTED_CA_PATH}:ro`,
-            // Bind-mount the overrides directory into the container:
-            `${OVERRIDES_DIR}:${HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH}:ro`
-            // ^ Both 'ro' - untrusted containers must not be able to mess with these!
-        ],
-        ...(process.platform === 'linux'
-            // On Linux only, we need to add an explicit host to make host.docker.internal work:
-            ? {
-                ExtraHosts: [
-                    `${DOCKER_HOST_HOSTNAME}:${proxyHost}`,
-                    // Seems that first host wins conflicts, so we go before existing values
-                    ...(currentConfig.HostConfig?.ExtraHosts ?? [])
-                ]
-            }
-            : {}
-        )
+            // Bind-mount the injected data volume:
+            `${await getDockerDataVolumeName(certContent)}:${HTTP_TOOLKIT_INJECTED_PATH}:ro`,
+            // ^ Note the 'ro' - untrusted containers must not be able to mess with this!
+        ]
     };
 
     // Extend that config, injecting our custom overrides:
@@ -229,10 +190,9 @@ async function connectNetworks(
 export async function restartAndInjectContainer(
     docker: Docker,
     containerId: string,
-    { proxyPort, certContent, certPath }: {
+    { proxyPort, certContent }: {
         proxyPort: number,
         certContent: string
-        certPath: string
     }
 ) {
     // We intercept containers by stopping them, cloning them, injecting our settings,
@@ -245,7 +205,11 @@ export async function restartAndInjectContainer(
     const container = docker.getContainer(containerId);
     const containerDetails = await container.inspect();
 
-    await container.stop({ t: 1 });
+    await container.stop({ t: 1 }).catch((e) => {
+        // Ignore already-stopped errors:
+        if (e.message?.includes('container already stopped')) return;
+        else throw e;
+    });
     await container.remove().catch((e) => {
         if ([409, 404, 304].includes(e.statusCode)) {
             // Generally this means the container was running with --rm, so
@@ -256,26 +220,21 @@ export async function restartAndInjectContainer(
         }
     });
 
-    const proxyHost = getDockerHostIp(
-        process.platform,
-        { engineVersion: (await docker.version()).Version },
-        containerDetails
-    );
+    // There can be a delay here - wait until the container disappears
+    while (await container.inspect().catch(() => false)) {
+        await delay(100);
+    }
 
     // First we clone the continer, injecting our custom settings:
     const newContainer = await docker.createContainer(
-        transformContainerCreationConfig(
+        await transformContainerCreationConfig(
             // Get options required to directly recreate this container
             deriveContainerCreationConfigFromInspection(
                 containerDetails
             ),
             // We don't need image config - inspect result has *everything*
             undefined,
-            { // The settings to inject:
-                certPath,
-                proxyPort,
-                proxyHost
-            }
+            { proxyPort, certContent }
         )
     );
 

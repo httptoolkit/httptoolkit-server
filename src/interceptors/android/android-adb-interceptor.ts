@@ -1,5 +1,6 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import * as os from 'os';
+import { DeviceClient } from '@devicefarmer/adbkit';
 
 import { Interceptor } from '..';
 import { HtkConfig } from '../../config';
@@ -62,18 +63,26 @@ export class AndroidAdbInterceptor implements Interceptor {
     async activate(proxyPort: number, options: {
         deviceId: string
     }): Promise<void | {}> {
-        await this.injectSystemCertIfPossible(options.deviceId, this.config.https.certContent);
+        const deviceClient = new DeviceClient(this.adbClient, options.deviceId);
 
-        if (!(await this.adbClient.isInstalled(options.deviceId, 'tech.httptoolkit.android.v1'))) {
+        await this.injectSystemCertIfPossible(deviceClient, this.config.https.certContent);
+
+        if (!(await deviceClient.isInstalled('tech.httptoolkit.android.v1'))) {
             console.log("App not installed, installing...");
             try {
-                await this.adbClient.install(options.deviceId, await streamLatestApk(this.config));
+                await deviceClient.install(
+                    await streamLatestApk(this.config) as any
+                    // Any required until https://github.com/DeviceFarmer/adbkit/pull/436 is released
+                );
             } catch (e) {
                 console.log("Resetting & retrying APK install, after initial failure:", e);
                 // This can fail due to connection issues (with the device or while downloading
                 // the APK) due to a corrupted APK. Reset the APKs and try again, just in case.
                 await clearAllApks(this.config);
-                await this.adbClient.install(options.deviceId, await streamLatestApk(this.config));
+                await deviceClient.install(
+                    await streamLatestApk(this.config) as any
+                    // Any required until https://github.com/DeviceFarmer/adbkit/pull/436 is released
+                );
             }
             console.log("App installed successfully");
 
@@ -83,8 +92,7 @@ export class AndroidAdbInterceptor implements Interceptor {
         // Now that the app is installed, bring it to the front (avoids issues with starting a
         // service for the VPN when in the foreground).
         await bringToFront(
-            this.adbClient,
-            options.deviceId,
+            deviceClient,
             'tech.httptoolkit.android.v1/tech.httptoolkit.android.MainActivity'
         ).catch(reportError); // Not that important, so we continue if this fails somehow
 
@@ -107,10 +115,10 @@ export class AndroidAdbInterceptor implements Interceptor {
         };
         const intentData = urlSafeBase64(JSON.stringify(setupParams));
 
-        await this.adbClient.reverse(options.deviceId, 'tcp:' + proxyPort, 'tcp:' + proxyPort).catch(() => {});
+        await deviceClient.reverse('tcp:' + proxyPort, 'tcp:' + proxyPort).catch(() => {});
 
         // Use ADB to launch the app with the proxy details
-        await startActivity(this.adbClient, options.deviceId, {
+        await startActivity(deviceClient, {
             action: 'tech.httptoolkit.android.ACTIVATE',
             data: `https://android.httptoolkit.tech/connect/?data=${intentData}`,
             retries: 10
@@ -129,7 +137,7 @@ export class AndroidAdbInterceptor implements Interceptor {
             const tunnelCheckInterval = setInterval(async () => {
                 if (this.deviceProxyMapping[proxyPort].includes(options.deviceId)) {
                     try {
-                        await this.adbClient.reverse(options.deviceId, 'tcp:' + proxyPort, 'tcp:' + proxyPort)
+                        await deviceClient.reverse('tcp:' + proxyPort, 'tcp:' + proxyPort)
                         tunnelConnectFailures = 0;
                     } catch (e) {
                         tunnelConnectFailures += 1;
@@ -157,12 +165,13 @@ export class AndroidAdbInterceptor implements Interceptor {
         const deviceIds = this.deviceProxyMapping[port] || [];
 
         return Promise.all(
-            deviceIds.map(deviceId =>
-                this.adbClient.startActivity(deviceId, {
+            deviceIds.map(deviceId => {
+                const deviceClient = new DeviceClient(this.adbClient, deviceId);
+                deviceClient.startActivity({
                     wait: true,
                     action: 'tech.httptoolkit.android.DEACTIVATE'
                 })
-            )
+            })
         );
     }
 
@@ -174,8 +183,8 @@ export class AndroidAdbInterceptor implements Interceptor {
         );
     }
 
-    private async injectSystemCertIfPossible(deviceId: string, certContent: string) {
-        const rootCmd = await getRootCommand(this.adbClient, deviceId);
+    private async injectSystemCertIfPossible(deviceClient: DeviceClient, certContent: string) {
+        const rootCmd = await getRootCommand(deviceClient);
         if (!rootCmd) {
             console.log('Root not available, skipping cert injection');
             return;
@@ -187,19 +196,18 @@ export class AndroidAdbInterceptor implements Interceptor {
             const subjectHash = getCertificateSubjectHash(cert);
             const fingerprint = getCertificateFingerprint(cert);
 
-            if (!await hasCertInstalled(this.adbClient, deviceId, subjectHash, fingerprint)) {
+            if (!await hasCertInstalled(deviceClient, subjectHash, fingerprint)) {
                 const certPath = `${ANDROID_TEMP}/${subjectHash}.0`;
                 console.log(`Adding cert file as ${certPath}`);
 
                 await pushFile(
-                    this.adbClient,
-                    deviceId,
+                    deviceClient,
                     stringAsStream(certContent.replace('\r\n', '\n')),
                     certPath,
                     0o444
                 );
 
-                await injectSystemCertificate(this.adbClient, deviceId, rootCmd, certPath);
+                await injectSystemCertificate(deviceClient, rootCmd, certPath);
                 console.log(`Cert injected`);
             } else {
                 console.log("Cert already installed, nothing to do");
@@ -209,7 +217,7 @@ export class AndroidAdbInterceptor implements Interceptor {
 
             // Chrome requires system certificates to use certificate transparency, which we can't do. To work
             // around this, we need to explicitly trust our certificate in Chrome:
-            await setChromeFlags(this.adbClient, deviceId, rootCmd, [
+            await setChromeFlags(deviceClient, rootCmd, [
                 `--ignore-certificate-errors-spki-list=${spkiFingerprint}`
             ]);
             console.log('Android Chrome flags set');

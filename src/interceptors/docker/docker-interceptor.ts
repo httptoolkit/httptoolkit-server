@@ -1,5 +1,5 @@
-import * as _ from 'lodash';
-import * as Docker from 'dockerode';
+import _ from 'lodash';
+import Docker from 'dockerode';
 
 import { Interceptor } from "..";
 import { HtkConfig } from '../../config';
@@ -38,8 +38,9 @@ export class DockerContainerInterceptor implements Interceptor {
             // We cache the containers query whilst it's active, because this gets hit a lot,
             // usually directly in parallel by getMetadata and isActive, and this ensures
             // that concurrent calls all just run one lookup and use the same result.
-            this._containersPromise = this.getDocker().listContainers()
-                .finally(() => { this._containersPromise = undefined; });
+            this._containersPromise = this.getDocker().listContainers({
+                all: true
+            }).finally(() => { this._containersPromise = undefined; });
         }
         return this._containersPromise;
     }
@@ -55,7 +56,7 @@ export class DockerContainerInterceptor implements Interceptor {
                 id: containerData.Id,
                 names: containerData.Names,
                 command: containerData.Command,
-                labels: containerData.Labels,
+                labels: containerData.Labels ?? {},
                 state: containerData.State,
                 status: containerData.Status,
                 image: containerData.Image,
@@ -83,7 +84,7 @@ export class DockerContainerInterceptor implements Interceptor {
         if (!await this.isActivable()) return false;
 
         return Object.values((await this.getContainers())).some((target) => {
-            target.Labels[DOCKER_CONTAINER_LABEL] === proxyPort.toString()
+            target.Labels?.[DOCKER_CONTAINER_LABEL] === proxyPort.toString()
         });
     }
 

@@ -5,25 +5,26 @@ env:
 jobs:
   build:
     name: Build & test
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     container:
-      image: httptoolkit/act-build-base:v2.0.0
+      image: httptoolkit/act-build-base:v3.0.0
       options: "--privileged" # Required for DIND tests
     env:
       DIND_HOST: unix:///tmp/docker.sock
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-node@v1
+      - uses: actions/setup-node@v3
         with:
           node-version: 16.18.0
 
       - run: npm install -g npm@^8
 
       - name: Set up JDK 11 for Java testing
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v3
         with:
           java-version: 11
+          distribution: adopt-hotspot
 
       - run: npm ci
         env:
@@ -33,11 +34,14 @@ jobs:
 
       - name: Prepare test environment
         run: |
+          # Fix annoying Yarn issue: https://github.com/yarnpkg/yarn/issues/7866
+          curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
+
           sudo apt-get update
-          sudo apt-get install p7zip-full xterm
+          sudo apt-get install -y p7zip-full xterm
 
           wget https://downloads.slack-edge.com/linux_releases/slack-desktop-4.12.2-amd64.deb
-          sudo apt install ./slack-desktop-4.12.2-amd64.deb
+          sudo apt install -y ./slack-desktop-4.12.2-amd64.deb
 
           sudo cp test/no-sandbox-docker-wrapper.sh /usr/local/bin/google-chrome
           sudo cp test/no-sandbox-docker-wrapper.sh /usr/local/bin/slack
@@ -50,7 +54,7 @@ jobs:
           sleep 5
 
           # Pre-pull lots of the Docker images we'll want to use later
-          echo node:14 golang:1.16 openjdk:16-alpine3.13 python:3.9-slim ruby:alpine3.13 |
+          echo node:14 golang:1.16 openjdk:16-alpine3.13 python:3.9-slim ruby:alpine3.13 php:8.0-apache |
             DOCKER_HOST=$DIND_HOST xargs -P10 -n1 docker pull
 
       - run: DOCKER_HOST=$DIND_HOST xvfb-run npm run test
@@ -64,13 +68,13 @@ jobs:
 
       - run: DOCKER_HOST=$DIND_HOST xvfb-run npm run test:release
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: distributables
           path: build/dist/*
           if-no-files-found: error
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: test-scripts
           path: test/distributables-test
@@ -81,27 +85,39 @@ jobs:
     strategy:
       matrix:
         include:
-          - platform: Linux
-            os: "ubuntu-latest"
+          - platform: Ubuntu 22.04
+            os: "ubuntu-22.04"
             test-script: "./unix.sh linux"
-          - platform: Mac
-            os: "macos-latest"
+          - platform: Ubuntu 20.04
+            os: "ubuntu-20.04"
+            test-script: "./unix.sh linux"
+          - platform: MacOS 12
+            os: "macos-12"
             test-script: "./unix.sh darwin"
-          - platform: Windows
-            os: "windows-latest"
+          - platform: MacOS 11
+            os: "macos-11"
+            test-script: "./unix.sh darwin"
+          - platform: MacOS 10.15
+            os: "macos-10.15" # Deprecated - nice-to-test now, but remove this entirely once GitHub stops supporting it
+            test-script: "./unix.sh darwin"
+          - platform: Windows 2022
+            os: "windows-2022"
+            test-script: ".\\windows.bat"
+          - platform: Windows 2019
+            os: "windows-2019"
             test-script: ".\\windows.bat"
       fail-fast: false
     name: Test on ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
     steps:
       - name: Get our distributables
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: distributables
           path: distributables
 
       - name: Get the test scripts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: test-scripts
           path: .
@@ -115,7 +131,7 @@ jobs:
 
   publish:
     name: Publish a release
-    runs-on: "ubuntu-18.04"
+    runs-on: "ubuntu-22.04"
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs:
       - build

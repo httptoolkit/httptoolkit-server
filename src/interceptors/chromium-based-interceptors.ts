@@ -1,4 +1,4 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import { generateSPKIFingerprint } from 'mockttp';
 
 import { HtkConfig } from '../config';

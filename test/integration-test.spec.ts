@@ -1,12 +1,11 @@
-import { promisify } from 'util';
 import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 
 import * as request from 'request-promise-native';
 import * as tmp from 'tmp';
-import * as decompress from 'decompress';
+import decompress from 'decompress';
 import { expect } from 'chai';
-import * as getGraphQL from 'graphql.js';
+import getGraphQL from 'graphql.js';
 
 import { getRemote } from 'mockttp';
 

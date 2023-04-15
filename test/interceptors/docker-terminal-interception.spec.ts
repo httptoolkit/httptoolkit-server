@@ -1,7 +1,7 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import * as path from 'path';
 import * as childProc from 'child_process';
-import * as Docker from 'dockerode';
+import Docker from 'dockerode';
 import { ProxySettingCallback } from 'mockttp';
 
 import { expect } from 'chai';
@@ -303,6 +303,7 @@ Successfully built <hash>
             `host_1`,
             `default-service-a_1`,
             `default-linked-service-b_1`,
+            `extra-host-service_1`,
             `multi-network-a_1`,
             `multi-network-b_1`
         ].forEach((container) => {

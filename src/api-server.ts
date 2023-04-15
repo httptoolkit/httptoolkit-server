@@ -1,28 +1,26 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import * as os from 'os';
 import * as events from 'events';
-import * as express from 'express';
-import * as cors from 'cors';
-import corsGate = require('cors-gate');
+import express from 'express';
+import cors from 'cors';
+import corsGate from 'cors-gate';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import { GraphQLScalarType } from 'graphql';
 import { graphqlHTTP } from 'express-graphql';
 import gql from 'graphql-tag';
 
-import { generateSPKIFingerprint, MockttpAdminServer } from 'mockttp';
+import { generateSPKIFingerprint } from 'mockttp';
 import { getSystemProxy } from 'os-proxy-config';
 
 import { HtkConfig } from './config';
 import { reportError, addBreadcrumb } from './error-tracking';
 import { buildInterceptors, Interceptor, ActivationError } from './interceptors';
-import { ALLOWED_ORIGINS } from './constants';
+import { ALLOWED_ORIGINS, SERVER_VERSION } from './constants';
 import { delay } from './util/promise';
 import { getDnsServer } from './dns-server';
 import { shutdown } from './shutdown';
 
 const ENABLE_PLAYGROUND = false;
-
-const packageJson = require('../package.json');
 
 /**
  * This file contains the core server API, used by the UI to query
@@ -114,12 +112,12 @@ const INTERCEPTOR_TIMEOUT = 1000;
 const buildResolvers = (
     config: HtkConfig,
     interceptors: _.Dictionary<Interceptor>,
-    ruleParamKeys: string[],
+    getRuleParamKeys: () => string[],
     eventEmitter: events.EventEmitter
 ) => {
     return {
         Query: {
-            version: () => packageJson.version,
+            version: () => SERVER_VERSION,
             interceptors: () => _.values(interceptors),
             interceptor: (_: any, { id } : { id: string }) => interceptors[id],
             config: () => ({
@@ -140,7 +138,7 @@ const buildResolvers = (
                 return [`127.0.0.1:${dnsServer.address().port}`];
             },
             ruleParameterKeys: async (): Promise<String[]> => {
-                return ruleParamKeys;
+                return getRuleParamKeys();
             }
         },
 
@@ -276,14 +274,14 @@ export class HttpToolkitServerApi extends events.EventEmitter {
 
     private server: express.Application;
 
-    constructor(config: HtkConfig, ruleParamKeys: string[]) {
+    constructor(config: HtkConfig, getRuleParamKeys: () => string[]) {
         super();
 
         let interceptors = buildInterceptors(config);
 
         const schema = makeExecutableSchema({
             typeDefs,
-            resolvers: buildResolvers(config, interceptors, ruleParamKeys, this)
+            resolvers: buildResolvers(config, interceptors, getRuleParamKeys, this)
         });
 
         this.server = express();

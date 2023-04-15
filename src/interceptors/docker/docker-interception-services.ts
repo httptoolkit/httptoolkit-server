@@ -1,4 +1,4 @@
-import * as Docker from 'dockerode';
+import Docker from 'dockerode';
 import { ProxySettingCallback } from 'mockttp';
 
 import { reportError } from '../../error-tracking';
@@ -19,11 +19,25 @@ import {
     ensureDockerTunnelRunning,
     stopDockerTunnel,
 } from './docker-tunnel-proxy';
+import { ensureDockerInjectionVolumeExists } from './docker-data-injection';
 
-export const isDockerAvailable = () =>
-    (async () => new Docker().ping())() // Catch sync & async setup errors
-    .then(() => true)
-    .catch(() => false);
+let dockerAvailableCache: Promise<boolean> | undefined;
+
+export const isDockerAvailable = () => {
+    if (dockerAvailableCache) return dockerAvailableCache;
+    else {
+        dockerAvailableCache = (async () => { // Catch sync & async setup errors
+            await new Docker().ping()
+        })()
+        .then(() => true)
+        .catch(() => false);
+
+        // Cache the resulting status for 3 seconds:
+        setTimeout(() => { dockerAvailableCache = undefined; }, 3000);
+
+        return dockerAvailableCache;
+    }
+}
 
 const IPv4_IPv6_PREFIX = "::ffff:";
 
@@ -50,10 +64,14 @@ export async function startDockerInterceptionServices(
         delete process.env.DOCKER_HOST;
     }
 
-    // Prepare (pull) the tunnel image, but we don't actually start the tunnel itself until some
-    // Docker interception happens while HTTP Toolkit is running - e.g. proxy use, container attach,
-    // or an intercepted container connecting to a network.
-    prepareDockerTunnel();
+    // Log if Docker was not available at proxy start, and why, for debugging later:
+    (async () => { // Catch sync & async setup errors
+        await new Docker().ping();
+        console.log('Connected to Docker');
+    })().catch((error) => {
+        console.warn(`Docker not available: ${error.message}`);
+    });
+
     const networkMonitor = monitorDockerNetworkAliases(proxyPort);
 
     ruleParameters[`docker-tunnel-proxy-${proxyPort}`] = async ({ hostname }: { hostname: any }) => {
@@ -74,15 +92,22 @@ export async function startDockerInterceptionServices(
         // Ensure the DNS server is running to handle unresolvable container addresses:
         getDnsServer(proxyPort),
         // Monitor the intercepted containers, to resolve their names in our DNS:
-        networkMonitor
-    ]);
+        networkMonitor,
+        // Prepare (pull) the tunnel image (but don't actually start the tunnel itself until
+        // Docker activity happens - e.g. proxy use, container attach, or an intercepted
+        // container connecting to a network):
+        prepareDockerTunnel(),
+        // Create a Docker volume, containing our cert and the override files:
+        ensureDockerInjectionVolumeExists(httpsConfig.certContent)]);
 }
 
 export async function ensureDockerServicesRunning(proxyPort: number) {
     await Promise.all([
         monitorDockerNetworkAliases(proxyPort),
         ensureDockerTunnelRunning(proxyPort),
-        getDnsServer(proxyPort)
+        getDnsServer(proxyPort),
+        // We don't double-check on the injection volume here - that's
+        // checked separately at the point of use instead.
     ]).catch(reportError);
 }
 
@@ -94,6 +119,9 @@ export async function stopDockerInterceptionServices(
     stopMonitoringDockerNetworkAliases(proxyPort);
     await deleteAllInterceptedDockerData(proxyPort);
     delete ruleParameters[`docker-tunnel-proxy-${proxyPort}`];
+    // Note that we _don't_ drop the data volume, we're OK with leaving that
+    // around since it's invisible, tiny, and mildly expensive (a few seconds)
+    // to recreate.
 }
 
 // Batch deactivations - if we're already shutting down, don't shut down again until

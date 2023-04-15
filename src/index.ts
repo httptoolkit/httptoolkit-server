@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import * as envPaths from 'env-paths';
+import envPaths from 'env-paths';
 import { Mutex } from 'async-mutex';
 
 import {
@@ -195,7 +195,7 @@ export async function runHTK(options: {
         configPath,
         authToken: options.authToken,
         https: httpsConfig
-    }, standalone.ruleParameterKeys);
+    }, () => standalone.ruleParameterKeys);
 
     const updateMutex = new Mutex();
     apiServer.on('update-requested', () => {

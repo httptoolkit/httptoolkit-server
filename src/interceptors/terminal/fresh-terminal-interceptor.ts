@@ -1,4 +1,4 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import { spawn, ChildProcess, SpawnOptions } from 'child_process';
 import * as GSettings from 'node-gsettings-wrapper';
 
