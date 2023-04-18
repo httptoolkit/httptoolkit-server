@@ -96,9 +96,9 @@ const typeDefs = gql`
 `;
 
 // Wait for a promise, falling back to defaultValue on error or timeout
-const withFallback = <R>(p: Promise<R>, timeoutMs: number, defaultValue: R) =>
+const withFallback = <R>(p: () => Promise<R>, timeoutMs: number, defaultValue: R) =>
     Promise.race([
-        p.catch((error) => {
+        p().catch((error) => {
             reportError(error);
             return defaultValue;
         }),
@@ -196,18 +196,17 @@ const buildResolvers = (
         Interceptor: {
             isActivable: (interceptor: Interceptor) => {
                 return withFallback(
-                    interceptor.isActivable(),
+                    async () => interceptor.isActivable(),
                     interceptor.activableTimeout || INTERCEPTOR_TIMEOUT,
                     false
                 );
             },
             isActive: async (interceptor: Interceptor, { proxyPort }: { proxyPort: number }) => {
-                try {
-                    return await interceptor.isActive(proxyPort);
-                } catch (e) {
-                    reportError(e);
-                    return false;
-                }
+                return withFallback(
+                    async () => interceptor.isActive(proxyPort),
+                    INTERCEPTOR_TIMEOUT,
+                    false
+                );
             },
             metadata: async function (interceptor: Interceptor, { type }: { type?: 'DETAILED' | 'SUMMARY' }) {
                 if (!interceptor.getMetadata) return undefined;
@@ -220,16 +219,11 @@ const buildResolvers = (
                     ? INTERCEPTOR_TIMEOUT
                     : INTERCEPTOR_TIMEOUT * 10; // Longer timeout for detailed metadata
 
-                try {
-                    return await withFallback(
-                        interceptor.getMetadata(metadataType),
-                        timeout,
-                        undefined
-                    );
-                } catch (e) {
-                    reportError(e);
-                    return undefined;
-                }
+                return withFallback(
+                    async () => interceptor.getMetadata!(metadataType), // ! because we checked this above
+                    timeout,
+                    undefined
+                );
             }
         },
 
