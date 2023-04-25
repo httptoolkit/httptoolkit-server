@@ -91,6 +91,9 @@ jobs:
           - platform: Ubuntu 20.04
             os: "ubuntu-20.04"
             test-script: "./unix.sh linux"
+          - platform: MacOS 13
+            os: "macos-13"
+            test-script: "./unix.sh darwin"
           - platform: MacOS 12
             os: "macos-12"
             test-script: "./unix.sh darwin"
