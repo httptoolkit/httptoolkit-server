@@ -103,9 +103,15 @@ export class AndroidAdbInterceptor implements Interceptor {
                 '10.0.3.2', // Genymotion localhost ip
             ].concat(
                 // Every other external network ip
-                _.flatMap(os.networkInterfaces(), (addresses) =>
+                _.flatMap(os.networkInterfaces(), (addresses, iface) =>
                     (addresses || [])
-                        .filter(a => !a.internal)
+                        .filter(a =>
+                            !a.internal && // Loopback interfaces
+                            a.family === "IPv4" && // Android VPN app supports IPv4 only
+                            iface !== 'docker0' && // Docker default bridge interface
+                            !iface.startsWith('br-') && // More docker bridge interfaces
+                            !iface.startsWith('veth') // Virtual interfaces for each docker container
+                        )
                         .map(a => a.address)
                 )
             ),
