@@ -100,9 +100,6 @@ jobs:
           - platform: MacOS 11
             os: "macos-11"
             test-script: "./unix.sh darwin"
-          - platform: MacOS 10.15
-            os: "macos-10.15" # Deprecated - nice-to-test now, but remove this entirely once GitHub stops supporting it
-            test-script: "./unix.sh darwin"
           - platform: Windows 2022
             os: "windows-2022"
             test-script: ".\\windows.bat"
