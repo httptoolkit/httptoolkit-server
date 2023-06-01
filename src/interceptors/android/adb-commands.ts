@@ -183,7 +183,7 @@ export async function getRootCommand(adbClient: Adb.DeviceClient): Promise<RootC
 
     await delay(500); // Wait, since they may not disconnect immediately
     const whoami = await waitUntil(250, 10, (): Promise<string | false> => {
-        return run(adbClient, ['whoami']).catch(() => false)
+        return run(adbClient, ['whoami'], { timeout: 1000 }).catch(() => false)
     }).catch(console.log);
 
     return (whoami || '').trim() === 'root'
