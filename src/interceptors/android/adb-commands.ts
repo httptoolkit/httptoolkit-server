@@ -147,7 +147,9 @@ const runAsRootCommands = [
     // 'su' as available on official emulators:
     (...cmd: string[]) => ['su', 'root', ...cmd],
     // Su on many physical rooted devices requires quotes:
-    (...cmd: string[]) => ['su', '-c', `'${cmd.join(' ')}'`]
+    (...cmd: string[]) => ['su', '-c', `'${cmd.join(' ').replace("'", "\\'")}'`],
+    // But sometimes it doesn't like them, so try that too:
+    (...cmd: string[]) => ['su', '-c', ...cmd]
 ];
 
 type RootCmd = (...cmd: string[]) => string[];
@@ -156,7 +158,7 @@ export async function getRootCommand(adbClient: Adb.DeviceClient): Promise<RootC
     // Run whoami with each of the possible root commands
     const rootCheckResults = await Promise.all(
         runAsRootCommands.map((runAsRoot) =>
-            run(adbClient, runAsRoot('whoami'), { timeout: 1000 }).catch(console.log)
+            run(adbClient, runAsRoot('sh', '-c', 'whoami'), { timeout: 1000 }).catch(console.log)
             .then((whoami) => ({ cmd: runAsRoot, whoami }))
         )
     )
