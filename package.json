@@ -183,7 +183,7 @@
         }
       },
       "node": {
-        "version": "16.18.0",
+        "version": "18.16.0",
         "targets": [
           "win32-x64",
           "linux-x64",
