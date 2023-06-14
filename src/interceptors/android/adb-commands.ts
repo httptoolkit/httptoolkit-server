@@ -144,6 +144,8 @@ export async function pushFile(
 }
 
 const runAsRootCommands = [
+    // Maybe we're already root?
+    (...cmd: string[]) => [...cmd],
     // 'su' as available on official emulators:
     (...cmd: string[]) => ['su', 'root', ...cmd],
     // Su on many physical rooted devices requires quotes:
