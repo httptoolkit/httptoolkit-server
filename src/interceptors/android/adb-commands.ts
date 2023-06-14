@@ -117,7 +117,11 @@ async function run(
     return Promise.race([
         adbClient.shell(command)
             .then(adb.util.readAll)
-            .then((buffer: Buffer) => buffer.toString('utf8')),
+            .then((buffer: Buffer) => buffer.toString('utf8'))
+            .then((result) => {
+                console.debug("Android command", command, "returned", `\`${result.trimEnd()}\``);
+                return result;
+            }),
         ...(options.timeout
             ? [
                 delay(options.timeout)
@@ -125,7 +129,10 @@ async function run(
             ]
             : []
         )
-    ]);
+    ]).catch((e) => {
+        console.debug("Android command", command, "threw", e.message);
+        throw e;
+    });
 }
 
 export async function pushFile(
