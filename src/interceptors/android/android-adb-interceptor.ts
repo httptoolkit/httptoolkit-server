@@ -8,6 +8,7 @@ import { generateSPKIFingerprint } from 'mockttp';
 
 import { reportError } from '../../error-tracking';
 import { delay } from '../../util/promise';
+import { isErrorLike } from '../../util/error';
 import {
     ANDROID_TEMP,
     createAdbClient,
@@ -147,7 +148,9 @@ export class AndroidAdbInterceptor implements Interceptor {
                         tunnelConnectFailures = 0;
                     } catch (e) {
                         tunnelConnectFailures += 1;
-                        console.log(`${options.deviceId} ADB tunnel failed`, e);
+                        console.log(`${options.deviceId} ADB tunnel failed`,
+                            isErrorLike(e) ? e.message : e
+                        );
 
                         if (tunnelConnectFailures >= 5) {
                             // After 10 seconds disconnected, give up
