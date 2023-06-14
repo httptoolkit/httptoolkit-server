@@ -27,9 +27,18 @@ export const isDockerAvailable = () => {
     if (dockerAvailableCache) return dockerAvailableCache;
     else {
         dockerAvailableCache = (async () => { // Catch sync & async setup errors
-            await new Docker().ping()
+            return new Docker().info();
         })()
-        .then(() => true)
+        .then((info: { OSType?: 'windows' | 'linux' }) => {
+            if (info.OSType === 'windows') {
+                // We don't support Windows containers yet (and I think they're very rarely
+                // used anyway) so we treat Windows-mode Docker as unavailable:
+                console.warn("Docker is running in Windows container mode - not supported");
+                return false;
+            } else {
+                return true;
+            }
+        })
         .catch(() => false);
 
         // Cache the resulting status for 3 seconds:
