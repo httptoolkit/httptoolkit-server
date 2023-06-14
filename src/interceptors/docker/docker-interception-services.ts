@@ -23,7 +23,7 @@ import { ensureDockerInjectionVolumeExists } from './docker-data-injection';
 
 let dockerAvailableCache: Promise<boolean> | undefined;
 
-export const isDockerAvailable = () => {
+export const isDockerAvailable = (options: { logError?: boolean } = {}) => {
     if (dockerAvailableCache) return dockerAvailableCache;
     else {
         dockerAvailableCache = (async () => { // Catch sync & async setup errors
@@ -33,13 +33,15 @@ export const isDockerAvailable = () => {
             if (info.OSType === 'windows') {
                 // We don't support Windows containers yet (and I think they're very rarely
                 // used anyway) so we treat Windows-mode Docker as unavailable:
-                console.warn("Docker is running in Windows container mode - not supported");
-                return false;
+                throw new Error("Docker running in Windows container mode - not supported");
             } else {
                 return true;
             }
         })
-        .catch(() => false);
+        .catch((error) => {
+            if (options.logError) console.warn('Docker not available:', error.message);
+            return false;
+        });
 
         // Cache the resulting status for 3 seconds:
         setTimeout(() => { dockerAvailableCache = undefined; }, 3000);
@@ -74,11 +76,9 @@ export async function startDockerInterceptionServices(
     }
 
     // Log if Docker was not available at proxy start, and why, for debugging later:
-    (async () => { // Catch sync & async setup errors
-        await new Docker().ping();
-        console.log('Connected to Docker');
-    })().catch((error) => {
-        console.warn(`Docker not available: ${error.message}`);
+    isDockerAvailable({ logError: true }).then((isAvailable) => {
+        if (isAvailable) console.log('Connected to Docker');
+        // logError will log the specific not-available error, if this failed
     });
 
     const networkMonitor = monitorDockerNetworkAliases(proxyPort);
