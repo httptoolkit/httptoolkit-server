@@ -153,12 +153,15 @@ export async function pushFile(
 const runAsRootCommands = [
     // Maybe we're already root?
     (...cmd: string[]) => [...cmd],
-    // 'su' as available on official emulators:
-    (...cmd: string[]) => ['su', 'root', ...cmd],
-    // Su on many physical rooted devices requires quotes:
-    (...cmd: string[]) => ['su', '-c', `'${cmd.join(' ').replace("'", "\\'")}'`],
+    // Su on many physical rooted devices requires quotes. Adbkit automatically quotes
+    // each argument in the array, so we just have to make it a single arg:
+    (...cmd: string[]) => ['su', '-c', cmd.join(' ')],
     // But sometimes it doesn't like them, so try that too:
-    (...cmd: string[]) => ['su', '-c', ...cmd]
+    (...cmd: string[]) => ['su', '-c', ...cmd],
+    // 'su' as available on official emulators, no quoting of commands required:
+    (...cmd: string[]) => ['su', 'root', ...cmd],
+    // 'su' with a single-arg command here too, just in case:
+    (...cmd: string[]) => ['su', 'root', cmd.join(' ')]
 ];
 
 type RootCmd = (...cmd: string[]) => string[];
