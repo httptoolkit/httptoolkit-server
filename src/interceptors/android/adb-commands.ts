@@ -164,10 +164,27 @@ const runAsRootCommands = [
 type RootCmd = (...cmd: string[]) => string[];
 
 export async function getRootCommand(adbClient: Adb.DeviceClient): Promise<RootCmd | undefined> {
-    // Run whoami with each of the possible root commands
+    // Just running 'whoami' doesn't fully check certain tricky cases around how the root commands
+    // handle multiple arguments etc. Pushing & running this script is an accurate test of which
+    // root mechanisms will actually work on this device:
+    const rootTestScriptPath = `${ANDROID_TEMP}/htk-root-test.sh`;
+    let rootTestCommand = ['sh', rootTestScriptPath];
+    try {
+        await pushFile(adbClient, stringAsStream(`
+            set -e # Fail on error
+            whoami # Log the current user name, to confirm if we're root
+        `), rootTestScriptPath, 0o444);
+    } catch (e) {
+        console.log(`Couldn't write root test script to ${rootTestScriptPath}`, e);
+        // Ok, so we can't write the test script, but let's still test for root via whoami directly,
+        // because maybe if we get root then that won't be a problem
+        rootTestCommand = ['whoami'];
+    }
+
+    // Run our whoami script with each of the possible root commands
     const rootCheckResults = await Promise.all(
         runAsRootCommands.map((runAsRoot) =>
-            run(adbClient, runAsRoot('sh', '-c', 'whoami'), { timeout: 1000 }).catch(console.log)
+            run(adbClient, runAsRoot(...rootTestCommand), { timeout: 1000 }).catch(console.log)
             .then((whoami) => ({ cmd: runAsRoot, whoami }))
         )
     )
@@ -192,7 +209,7 @@ export async function getRootCommand(adbClient: Adb.DeviceClient): Promise<RootC
 
     await delay(500); // Wait, since they may not disconnect immediately
     const whoami = await waitUntil(250, 10, (): Promise<string | false> => {
-        return run(adbClient, ['whoami'], { timeout: 1000 }).catch(() => false)
+        return run(adbClient, rootTestCommand, { timeout: 1000 }).catch(() => false)
     }).catch(console.log);
 
     return (whoami || '').trim() === 'root'
