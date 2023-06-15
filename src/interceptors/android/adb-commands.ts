@@ -167,57 +167,67 @@ const runAsRootCommands = [
 type RootCmd = (...cmd: string[]) => string[];
 
 export async function getRootCommand(adbClient: Adb.DeviceClient): Promise<RootCmd | undefined> {
-    // Just running 'whoami' doesn't fully check certain tricky cases around how the root commands
-    // handle multiple arguments etc. Pushing & running this script is an accurate test of which
-    // root mechanisms will actually work on this device:
     const rootTestScriptPath = `${ANDROID_TEMP}/htk-root-test.sh`;
-    let rootTestCommand = ['sh', rootTestScriptPath];
+
     try {
-        await pushFile(adbClient, stringAsStream(`
-            set -e # Fail on error
-            whoami # Log the current user name, to confirm if we're root
-        `), rootTestScriptPath, 0o444);
-    } catch (e) {
-        console.log(`Couldn't write root test script to ${rootTestScriptPath}`, e);
-        // Ok, so we can't write the test script, but let's still test for root via whoami directly,
-        // because maybe if we get root then that won't be a problem
-        rootTestCommand = ['whoami'];
-    }
+        // Just running 'whoami' doesn't fully check certain tricky cases around how the root commands
+        // handle multiple arguments etc. Pushing & running this script is an accurate test of which
+        // root mechanisms will actually work on this device:
+        let rootTestCommand = ['sh', rootTestScriptPath];
+        try {
+            await pushFile(adbClient, stringAsStream(`
+                set -e # Fail on error
+                whoami # Log the current user name, to confirm if we're root
+            `), rootTestScriptPath, 0o444);
+        } catch (e) {
+            console.log(`Couldn't write root test script to ${rootTestScriptPath}`, e);
+            // Ok, so we can't write the test script, but let's still test for root via whoami directly,
+            // because maybe if we get root then that won't be a problem
+            rootTestCommand = ['whoami'];
+        }
 
-    // Run our whoami script with each of the possible root commands
-    const rootCheckResults = await Promise.all(
-        runAsRootCommands.map((runAsRoot) =>
-            run(adbClient, runAsRoot(...rootTestCommand), { timeout: 1000 }).catch(console.log)
-            .then((whoami) => ({ cmd: runAsRoot, whoami }))
+        // Run our whoami script with each of the possible root commands
+        const rootCheckResults = await Promise.all(
+            runAsRootCommands.map((runAsRoot) =>
+                run(adbClient, runAsRoot(...rootTestCommand), { timeout: 1000 }).catch(console.log)
+                .then((whoami) => ({ cmd: runAsRoot, whoami }))
+            )
         )
-    )
 
-    // Filter to just commands that successfully printed 'root'
-    const validRootCommands = rootCheckResults
-        .filter((result) => (result.whoami || '').trim() === 'root')
-        .map((result) => result.cmd);
+        // Filter to just commands that successfully printed 'root'
+        const validRootCommands = rootCheckResults
+            .filter((result) => (result.whoami || '').trim() === 'root')
+            .map((result) => result.cmd);
 
-    if (validRootCommands.length >= 1) return validRootCommands[0];
+        if (validRootCommands.length >= 1) return validRootCommands[0];
 
-    // If no explicit root commands are available, try to restart adb in root
-    // mode instead. If this works, *all* commands will run as root.
-    // We prefer explicit "su" calls if possible, to limit access & side effects.
-    await adbClient.root().catch((e: any) => {
-        if (isErrorLike(e) && e.message?.includes("adbd is already running as root")) return;
-        else console.log(e);
-    });
+        // If no explicit root commands are available, try to restart adb in root
+        // mode instead. If this works, *all* commands will run as root.
+        // We prefer explicit "su" calls if possible, to limit access & side effects.
+        await adbClient.root().catch((e: any) => {
+            if (isErrorLike(e) && e.message?.includes("adbd is already running as root")) return;
+            else console.log(e);
+        });
 
-    // Sometimes switching to root can disconnect ADB devices, so double-check
-    // they're still here, and wait a few seconds for them to come back if not.
+        // Sometimes switching to root can disconnect ADB devices, so double-check
+        // they're still here, and wait a few seconds for them to come back if not.
 
-    await delay(500); // Wait, since they may not disconnect immediately
-    const whoami = await waitUntil(250, 10, (): Promise<string | false> => {
-        return run(adbClient, rootTestCommand, { timeout: 1000 }).catch(() => false)
-    }).catch(console.log);
+        await delay(500); // Wait, since they may not disconnect immediately
+        const whoami = await waitUntil(250, 10, (): Promise<string | false> => {
+            return run(adbClient, rootTestCommand, { timeout: 1000 }).catch(() => false)
+        }).catch(console.log);
 
-    return (whoami || '').trim() === 'root'
-        ? (...cmd: string[]) => cmd // All commands now run as root
-        : undefined; // Still not root, no luck.
+        return (whoami || '').trim() === 'root'
+            ? (...cmd: string[]) => cmd // All commands now run as root
+            : undefined; // Still not root, no luck.
+    } catch (e) {
+        console.error(e);
+        reportError('ADB root check crashed');
+        return undefined;
+    } finally {
+        // Try to clean up the root test script, just to be tidy
+        run(adbClient, ['rm', '-f', rootTestScriptPath]).catch(() => {});
+    }
 }
 
 export async function hasCertInstalled(
