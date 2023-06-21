@@ -34,7 +34,7 @@ export class ElectronInterceptor implements Interceptor {
     readonly version = '1.0.1';
 
     private debugClients: {
-        [port: string]: Array<ChromeRemoteInterface.CdpClient>
+        [port: string]: Array<ChromeRemoteInterface.Client>
      } = {};
 
     constructor(private config: HtkConfig) { }
@@ -65,7 +65,7 @@ export class ElectronInterceptor implements Interceptor {
             // Non-darwin, or darwin with a full path to the binary:
                 : pathToApplication;
 
-        const appProcess = spawn(cmd, [`--inspect-brk=${debugPort}`], {
+        const appProcess = spawn(cmd, [`--inspect-brk=127.0.0.1:${debugPort}`], {
             stdio: 'inherit',
             env: {
                 ...process.env,
@@ -78,7 +78,7 @@ export class ElectronInterceptor implements Interceptor {
             }
         });
 
-        let debugClient: ChromeRemoteInterface.CdpClient | undefined;
+        let debugClient: ChromeRemoteInterface.Client | undefined;
         let retries = 10;
 
         appProcess.on('error', async (e) => {
@@ -97,7 +97,10 @@ export class ElectronInterceptor implements Interceptor {
 
         while (!debugClient && retries >= 0) {
             try {
-                debugClient = await ChromeRemoteInterface({ port: debugPort });
+                debugClient = await ChromeRemoteInterface({
+                    host: '127.0.0.1',
+                    port: debugPort
+                });
             } catch (error) {
                 if ((isErrorLike(error) && error.code !== 'ECONNREFUSED') || retries === 0) {
                     throw error;
@@ -111,7 +114,7 @@ export class ElectronInterceptor implements Interceptor {
 
         this.debugClients[proxyPort] = this.debugClients[proxyPort] || [];
         this.debugClients[proxyPort].push(debugClient);
-        debugClient.once('disconnect', () => {
+        debugClient.on('disconnect', () => {
             _.remove(this.debugClients[proxyPort], c => c === debugClient);
         });
 
@@ -170,7 +173,7 @@ export class ElectronInterceptor implements Interceptor {
             this.debugClients[proxyPort].map(async (debugClient) => {
                 let shutdown = false;
                 const disconnectPromise = new Promise<void>((resolve) =>
-                    debugClient.once('disconnect', resolve)
+                    debugClient.on('disconnect', resolve)
                 ).then(() => {
                     shutdown = true
                 });
