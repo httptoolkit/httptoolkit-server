@@ -84,7 +84,7 @@ module.exports = {
         new webpack.IgnorePlugin({ resourceRegExp: /^utf-8-validate$/ }),
         // Optimistically required in headless, falls back to child_process
         new webpack.IgnorePlugin({ resourceRegExp: /^child-killer$/ }),
-        // GraphQL playground - required but never used in production bundles
+        // GraphQL playground - never used
         new webpack.NormalModuleReplacementPlugin(/^\.\/renderGraphiQL$/, 'node-noop'),
         // SSH2 - used within Dockerode, but we don't support it and it has awkward native deps
         new webpack.NormalModuleReplacementPlugin(/^ssh2$/, 'node-noop'),

@@ -39,6 +39,5 @@ To get started:
 
 A few tips:
 
-* Running the server with `ENABLE_PLAYGROUND` set to `true` at the top of [`src/api-server.ts`](src/api-server.ts#L16) will give you a GraphQL playground on http://localhost:45457/.
 * New interceptors need to be added to `src/interceptors/index.ts`. They will also need to be added to [the UI](https://github.com/httptoolkit/httptoolkit-ui).
 * The tests assume that the required applications are installed and some docker images are already pulled. See [ci.yml](.github/workflows/ci.yml) and the [build-base](https://github.com/httptoolkit/act-build-base/) image for an example of how to set this up (or just run the tests, look at the errors, and install whatever's missing).

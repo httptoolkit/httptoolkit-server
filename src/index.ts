@@ -16,7 +16,7 @@ import {
 
 import updateCommand from '@oclif/plugin-update/lib/commands/update';
 
-import { HttpToolkitServerApi } from './api-server';
+import { HttpToolkitServerApi } from './api/api-server';
 import { checkBrowserConfig } from './browsers';
 import { reportError } from './error-tracking';
 import { MOCKTTP_ALLOWED_ORIGINS } from './constants';
