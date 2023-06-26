@@ -71,19 +71,13 @@ export class AndroidAdbInterceptor implements Interceptor {
         if (!(await deviceClient.isInstalled('tech.httptoolkit.android.v1'))) {
             console.log("App not installed, installing...");
             try {
-                await deviceClient.install(
-                    await streamLatestApk(this.config) as any
-                    // Any required until https://github.com/DeviceFarmer/adbkit/pull/436 is released
-                );
+                await deviceClient.install(await streamLatestApk(this.config));
             } catch (e) {
                 console.log("Resetting & retrying APK install, after initial failure:", e);
                 // This can fail due to connection issues (with the device or while downloading
                 // the APK) due to a corrupted APK. Reset the APKs and try again, just in case.
                 await clearAllApks(this.config);
-                await deviceClient.install(
-                    await streamLatestApk(this.config) as any
-                    // Any required until https://github.com/DeviceFarmer/adbkit/pull/436 is released
-                );
+                await deviceClient.install(await streamLatestApk(this.config));
             }
             console.log("App installed successfully");
 

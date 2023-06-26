@@ -67,7 +67,7 @@ export const getConnectedDevices = batchCalls(async (adbClient: Adb.Client) => {
     try {
         const devices = await (adbClient.listDevices() as Promise<Adb.Device[]>);
         return devices
-            .filter((d: { type: string }) => // Required until https://github.com/DeviceFarmer/adbkit/pull/437 is merged
+            .filter((d) =>
                 d.type !== 'offline' &&
                 d.type !== 'unauthorized' &&
                 !d.type.startsWith("no permissions")
@@ -141,8 +141,7 @@ export async function pushFile(
     path: string,
     mode?: number
 ) {
-    const transfer = await adbClient.push(contents as any, path, mode);
-    // Any required until https://github.com/DeviceFarmer/adbkit/pull/436 is released
+    const transfer = await adbClient.push(contents, path, mode);
 
     return new Promise((resolve, reject) => {
         transfer.on('end', resolve);

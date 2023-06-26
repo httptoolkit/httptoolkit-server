@@ -26,7 +26,7 @@
   "homepage": "https://github.com/httptoolkit/httptoolkit-server",
   "bugs": "https://github.com/httptoolkit/httptoolkit-server/issues",
   "dependencies": {
-    "@devicefarmer/adbkit": "^3.2.4",
+    "@devicefarmer/adbkit": "^3.2.5",
     "@graphql-tools/schema": "^8.5.0",
     "@graphql-tools/utils": "^8.8.0",
     "@httptoolkit/browser-launcher": "^2.1.0",
