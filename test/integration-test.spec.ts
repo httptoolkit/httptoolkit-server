@@ -69,11 +69,13 @@ describe('Integration test', function () {
         stdout = "";
         stderr = "";
 
+        console.log('---');
+
         return new Promise((resolve, reject) => {
             serverProcess.stdout!.on('data', (d) => {
                 if (d.includes('Server started')) resolve();
                 stdout = stdout + d.toString();
-                console.log(d.toString());
+                console.log(d.toString().trimEnd());
             });
 
             serverProcess.stderr!.on('data', (d) => {
