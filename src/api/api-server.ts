@@ -64,15 +64,24 @@ export class HttpToolkitServerApi extends events.EventEmitter {
 
         this.server.use(corsGate({
             strict: true, // MUST send an allowed origin
-            allowSafe: false, // Even for HEAD/GET requests (should be none anyway)
-            origin: '' // No origin - we accept *no* same-origin requests
+            allowSafe: false, // Even for HEAD/GET requests
+            origin: '', // No origin - we accept *no* same-origin requests
+
+            // Extend default failure response to add a helpful error body.
+            failure: (_req, res, _next) => {
+                res.statusCode = 403;
+                res.send({ error: { message: 'Invalid CORS headers' }});
+            }
         }));
 
         this.server.use((req, res, next) => {
             if (req.path === '/' && req.method !== 'POST') {
                 // We allow only POST to GQL, because that's all we expect for GraphQL queries,
                 // and this helps derisk some (admittedly unlikely) XSRF possibilities.
-                res.status(405).send('Only POST requests are supported');
+
+                res.status(405).send({
+                    error: { message: 'Only POST requests are supported' }
+                });
 
                 // XSRF is less of a risk elsewhere, as REST GET endpoints don't do dangerous
                 // things. Also we're enforcing Origin headers everywhere so it should be
@@ -92,7 +101,9 @@ export class HttpToolkitServerApi extends events.EventEmitter {
                 const token = tokenMatch[1];
 
                 if (token !== config.authToken) {
-                    res.status(403).send('Valid token required');
+                    res.status(403).send({
+                        error: { message: 'Valid token required' }
+                    });
                 } else {
                     next();
                 }

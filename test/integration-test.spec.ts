@@ -42,10 +42,13 @@ async function setupServerPath() {
     return path.join(tmpDir, 'httptoolkit-server', 'bin', 'run');
 }
 
-const buildGraphql = (url: string) => getGraphQL(url, {
-    asJSON: true,
+const buildGraphql = (
+    url: string,
     // Pretend to be a browser on the real site:
-    headers: { 'origin': 'https://app.httptoolkit.tech' }
+    headers = { 'origin': 'https://app.httptoolkit.tech' }
+) => getGraphQL(url, {
+    asJSON: true,
+    headers
 });
 
 describe('Integration test', function () {
@@ -150,6 +153,38 @@ describe('Integration test', function () {
         expect(responseData).to.deep.equal({
             version: require('../package.json').version
         });
+    });
+
+    it('rejects all requests with invalid origins', async () => {
+        const graphql = buildGraphql('http://localhost:45457/', {
+            origin: 'https://unknown.test'
+        });
+
+        const restWrongOriginResponse = await fetch('http://localhost:45457/version', {
+            headers: { 'origin': 'https://unknown.test' }
+        });
+
+        const restNoOriginResponse = await fetch('http://localhost:45457/version', {
+            headers: {}
+        });
+
+        expect(restWrongOriginResponse.status).to.equal(403);
+        expect(restNoOriginResponse.status).to.equal(403);
+
+        try {
+            await graphql(`
+                query getVersion {
+                    version
+                }
+            `)();
+            expect.fail('GraphQL request with invalid origin should fail');
+        } catch (errorResponse: any) {
+            // GraphQL.js handles errors weirdly, and just throws the response body. Oh well,
+            // it's good enough to test this anyway:
+            expect(errorResponse).to.deep.equal({
+                error: { message: 'Invalid CORS headers' }
+            });
+        }
     });
 
     it('exposes the system configuration via REST', async () => {
