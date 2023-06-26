@@ -11,6 +11,7 @@ import { shutdown } from '../shutdown';
 
 import { ApiModel } from './api-model';
 import { exposeGraphQLAPI } from './graphql-api';
+import { exposeRestAPI } from './rest-api';
 
 /**
  * This file contains the core server API, used by the UI to query
@@ -27,6 +28,11 @@ import { exposeGraphQLAPI } from './graphql-api';
  * - Optionally (always set in the HTK app) requires an auth
  *   token with every request, provided by $HTK_SERVER_TOKEN or
  *   --token at startup.
+ *
+ * The API is available in two formats: a simple REST-ish API,
+ * and a GraphQL that exists for backward compatibility. All
+ * future development will happen on the REST API, and the
+ * GraphQL API will eventually be removed.
  */
 
 export class HttpToolkitServerApi extends events.EventEmitter {
@@ -63,10 +69,14 @@ export class HttpToolkitServerApi extends events.EventEmitter {
         }));
 
         this.server.use((req, res, next) => {
-            if (req.method !== 'POST') {
-                // We allow only POST, because that's all we expect for GraphQL queries,
+            if (req.path === '/' && req.method !== 'POST') {
+                // We allow only POST to GQL, because that's all we expect for GraphQL queries,
                 // and this helps derisk some (admittedly unlikely) XSRF possibilities.
                 res.status(405).send('Only POST requests are supported');
+
+                // XSRF is less of a risk elsewhere, as REST GET endpoints don't do dangerous
+                // things. Also we're enforcing Origin headers everywhere so it should be
+                // impossible regardless, but better safe than sorry!
             } else {
                 next();
             }
@@ -99,6 +109,9 @@ export class HttpToolkitServerApi extends events.EventEmitter {
             }
         )
 
+        this.server.use(express.json());
+
+        exposeRestAPI(this.server, apiModel);
         exposeGraphQLAPI(this.server, apiModel);
     }
 

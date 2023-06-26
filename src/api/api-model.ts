@@ -51,7 +51,7 @@ export class ApiModel {
             // convenient to do it up front.
             certificateFingerprint: generateSPKIFingerprint(this.config.https.certContent),
 
-            networkInterfaces: os.networkInterfaces(),
+            networkInterfaces: this.getNetworkInterfaces(),
             systemProxy: await withFallback(() => getSystemProxy(), 2000, undefined),
 
             dnsServers: proxyPort
@@ -68,6 +68,10 @@ export class ApiModel {
             const dnsServer = await getDnsServer(proxyPort);
             return [`127.0.0.1:${dnsServer.address().port}`];
         }, 2000, []);
+    }
+
+    getNetworkInterfaces() {
+        return os.networkInterfaces();
     }
 
     getInterceptors(proxyPort?: number) {
@@ -88,7 +92,7 @@ export class ApiModel {
             id: interceptor.id,
             version: interceptor.version,
             metadata: options.metadataType
-                ? this.getInterceptorMetadata(id, options.metadataType)
+                ? await this.getInterceptorMetadata(id, options.metadataType)
                 : undefined,
             isActivable: await withFallback(
                 async () => interceptor.isActivable(),

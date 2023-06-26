@@ -80,8 +80,7 @@ const buildResolvers = (apiModel: ApiModel) => {
                 'certificateContent',
                 'certificateFingerprint'
             ]),
-            networkInterfaces: async (__: unknown, ___: unknown, context: any) =>
-                (await getConfig(context)).networkInterfaces,
+            networkInterfaces: apiModel.getNetworkInterfaces(),
             systemProxy: async (__: unknown, ___: unknown, context: any) =>
                 (await getConfig(context)).systemProxy,
             dnsServers: async (__: void, { proxyPort }: { proxyPort: number }): Promise<string[]> =>

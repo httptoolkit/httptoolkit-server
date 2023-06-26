@@ -6,6 +6,7 @@ import * as tmp from 'tmp';
 import decompress from 'decompress';
 import { expect } from 'chai';
 import getGraphQL from 'graphql.js';
+import fetch from 'node-fetch';
 
 import { getRemote } from 'mockttp';
 
@@ -126,7 +127,7 @@ describe('Integration test', function () {
         await mockttp.stop();
     });
 
-    it('exposes the version over HTTP', async () => {
+    it('exposes the version via GraphQL', async () => {
         const graphql = buildGraphql('http://localhost:45457/');
 
         const response = await graphql(`
@@ -138,14 +139,43 @@ describe('Integration test', function () {
         expect(response.version).to.equal(require('../package.json').version);
     });
 
-    it('exposes interceptors over HTTP', async function () {
+    it('exposes the version via REST', async () => {
+        const response = await fetch('http://localhost:45457/version', {
+            headers: { 'origin': 'https://app.httptoolkit.tech' }
+        });
+
+        expect(response.ok).to.equal(true);
+        const responseData = await response.json();
+
+        expect(responseData).to.deep.equal({
+            version: require('../package.json').version
+        });
+    });
+
+    it('exposes the system configuration via REST', async () => {
+        const response = await fetch('http://localhost:45457/config?proxyPort=8000', {
+            headers: { 'origin': 'https://app.httptoolkit.tech' }
+        });
+
+        expect(response.ok).to.equal(true);
+        const responseData = await response.json();
+
+        const { config } = responseData;
+        expect(config.certificatePath).not.to.equal(undefined);
+        expect(config.certificateContent).not.to.equal(undefined);
+        expect(config.certificateFingerprint).not.to.equal(undefined);
+        expect(Object.keys(config.networkInterfaces).length).to.be.greaterThan(0);
+        expect(config.ruleParameterKeys).to.deep.equal([]);
+        expect(config.dnsServers.length).to.equal(1);
+    });
+
+    it('exposes interceptors over GraphQL & REST', async function () {
         // Browser detection on a fresh machine (i.e. in CI) with many browsers
         // installed can take a couple of seconds. Give it one retry.
         this.retries(1);
 
         const graphql = buildGraphql('http://localhost:45457/');
-
-        const response = await graphql(`
+        const gqlResponse = await graphql(`
             query getInterceptors($proxyPort: Int!) {
                 interceptors {
                     id
@@ -155,6 +185,17 @@ describe('Integration test', function () {
                 }
             }
         `)({ proxyPort: 8000 });
+
+        const restResponse = await (await fetch('http://localhost:45457/interceptors?proxyPort=8000', {
+            headers: { 'origin': 'https://app.httptoolkit.tech' }
+        })).json();
+
+        // We drop metadata - much harder to assert against.
+        restResponse.interceptors.forEach((interceptor: any) => {
+            delete interceptor.metadata;
+        });
+
+        expect(gqlResponse).to.deep.equal(restResponse);
 
         const activable = (id: string, version = '1.0.0') => ({
             id,
@@ -170,7 +211,7 @@ describe('Integration test', function () {
             "isActive": false
         });
 
-        expect(response.interceptors).to.deep.equal([
+        expect(restResponse.interceptors).to.deep.equal([
             activable('fresh-chrome'),
             activable('existing-chrome'),
             inactivable('fresh-chrome-beta'),
@@ -192,5 +233,37 @@ describe('Integration test', function () {
             activable('attach-jvm', '1.0.1'),
             activable('docker-attach')
         ]);
+    });
+
+    it("allows activating interceptors via REST API", async () => {
+        const response = await fetch('http://localhost:45457/interceptors/existing-terminal/activate/8000', {
+            method: 'POST',
+            headers: { 'origin': 'https://app.httptoolkit.tech' }
+        });
+
+        expect(response.ok).to.equal(true);
+        const responseData = await response.json();
+        expect(responseData).to.deep.equal({
+            "result": {
+                "metadata": {
+                    "commands": {
+                        "Bash": {
+                            "command": "eval \"$(curl -sS localhost:8001/setup)\"",
+                            "description": "Bash-compatible"
+                        },
+                        "Fish": {
+                            "command": "curl -sS localhost:8001/fish-setup | source",
+                            "description": "Fish"
+                        },
+                        "Powershell": {
+                            "command": "Invoke-Expression (Invoke-WebRequest http://localhost:8001/ps-setup).Content",
+                            "description": "Powershell"
+                        }
+                    },
+                    "port": 8001
+                },
+                "success": true
+            }
+        });
     });
 });
