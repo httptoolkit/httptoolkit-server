@@ -53,16 +53,13 @@ export function exposeRestAPI(
         res.send({ interceptors: await apiModel.getInterceptors(proxyPort) });
     }));
 
-    // Get full detailed data on a specific interceptor state, i.e. detailed metadata.
-    server.get('/interceptors/:id', handleErrors(async (req, res) => {
+    // Get the complete details of a specific interceptor state, i.e. full metadata.
+    // This may return more detailed info that the 'metadata' field on getInterceptors
+    server.get('/interceptors/:id/metadata', handleErrors(async (req, res) => {
         const interceptorId = req.params.id;
-        const proxyPort = getProxyPort(req.query.proxyPort);
 
         res.send({
-            interceptors: await apiModel.getInterceptor(interceptorId, {
-                proxyPort: proxyPort,
-                metadataType: 'detailed'
-            })
+            interceptorMetadata: await apiModel.getInterceptorMetadata(interceptorId, 'detailed')
         });
     }));
 
