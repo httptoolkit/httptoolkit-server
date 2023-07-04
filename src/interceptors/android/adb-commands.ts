@@ -5,6 +5,7 @@ import { reportError } from '../../error-tracking';
 import { isErrorLike } from '../../util/error';
 import { delay, waitUntil } from '../../util/promise';
 import { getCertificateFingerprint, parseCert } from '../../certificates';
+import { streamToBuffer } from '../../util/stream';
 
 export const ANDROID_TEMP = '/data/local/tmp';
 export const SYSTEM_CA_PATH = '/system/etc/security/cacerts';
@@ -239,14 +240,7 @@ export async function hasCertInstalled(
         const certStream = await adbClient.pull(certPath);
 
         // Wait until it's clear that the read is successful
-        const data = await new Promise<Buffer>((resolve, reject) => {
-            const data: Buffer[] = [];
-            certStream.on('data', (d: Buffer) => data.push(d));
-            certStream.on('end', () => resolve(Buffer.concat(data)));
-
-            certStream.on('error', reject);
-        });
-
+        const data = await streamToBuffer(certStream);
 
         // The device already has an HTTP Toolkit cert. But is it the right one?
         const existingCert = parseCert(data.toString('utf8'));

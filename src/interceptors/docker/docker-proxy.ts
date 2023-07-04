@@ -7,10 +7,11 @@ import * as http from 'http';
 import Dockerode from 'dockerode';
 import getRawBody from 'raw-body';
 import { AbortController } from 'node-abort-controller';
+import { makeDestroyable, DestroyableServer } from 'destroyable-server';
 
 import { chmod, deleteFile, readDir } from '../../util/fs';
 import { rawHeadersToHeaders } from '../../util/http';
-import { makeDestroyable, DestroyableServer } from 'destroyable-server';
+import { streamToBuffer } from '../../util/stream';
 import { reportError } from '../../error-tracking';
 import { addShutdownHandler } from '../../shutdown';
 
@@ -212,12 +213,7 @@ async function createDockerProxy(
                 dockerRes.pipe(getBuildOutputPipeline(await extraDockerCommandCount!)).pipe(res);
             } else if (shouldRemapContainerData) {
                 // We need to remap container data, to hook all docker-compose behaviour:
-                const data = await new Promise<Buffer>((resolve, reject) => {
-                    const dataChunks: Buffer[] = [];
-                    dockerRes.on('data', (d) => dataChunks.push(d));
-                    dockerRes.on('end', () => resolve(Buffer.concat(dataChunks)));
-                    dockerRes.on('error', reject);
-                });
+                const data = await streamToBuffer(dockerRes);
 
                 try {
                     if (isComposeContainerQuery) {
