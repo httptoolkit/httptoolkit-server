@@ -80,7 +80,7 @@ const buildResolvers = (apiModel: ApiModel) => {
                 'certificateContent',
                 'certificateFingerprint'
             ]),
-            networkInterfaces: apiModel.getNetworkInterfaces(),
+            networkInterfaces: () => apiModel.getNetworkInterfaces(),
             systemProxy: async (__: unknown, ___: unknown, context: any) =>
                 (await getConfig(context)).systemProxy,
             dnsServers: async (__: void, { proxyPort }: { proxyPort: number }): Promise<string[]> =>
@@ -170,7 +170,7 @@ export function exposeGraphQLAPI(
         resolvers: buildResolvers(apiModel)
     });
 
-    server.use(graphqlHTTP({
+    server.post('/', graphqlHTTP({
         schema,
         graphiql: false
     }));
