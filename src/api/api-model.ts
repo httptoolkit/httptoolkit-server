@@ -42,6 +42,22 @@ export class ApiModel {
     }
 
     async getConfig(proxyPort?: number) {
+        // Wait for each async part in parallel:
+        const [
+            systemProxy,
+            dnsServers
+        ] = await Promise.all([
+            withFallback(
+                () => getSystemProxy(),
+                2000,
+                undefined
+            ),
+
+            proxyPort
+                ? await this.getDnsServers(proxyPort)
+                : []
+        ])
+
         return {
             certificatePath: this.config.https.certPath,
             certificateContent: this.config.https.certContent,
@@ -52,11 +68,8 @@ export class ApiModel {
             certificateFingerprint: generateSPKIFingerprint(this.config.https.certContent),
 
             networkInterfaces: this.getNetworkInterfaces(),
-            systemProxy: await withFallback(() => getSystemProxy(), 2000, undefined),
-
-            dnsServers: proxyPort
-                ? await this.getDnsServers(proxyPort)
-                : [],
+            systemProxy,
+            dnsServers,
 
             ruleParameterKeys: this.getRuleParamKeys()
         };
@@ -88,20 +101,33 @@ export class ApiModel {
     } = {}) {
         const interceptor = this.interceptors[id];
 
-        return {
-            id: interceptor.id,
-            version: interceptor.version,
-            metadata: options.metadataType
-                ? await this.getInterceptorMetadata(id, options.metadataType)
+        // Wait for each async part in parallel:
+        const [
+            metadata,
+            isActivable,
+            isActive
+        ] = await Promise.all([
+            options.metadataType
+                ? this.getInterceptorMetadata(id, options.metadataType)
                 : undefined,
-            isActivable: await withFallback(
+
+            withFallback(
                 async () => interceptor.isActivable(),
                 interceptor.activableTimeout || INTERCEPTOR_TIMEOUT,
                 false
             ),
-            isActive: options.proxyPort
-                ? await this.isInterceptorActive(id, options.proxyPort)
+
+            options.proxyPort
+                ? this.isInterceptorActive(id, options.proxyPort)
                 : undefined
+        ])
+
+        return {
+            id: interceptor.id,
+            version: interceptor.version,
+            metadata,
+            isActivable,
+            isActive
         };
     }
 
