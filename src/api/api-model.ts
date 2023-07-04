@@ -10,6 +10,7 @@ import { reportError, addBreadcrumb } from '../error-tracking';
 import { HtkConfig } from "../config";
 import { ActivationError, Interceptor } from "../interceptors";
 import { getDnsServer } from '../dns-server';
+import * as Client from '../client/client';
 
 const INTERCEPTOR_TIMEOUT = 1000;
 
@@ -192,6 +193,13 @@ export class ApiModel {
 
         await interceptor.deactivate(proxyPort, options).catch(reportError);
         return { success: !interceptor.isActive(proxyPort) };
+    }
+
+    async sendRequest(
+        requestDefinition: Client.RequestDefinition,
+        requestOptions: Client.RequestOptions
+    ): Promise<Client.ResponseDefinition> {
+        return Client.sendRequest(requestDefinition, requestOptions);
     }
 
 }

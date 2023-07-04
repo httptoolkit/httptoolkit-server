@@ -98,7 +98,7 @@
     "@types/klaw": "^3.0.2",
     "@types/lodash": "^4.14.117",
     "@types/mocha": "^5.2.5",
-    "@types/node": "^16.3.2",
+    "@types/node": "^16.18.38",
     "@types/node-forge": "^0.9.9",
     "@types/request-promise-native": "^1.0.15",
     "@types/rimraf": "^2.0.2",

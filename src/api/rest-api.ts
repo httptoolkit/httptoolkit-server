@@ -12,6 +12,7 @@ import type { ParsedQs } from 'qs';
 
 import { ErrorLike, StatusError } from '../util/error';
 import { ApiModel } from './api-model';
+import * as Client from '../client/client';
 
 /**
  * This file exposes the API model via a REST-ish classic HTTP API.
@@ -72,6 +73,34 @@ export function exposeRestAPI(
 
         const result = await apiModel.activateInterceptor(interceptorId, proxyPort, interceptorOptions);
         res.send({ result });
+    }));
+
+    server.post('/client/send', handleErrors(async (req, res) => {
+        const bodyData = req.body;
+        if (!bodyData) throw new StatusError(400, "No request definition or options provided");
+
+        const {
+            request,
+            options
+        } = bodyData;
+
+        if (!request) throw new StatusError(400, "No request definition provided");
+        if (!options) throw new StatusError(400, "No request options provided");
+
+        const result = await apiModel.sendRequest({
+            ...request,
+            // Body buffers are serialized as base64 (for both requests & responses)
+            rawBody: Buffer.from(request.rawBody ?? '', 'base64')
+        }, {
+            ...options
+        });
+
+        res.send({
+            result: {
+                ...result,
+                rawBody: result.rawBody?.toString('base64') ?? ''
+            }
+        });
     }));
 }
 
