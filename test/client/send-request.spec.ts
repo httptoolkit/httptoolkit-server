@@ -1,7 +1,8 @@
 import { expect } from 'chai';
 import * as mockttp from 'mockttp';
 
-import { sendRequest } from '../../src/client/client';
+import { ResponseStreamEvents, sendRequest } from '../../src/client/client';
+import { streamToArray } from '../../src/util/stream';
 
 describe("The HTTP client API", () => {
 
@@ -29,7 +30,7 @@ describe("The HTTP client API", () => {
             };
         });
 
-        const response = await sendRequest({
+        const responseStream = sendRequest({
             url: mockServer.urlFor('/path?qwe=asd'),
             method: 'POST',
             headers: [
@@ -40,11 +41,19 @@ describe("The HTTP client API", () => {
             rawBody: Buffer.from('Request body')
         }, {});
 
-        expect(response.statusCode).to.equal(200);
-        expect(response.statusMessage).to.equal('Custom status message');
-        expect(response.headers).to.deep.equal([
-            ['custom-HEADER', 'custom-VALUE']
-        ]);
-        expect(response.rawBody!.toString()).to.equal('Mock response body');
+        const responseParts = await streamToArray<any>(responseStream);
+
+        expect(responseParts.length).to.equal(2);
+        expect(responseParts[0]).to.deep.equal({
+            type: 'response-head',
+            statusCode: 200,
+            statusMessage: 'Custom status message',
+            headers: [
+                ['custom-HEADER', 'custom-VALUE']
+            ]
+        });
+
+        expect(responseParts[1].type).equal('response-body-part');
+        expect(responseParts[1].data.toString()).to.equal('Mock response body');
     })
 });

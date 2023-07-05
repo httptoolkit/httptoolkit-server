@@ -88,7 +88,7 @@ export function exposeRestAPI(
         if (!request) throw new StatusError(400, "No request definition provided");
         if (!options) throw new StatusError(400, "No request options provided");
 
-        const result = await apiModel.sendRequest({
+        const resultStream = apiModel.sendRequest({
             ...request,
             // Body buffers are serialized as base64 (for both requests & responses)
             rawBody: Buffer.from(request.rawBody ?? '', 'base64')
@@ -96,12 +96,39 @@ export function exposeRestAPI(
             ...options
         });
 
-        res.send({
-            type: 'response', // Later we may send ND-JSON with chunked data & other types
-            response: {
-                ...result,
-                rawBody: result.rawBody?.toString('base64') ?? ''
+        res.writeHead(200, {
+            'content-type': 'application/x-ndjson'
+        });
+
+        resultStream.on('data', (evt: Client.ResponseStreamEvents) => {
+            if (evt.type === 'response-body-part') {
+                res.write(JSON.stringify({
+                    ...evt,
+                    data: evt.data.toString('base64')
+                }));
+            } else {
+                res.write(JSON.stringify(evt));
             }
+            res.write('\n');
+        });
+
+        resultStream.on('end', () => {
+            res.write(JSON.stringify({
+                'type': 'response-end'
+            }) + '\n');
+            res.end();
+        });
+
+        resultStream.on('error', (error: ErrorLike) => {
+            res.write(JSON.stringify({
+                type: 'error',
+                error: {
+                    code: error.code,
+                    message: error.message,
+                    stack: error.stack
+                }
+            }) + '\n');
+            res.end();
         });
     }));
 }

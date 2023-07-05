@@ -1,3 +1,4 @@
+import * as stream from 'stream';
 import * as net from 'net';
 import * as http from 'http';
 import * as https from 'https';
@@ -24,17 +25,27 @@ export interface RequestDefinition {
 export interface RequestOptions {
 }
 
-export interface ResponseDefinition {
+export type ResponseStreamEvents =
+    | ResponseHead
+    | ResponseBodyPart;
+// Other notable events: errors (via 'error' event) and clean closure (via 'end').
+
+export interface ResponseHead {
+    type: 'response-head';
     statusCode: number;
     statusMessage?: string;
     headers: RawHeaders;
-    rawBody?: Buffer;
 }
 
-export async function sendRequest(
+export interface ResponseBodyPart {
+    type: 'response-body-part';
+    data: Buffer;
+}
+
+export function sendRequest(
     requestDefn: RequestDefinition,
     options: RequestOptions
-): Promise<ResponseDefinition> {
+): stream.Readable {
     const url = new URL(requestDefn.url);
 
     const request = (url.protocol === 'https' ? https : http).request(requestDefn.url, {
@@ -60,19 +71,34 @@ export async function sendRequest(
         request.end();
     }
 
-    const response = await new Promise<http.IncomingMessage>((resolve, reject) => {
-        request.on('error', reject);
-        request.on('response', resolve);
+    const resultsStream = new stream.Readable({
+        objectMode: true,
+        read() {} // Can't pull data - we manually fill this with .push() instead.
     });
 
-    const body = await streamToBuffer(response);
+    new Promise<http.IncomingMessage>((resolve, reject) => {
+        request.on('error', reject);
+        request.on('response', resolve);
+    }).then((response) => {
+        resultsStream.push({
+            type: 'response-head',
+            statusCode: response.statusCode!,
+            statusMessage: response.statusMessage,
+            headers: pairFlatRawHeaders(response.rawHeaders)
+        });
 
-    return {
-        statusCode: response.statusCode!,
-        statusMessage: response.statusMessage,
-        headers: pairFlatRawHeaders(response.rawHeaders),
-        rawBody: body
-    }
+        response.on('data', (data) => resultsStream.push({
+            type: 'response-body-part',
+            data
+        }));
+
+        response.on('end', () => resultsStream.push(null));
+    }).catch((error) => {
+        resultsStream.destroy(error);
+        request.destroy();
+    });
+
+    return resultsStream;
 }
 
 /**

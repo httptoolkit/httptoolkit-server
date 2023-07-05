@@ -1,4 +1,5 @@
 import * as _ from 'lodash';
+import * as stream from 'stream';
 import * as os from 'os';
 
 import { generateSPKIFingerprint } from 'mockttp';
@@ -195,10 +196,10 @@ export class ApiModel {
         return { success: !interceptor.isActive(proxyPort) };
     }
 
-    async sendRequest(
+    sendRequest(
         requestDefinition: Client.RequestDefinition,
         requestOptions: Client.RequestOptions
-    ): Promise<Client.ResponseDefinition> {
+    ): stream.Readable {
         return Client.sendRequest(requestDefinition, requestOptions);
     }
 
