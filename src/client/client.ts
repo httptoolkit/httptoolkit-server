@@ -28,12 +28,7 @@ export async function sendRequest(
 ): Promise<ResponseDefinition> {
     const url = new URL(requestDefn.url);
 
-    const request = (url.protocol === 'https:' ? https : http).request({
-        protocol: url.protocol,
-        host: url.host,
-        port: url.port,
-        path: url.pathname,
-
+    const request = (url.protocol === 'https' ? https : http).request(requestDefn.url, {
         method: requestDefn.method,
 
         // Node supports sending raw headers via [key, value, key, value] array, but we need an
