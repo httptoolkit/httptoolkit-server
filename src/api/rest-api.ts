@@ -11,6 +11,7 @@ import type {
 import type { ParsedQs } from 'qs';
 
 import { ErrorLike, StatusError } from '../util/error';
+import { reportError } from '../error-tracking';
 import { ApiModel } from './api-model';
 import * as Client from '../client/client';
 
