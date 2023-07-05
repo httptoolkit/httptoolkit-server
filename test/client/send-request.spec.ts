@@ -5,7 +5,7 @@ import { sendRequest } from '../../src/client/client';
 
 describe("The HTTP client API", () => {
 
-    const mockServer = mockttp.getLocal({ debug: true });
+    const mockServer = mockttp.getLocal();
 
     beforeEach(() => mockServer.start());
     afterEach(() => mockServer.stop());
@@ -14,9 +14,11 @@ describe("The HTTP client API", () => {
         await mockServer.forAnyRequest().thenCallback(async (request) => {
             expect(request.url).to.equal(`http://localhost:${mockServer.port}/path?qwe=asd`);
             expect(request.method).to.equal('POST');
-            expect(
-                request.rawHeaders.find(([key]) => key === 'CUSTOM-header')
-            ).to.deep.equal(['CUSTOM-header', 'CUSTOM-value']);
+            expect(request.rawHeaders).to.deep.equal([
+                ['host', `localhost:${mockServer.port}`],
+                ['content-length', '12'],
+                ['CUSTOM-header', 'CUSTOM-value']
+            ]);
             expect(await request.body.getText()).to.equal('Request body')
 
             return {

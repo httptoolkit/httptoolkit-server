@@ -97,7 +97,8 @@ export function exposeRestAPI(
         });
 
         res.send({
-            result: {
+            type: 'response', // Later we may send ND-JSON with chunked data & other types
+            response: {
                 ...result,
                 rawBody: result.rawBody?.toString('base64') ?? ''
             }

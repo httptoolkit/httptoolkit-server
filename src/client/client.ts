@@ -8,6 +8,15 @@ export type RawHeaders = Array<[key: string, value: string]>;
 export interface RequestDefinition {
     method: string;
     url: string;
+
+    /**
+     * The raw headers to send. These will be sent exactly as provided - no headers
+     * will be added automatically.
+     *
+     * Note that this means omitting the 'Host' header may cause problems, as will
+     * omitting both 'Content-Length' and 'Transfer-Encoding' on requests with
+     * bodies.
+     */
     headers: RawHeaders;
     rawBody?: Uint8Array;
 }
@@ -30,11 +39,20 @@ export async function sendRequest(
 
     const request = (url.protocol === 'https' ? https : http).request(requestDefn.url, {
         method: requestDefn.method,
-
-        // Node supports sending raw headers via [key, value, key, value] array, but we need an
-        // 'any' as the types don't believe it:
-        headers: flattenPairedRawHeaders(requestDefn.headers) as any
     });
+
+    // Node supports sending raw headers via [key, value, key, value] array, but if we do
+    // so with 'headers' above then we can't removeHeader first (to disable the defaults).
+    // Instead we remove headers and then manunally trigger the 'raw' write behaviour.
+
+    request.removeHeader('connection');
+    request.removeHeader('transfer-encoding');
+    request.removeHeader('content-length');
+
+    (request as any)._storeHeader(
+        request.method + ' ' + request.path + ' HTTP/1.1\r\n',
+        flattenPairedRawHeaders(requestDefn.headers)
+    );
 
     if (requestDefn.rawBody?.byteLength) {
         request.end(requestDefn.rawBody);
