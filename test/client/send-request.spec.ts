@@ -20,7 +20,7 @@ describe("The HTTP client API", () => {
                 ['content-length', '12'],
                 ['CUSTOM-header', 'CUSTOM-value']
             ]);
-            expect(await request.body.getText()).to.equal('Request body')
+            expect(await request.body.getText()).to.equal('Request body');
 
             return {
                 statusCode: 200,
@@ -41,10 +41,10 @@ describe("The HTTP client API", () => {
             rawBody: Buffer.from('Request body')
         }, {});
 
-        const responseParts = await streamToArray<any>(responseStream);
+        const responseEvents = await streamToArray<any>(responseStream);
 
-        expect(responseParts.length).to.equal(2);
-        expect(responseParts[0]).to.deep.equal({
+        expect(responseEvents.length).to.equal(2);
+        expect(responseEvents[0]).to.deep.equal({
             type: 'response-head',
             statusCode: 200,
             statusMessage: 'Custom status message',
@@ -53,7 +53,7 @@ describe("The HTTP client API", () => {
             ]
         });
 
-        expect(responseParts[1].type).equal('response-body-part');
-        expect(responseParts[1].data.toString()).to.equal('Mock response body');
+        expect(responseEvents[1].type).equal('response-body-part');
+        expect(responseEvents[1].data.toString()).to.equal('Mock response body');
     })
 });

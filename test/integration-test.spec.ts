@@ -8,7 +8,7 @@ import { expect } from 'chai';
 import getGraphQL from 'graphql.js';
 import fetch from 'node-fetch';
 
-import { getRemote } from 'mockttp';
+import { getRemote, getLocal } from 'mockttp';
 
 import { delay } from '../src/util/promise';
 
@@ -303,4 +303,78 @@ describe('Integration test', function () {
             }
         });
     });
+
+    describe("client API", () => {
+        const mockServer = getLocal();
+
+        beforeEach(() => mockServer.start());
+        afterEach(() => mockServer.stop());
+
+        it("can send HTTP requests", async () => {
+            await mockServer.forAnyRequest().thenCallback(async (request) => {
+                expect(request.method).to.equal('POST');
+                expect(request.url).to.equal(`http://localhost:${mockServer.port}/abc?def`);
+                expect(request.rawHeaders).to.deep.equal([
+                    ['host', `localhost:${mockServer.port}`],
+                    ['content-length', '12'],
+                    ['TEST-header', 'Value']
+                ]);
+                expect(await request.body.getText()).to.equal('Request body');
+
+                return {
+                    statusCode: 200,
+                    statusMessage: 'Custom status message',
+                    headers: { 'custom-HEADER': 'custom-VALUE' },
+                    rawBody: Buffer.from('Mock response body')
+                };
+            });
+
+            const apiResponse = await fetch('http://localhost:45457/client/send', {
+                method: 'POST',
+                headers: {
+                    'origin': 'https://app.httptoolkit.tech',
+                    'content-type': 'application/json'
+                },
+                body: JSON.stringify({
+                    request: {
+                        method: 'POST',
+                        url: mockServer.urlFor('/abc?def'),
+                        headers: [
+                            ['host', `localhost:${mockServer.port}`],
+                            ['content-length', '12'],
+                            ['TEST-header', 'Value'],
+                        ],
+                        rawBody: Buffer.from('Request body').toString('base64')
+                    },
+                    options: {}
+                })
+            });
+
+            expect(apiResponse.status).to.equal(200);
+
+            const apiResponseBody = await apiResponse.text();
+            const responseEvents = apiResponseBody
+                .split('\n')
+                .filter(l => l.trim().length)
+                .map(l => JSON.parse(l));
+
+            expect(responseEvents.length).to.equal(3);
+            expect(responseEvents[0]).to.deep.equal({
+                type: 'response-head',
+                statusCode: 200,
+                statusMessage: 'Custom status message',
+                headers: [
+                    ['custom-HEADER', 'custom-VALUE']
+                ]
+            });
+
+            expect(responseEvents[1].type).equal('response-body-part');
+            expect(
+                Buffer.from(responseEvents[1].data, 'base64').toString('utf8')
+            ).to.equal('Mock response body');
+
+
+            expect(responseEvents[2]).to.deep.equal({ type: 'response-end' });
+        });
+    })
 });
