@@ -2,7 +2,6 @@ import * as stream from 'stream';
 import * as net from 'net';
 import * as http from 'http';
 import * as https from 'https';
-import { streamToBuffer } from '../util/stream';
 
 export type RawHeaders = Array<[key: string, value: string]>;
 
@@ -23,6 +22,11 @@ export interface RequestDefinition {
 }
 
 export interface RequestOptions {
+    /**
+     * An abort signal, which can be used to cancel the in-process request if
+     * required.
+     */
+    abortSignal?: AbortSignal;
 }
 
 export type ResponseStreamEvents =
@@ -50,6 +54,12 @@ export function sendRequest(
 
     const request = (url.protocol === 'https' ? https : http).request(requestDefn.url, {
         method: requestDefn.method,
+        signal: options.abortSignal
+    });
+
+    options.abortSignal?.addEventListener('abort', () => {
+        // In older Node versions, this seems to be required to _actually_ abort the request:
+        request.abort();
     });
 
     // Node supports sending raw headers via [key, value, key, value] array, but if we do
@@ -93,6 +103,7 @@ export function sendRequest(
         }));
 
         response.on('end', () => resultsStream.push(null));
+        response.on('error', (error) => resultsStream.destroy(error));
     }).catch((error) => {
         resultsStream.destroy(error);
         request.destroy();

@@ -88,18 +88,25 @@ export function exposeRestAPI(
         if (!request) throw new StatusError(400, "No request definition provided");
         if (!options) throw new StatusError(400, "No request options provided");
 
+        const abortController = new AbortController();
+
         const resultStream = apiModel.sendRequest({
             ...request,
             // Body buffers are serialized as base64 (for both requests & responses)
             rawBody: Buffer.from(request.rawBody ?? '', 'base64')
         }, {
-            ...options
+            ...options,
+            abortSignal: abortController.signal
         });
+
+        // If the client closes the connection, abort the outgoing request:
+        res.on('close', () => abortController.abort());
 
         res.writeHead(200, {
             'content-type': 'application/x-ndjson'
         });
 
+        // Write all upstream events as JSON data to the client here:
         resultStream.on('data', (evt: Client.ResponseStreamEvents) => {
             if (evt.type === 'response-body-part') {
                 res.write(JSON.stringify({

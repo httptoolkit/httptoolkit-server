@@ -199,7 +199,7 @@ export class ApiModel {
     sendRequest(
         requestDefinition: Client.RequestDefinition,
         requestOptions: Client.RequestOptions
-    ): stream.Readable {
+    ) {
         return Client.sendRequest(requestDefinition, requestOptions);
     }
 
