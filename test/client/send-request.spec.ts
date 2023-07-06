@@ -86,7 +86,7 @@ describe("The HTTP client API", () => {
         const responseEvents: any[] = [];
         responseStream.on('data', (d) => responseEvents.push(d));
         responseStream.on('error', (e) => responseEvents.push(e));
-        await delay(10);
+        await delay(50);
 
         expect(requests.length).to.equal(1);
         expect(aborts.length).to.equal(0);
@@ -98,7 +98,7 @@ describe("The HTTP client API", () => {
         });
 
         abortController.abort();
-        await delay(10);
+        await delay(50);
 
         expect(requests.length).to.equal(1);
         expect(aborts.length).to.equal(1); // <-- Server sees the request cancelled
