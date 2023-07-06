@@ -104,7 +104,7 @@ export function exposeRestAPI(
             if (evt.type === 'response-body-part') {
                 res.write(JSON.stringify({
                     ...evt,
-                    data: evt.data.toString('base64')
+                    rawBody: evt.rawBody.toString('base64')
                 }));
             } else {
                 res.write(JSON.stringify(evt));

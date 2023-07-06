@@ -39,7 +39,7 @@ export interface ResponseHead {
 
 export interface ResponseBodyPart {
     type: 'response-body-part';
-    data: Buffer;
+    rawBody: Buffer;
 }
 
 export function sendRequest(
@@ -89,7 +89,7 @@ export function sendRequest(
 
         response.on('data', (data) => resultsStream.push({
             type: 'response-body-part',
-            data
+            rawBody: data
         }));
 
         response.on('end', () => resultsStream.push(null));

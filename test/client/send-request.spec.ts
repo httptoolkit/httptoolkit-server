@@ -54,6 +54,6 @@ describe("The HTTP client API", () => {
         });
 
         expect(responseEvents[1].type).equal('response-body-part');
-        expect(responseEvents[1].data.toString()).to.equal('Mock response body');
+        expect(responseEvents[1].rawBody.toString()).to.equal('Mock response body');
     })
 });

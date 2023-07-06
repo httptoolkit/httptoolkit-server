@@ -370,7 +370,7 @@ describe('Integration test', function () {
 
             expect(responseEvents[1].type).equal('response-body-part');
             expect(
-                Buffer.from(responseEvents[1].data, 'base64').toString('utf8')
+                Buffer.from(responseEvents[1].rawBody, 'base64').toString('utf8')
             ).to.equal('Mock response body');
 
 
