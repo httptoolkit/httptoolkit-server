@@ -119,16 +119,12 @@ export function exposeRestAPI(
             res.write('\n');
         });
 
-        resultStream.on('end', () => {
-            res.write(JSON.stringify({
-                'type': 'response-end'
-            }) + '\n');
-            res.end();
-        });
+        resultStream.on('end', () => res.end());
 
         resultStream.on('error', (error: ErrorLike) => {
             res.write(JSON.stringify({
                 type: 'error',
+                timestamp: performance.now(),
                 error: {
                     code: error.code,
                     message: error.message,

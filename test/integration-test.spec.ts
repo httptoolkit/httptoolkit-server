@@ -1,3 +1,4 @@
+import * as _ from 'lodash';
 import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 
@@ -358,8 +359,11 @@ describe('Integration test', function () {
                 .filter(l => l.trim().length)
                 .map(l => JSON.parse(l));
 
-            expect(responseEvents.length).to.equal(3);
-            expect(responseEvents[0]).to.deep.equal({
+            expect(responseEvents.length).to.equal(4);
+            expect(_.omit(responseEvents[0], 'timestamp', 'startTime')).to.deep.equal({
+                type: 'request-start'
+            });
+            expect(_.omit(responseEvents[1], 'timestamp')).to.deep.equal({
                 type: 'response-head',
                 statusCode: 200,
                 statusMessage: 'Custom status message',
@@ -368,13 +372,13 @@ describe('Integration test', function () {
                 ]
             });
 
-            expect(responseEvents[1].type).equal('response-body-part');
+            expect(responseEvents[2].type).equal('response-body-part');
             expect(
-                Buffer.from(responseEvents[1].rawBody, 'base64').toString('utf8')
+                Buffer.from(responseEvents[2].rawBody, 'base64').toString('utf8')
             ).to.equal('Mock response body');
 
 
-            expect(responseEvents[2]).to.deep.equal({ type: 'response-end' });
+            expect(_.omit(responseEvents[3], 'timestamp')).to.deep.equal({ type: 'response-end' });
         });
     })
 });

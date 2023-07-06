@@ -30,20 +30,35 @@ export interface RequestOptions {
 }
 
 export type ResponseStreamEvents =
+    | RequestStart
     | ResponseHead
-    | ResponseBodyPart;
+    | ResponseBodyPart
+    | ResponseEnd;
 // Other notable events: errors (via 'error' event) and clean closure (via 'end').
+
+export interface RequestStart {
+    type: 'request-start';
+    startTime: number; // Unix timestamp
+    timestamp: number; // High precision timer (for relative calculations on later events)
+}
 
 export interface ResponseHead {
     type: 'response-head';
     statusCode: number;
     statusMessage?: string;
     headers: RawHeaders;
+    timestamp: number;
 }
 
 export interface ResponseBodyPart {
     type: 'response-body-part';
     rawBody: Buffer;
+    timestamp: number;
+}
+
+export interface ResponseEnd {
+    type: 'response-end';
+    timestamp: number;
 }
 
 export function sendRequest(
@@ -86,6 +101,12 @@ export function sendRequest(
         read() {} // Can't pull data - we manually fill this with .push() instead.
     });
 
+    resultsStream.push({
+        type: 'request-start',
+        startTime: Date.now(),
+        timestamp: performance.now()
+    });
+
     new Promise<http.IncomingMessage>((resolve, reject) => {
         request.on('error', reject);
         request.on('response', resolve);
@@ -94,15 +115,20 @@ export function sendRequest(
             type: 'response-head',
             statusCode: response.statusCode!,
             statusMessage: response.statusMessage,
-            headers: pairFlatRawHeaders(response.rawHeaders)
+            headers: pairFlatRawHeaders(response.rawHeaders),
+            timestamp: performance.now()
         });
 
         response.on('data', (data) => resultsStream.push({
             type: 'response-body-part',
-            rawBody: data
+            rawBody: data,
+            timestamp: performance.now()
         }));
 
-        response.on('end', () => resultsStream.push(null));
+        response.on('end', () => {
+            resultsStream.push({ type: 'response-end', timestamp: performance.now() });
+            resultsStream.push(null);
+        });
         response.on('error', (error) => resultsStream.destroy(error));
     }).catch((error) => {
         resultsStream.destroy(error);

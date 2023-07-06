@@ -1,7 +1,8 @@
+import * as _ from 'lodash';
 import { expect } from 'chai';
 import * as mockttp from 'mockttp';
 
-import { ResponseStreamEvents, sendRequest } from '../../src/client/client';
+import { sendRequest } from '../../src/client/client';
 import { streamToArray } from '../../src/util/stream';
 import { delay } from '../../src/util/promise';
 
@@ -44,8 +45,11 @@ describe("The HTTP client API", () => {
 
         const responseEvents = await streamToArray<any>(responseStream);
 
-        expect(responseEvents.length).to.equal(2);
-        expect(responseEvents[0]).to.deep.equal({
+        expect(responseEvents.length).to.equal(4);
+        expect(_.omit(responseEvents[0], 'timestamp', 'startTime')).to.deep.equal({
+            type: 'request-start'
+        });
+        expect(_.omit(responseEvents[1], 'timestamp')).to.deep.equal({
             type: 'response-head',
             statusCode: 200,
             statusMessage: 'Custom status message',
@@ -54,8 +58,11 @@ describe("The HTTP client API", () => {
             ]
         });
 
-        expect(responseEvents[1].type).equal('response-body-part');
-        expect(responseEvents[1].rawBody.toString()).to.equal('Mock response body');
+        expect(responseEvents[2].type).equal('response-body-part');
+        expect(responseEvents[2].rawBody.toString()).to.equal('Mock response body');
+        expect(_.omit(responseEvents[3], 'timestamp')).to.deep.equal({
+            type: 'response-end'
+        });
     });
 
     it("should stop requests if cancelled", async () => {
@@ -83,7 +90,12 @@ describe("The HTTP client API", () => {
 
         expect(requests.length).to.equal(1);
         expect(aborts.length).to.equal(0);
-        expect(responseEvents.length).to.equal(0);
+
+        // Start is emitted immediately:
+        expect(responseEvents.length).to.equal(1);
+        expect(_.omit(responseEvents[0], 'timestamp', 'startTime')).to.deep.equal({
+            type: 'request-start'
+        });
 
         abortController.abort();
         await delay(10);
@@ -91,10 +103,10 @@ describe("The HTTP client API", () => {
         expect(requests.length).to.equal(1);
         expect(aborts.length).to.equal(1); // <-- Server sees the request cancelled
 
-        // Only emitted event is a thrown error:
-        expect(responseEvents.length).to.equal(1);
-        expect(responseEvents[0]).to.be.instanceOf(Error);
-        expect(responseEvents[0].code).to.be.oneOf([
+        // Only other events is a thrown error:
+        expect(responseEvents.length).to.equal(2);
+        expect(responseEvents[1]).to.be.instanceOf(Error);
+        expect(responseEvents[1].code).to.be.oneOf([
             // Depends on the Node version you're testing with:
             'ECONNRESET',
             'ABORT_ERR'
