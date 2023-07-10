@@ -88,13 +88,20 @@ export function exposeRestAPI(
         if (!request) throw new StatusError(400, "No request definition provided");
         if (!options) throw new StatusError(400, "No request options provided");
 
-        const abortController = new AbortController();
+        // Various buffers are serialized as base64 (for both requests & responses)
+        request.rawBody = Buffer.from(request.rawBody ?? '', 'base64');
+        if (options.trustAdditionalCAs) {
+            options.trustAdditionalCAs = options.trustAdditionalCAs.map(
+                ({ cert }: { cert: string }) => Buffer.from(cert, 'base64')
+            );
+        }
+        if (options.clientCertificate) {
+            options.clientCertificate.pfx = Buffer.from(options.clientCertificate.pfx, 'base64');
+        }
 
-        const resultStream = apiModel.sendRequest({
-            ...request,
-            // Body buffers are serialized as base64 (for both requests & responses)
-            rawBody: Buffer.from(request.rawBody ?? '', 'base64')
-        }, {
+        // Start actually sending the request:
+        const abortController = new AbortController();
+        const resultStream = apiModel.sendRequest(request, {
             ...options,
             abortSignal: abortController.signal
         });

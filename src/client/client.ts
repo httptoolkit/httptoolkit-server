@@ -1,7 +1,11 @@
 import * as stream from 'stream';
-import * as net from 'net';
+import * as tls from 'tls';
 import * as http from 'http';
 import * as https from 'https';
+import {
+    shouldUseStrictHttps,
+    UPSTREAM_TLS_OPTIONS
+} from 'mockttp/dist/rules/passthrough-handling';
 
 export type RawHeaders = Array<[key: string, value: string]>;
 
@@ -22,6 +26,34 @@ export interface RequestDefinition {
 }
 
 export interface RequestOptions {
+    /**
+     * A list of hostnames for which server certificate and TLS version errors
+     * should be ignored (none, by default).
+     *
+     * If set to 'true', HTTPS errors will be ignored for all hosts. WARNING:
+     * Use this at your own risk. Setting this to `true` can open your
+     * application to MITM attacks and should never be used over any network
+     * that is not completed trusted end-to-end.
+     */
+    ignoreHostHttpsErrors?: string[] | boolean;
+
+    /**
+     * An array of additional certificates, which should be trusted as certificate
+     * authorities for upstream hosts, in addition to Node.js's built-in certificate
+     * authorities.
+     *
+     * Each certificate should be an object with either a `cert` key and a string
+     * or buffer value containing the PEM certificate, or a `certPath` key and a
+     * string value containing the local path to the PEM certificate.
+     */
+    trustAdditionalCAs?: Array<{ cert: Buffer }>;
+
+    /**
+     * A client certificate that should be used for the connection, if the server
+     * requests one during the TLS handshake.
+     */
+    clientCertificate?: { pfx: Buffer, passphrase?: string };
+
     /**
      * An abort signal, which can be used to cancel the in-process request if
      * required.
@@ -67,9 +99,27 @@ export function sendRequest(
 ): stream.Readable {
     const url = new URL(requestDefn.url);
 
+    const strictHttpsChecks = shouldUseStrictHttps(url.hostname!, url.port!, options.ignoreHostHttpsErrors ?? []);
+    const caConfig = options.trustAdditionalCAs
+        ? {
+            ca: tls.rootCertificates.concat(
+                options.trustAdditionalCAs.map(({ cert }) => cert.toString('utf8'))
+            )
+        }
+        : {};
+
     const request = (url.protocol === 'https' ? https : http).request(requestDefn.url, {
         method: requestDefn.method,
-        signal: options.abortSignal
+        signal: options.abortSignal,
+
+        // TLS options (should be effectively identical to Mockttp's passthrough config)
+        ...UPSTREAM_TLS_OPTIONS,
+        minVersion: strictHttpsChecks
+            ? tls.DEFAULT_MIN_VERSION
+            : 'TLSv1', // Allow TLSv1, if !strict
+        rejectUnauthorized: strictHttpsChecks,
+        ...caConfig,
+        ...options.clientCertificate
     });
 
     options.abortSignal?.addEventListener('abort', () => {
