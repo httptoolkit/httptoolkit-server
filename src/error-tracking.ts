@@ -9,8 +9,14 @@ let sentryInitialized = false;
 export function initErrorTracking() {
     const packageJson = require('../package.json');
 
-    let { SENTRY_DSN } = process.env;
-    if (!SENTRY_DSN && IS_PROD_BUILD) {
+    let { SENTRY_DSN, CI } = process.env;
+
+    const shouldBeEnabled = IS_PROD_BUILD && !CI;
+
+    // Note that we disable all error reporting in CI envs, both our own & others. They
+    // tend to be weird configurations that aren't representative so this isn't useful.
+
+    if (!SENTRY_DSN && shouldBeEnabled) {
         // If we're a built binary, use the standard DSN automatically
         SENTRY_DSN = 'https://5838a5520ad44602ae46793727e49ef5@sentry.io/1371158';
     }
