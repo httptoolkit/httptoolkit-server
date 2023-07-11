@@ -10,7 +10,7 @@ import { Interceptor } from '.';
 
 import { HtkConfig } from '../config';
 import { delay } from '../util/promise';
-import { isErrorLike } from '../util/error';
+import { ErrorLike, isErrorLike } from '../util/error';
 import { canAccess, readFile } from '../util/fs';
 import { windowsClose } from '../util/process-management';
 import { getTerminalEnvVars, OVERRIDES_DIR } from './terminal/terminal-env-overrides';
@@ -80,6 +80,7 @@ export class ElectronInterceptor implements Interceptor {
 
         let debugClient: ChromeRemoteInterface.Client | undefined;
         let retries = 10;
+        let spawnError: ErrorLike | undefined;
 
         appProcess.on('error', async (e) => {
             reportError(e);
@@ -92,10 +93,10 @@ export class ElectronInterceptor implements Interceptor {
             }
 
             // If we're still in the process of debugging the app, give up.
-            retries = -1;
+            spawnError = e as ErrorLike;
         });
 
-        while (!debugClient && retries >= 0) {
+        while (!debugClient && retries >= 0 && !spawnError) {
             try {
                 debugClient = await ChromeRemoteInterface({
                     host: '127.0.0.1',
@@ -110,6 +111,8 @@ export class ElectronInterceptor implements Interceptor {
                 await delay(500);
             }
         }
+
+        if (spawnError) throw spawnError;
         if (!debugClient) throw new Error('Could not initialize CDP client');
 
         this.debugClients[proxyPort] = this.debugClients[proxyPort] || [];

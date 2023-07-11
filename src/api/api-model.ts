@@ -184,7 +184,16 @@ export class ApiModel {
                 addBreadcrumb(`Failed to activate ${id}`, { category: 'interceptor' });
                 reportError(err);
             }
-            return { success: false, metadata: activationError.metadata };
+            return {
+                success: false,
+                metadata: activationError.metadata,
+                error: activationError.reportable !== false
+                    ? {
+                        code: activationError.code,
+                        message: activationError.message
+                    }
+                    : {}
+            };
         }
     }
 

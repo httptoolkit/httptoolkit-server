@@ -2,6 +2,7 @@ import _ from 'lodash';
 
 import { HtkConfig } from '../config';
 import { addShutdownHandler } from '../shutdown';
+import { ErrorLike } from '../util/error';
 
 import { FreshFirefox } from './fresh-firefox';
 import {
@@ -43,9 +44,23 @@ export interface Interceptor {
     deactivateAll(): Promise<void | {}>;
 }
 
-export interface ActivationError extends Error {
-    metadata?: any; // Any extra metadata with the failure, e.g. if it could be retried
-    reportable?: boolean; // Set to false to disable reporting this error, it's normal
+export interface ActivationError extends ErrorLike {
+    /**
+     * Activation errors can have an extra `metadata` field, to share data with the
+     * client which attempted the activation, e.g. whether it can be retried.
+     */
+    metadata?: any;
+
+    /**
+     * Errors should be thrown with reportable set to `false` if they're a 'normal'
+     * event that shouldn't be logged or exposed to the user. For example, if it's a
+     * temporary failure that will lead to a confirmation flow or similar.
+     *
+     * This disables error logging and reporting of failure details from the API
+     * (it assumes that the metadata will expose any info required, since this is a
+     * recognized failure case).
+     */
+    reportable?: boolean;
 }
 
 export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> {
