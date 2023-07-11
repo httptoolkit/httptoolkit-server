@@ -14,7 +14,7 @@ import type { ParsedQs } from 'qs';
 import { ErrorLike, StatusError } from '../util/error';
 import { reportError } from '../error-tracking';
 import { ApiModel } from './api-model';
-import * as Client from '../client/client';
+import * as Client from '../client/client-types';
 
 /**
  * This file exposes the API model via a REST-ish classic HTTP API.
@@ -96,18 +96,13 @@ export function exposeRestAPI(
 
         // Various buffers are serialized as base64 (for both requests & responses)
         request.rawBody = Buffer.from(request.rawBody ?? '', 'base64');
-        if (options.trustAdditionalCAs) {
-            options.trustAdditionalCAs = options.trustAdditionalCAs.map(
-                ({ cert }: { cert: string }) => Buffer.from(cert, 'base64')
-            );
-        }
         if (options.clientCertificate) {
             options.clientCertificate.pfx = Buffer.from(options.clientCertificate.pfx, 'base64');
         }
 
         // Start actually sending the request:
         const abortController = new AbortController();
-        const resultStream = apiModel.sendRequest(request, {
+        const resultStream = await apiModel.sendRequest(request, {
             ...options,
             abortSignal: abortController.signal
         });

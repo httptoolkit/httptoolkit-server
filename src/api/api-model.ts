@@ -1,5 +1,4 @@
 import * as _ from 'lodash';
-import * as stream from 'stream';
 import * as os from 'os';
 
 import { generateSPKIFingerprint } from 'mockttp';
@@ -11,7 +10,8 @@ import { reportError, addBreadcrumb } from '../error-tracking';
 import { HtkConfig } from "../config";
 import { ActivationError, Interceptor } from "../interceptors";
 import { getDnsServer } from '../dns-server';
-import * as Client from '../client/client';
+import * as Client from '../client/client-types';
+import { HttpClient } from '../client/http-client';
 
 const INTERCEPTOR_TIMEOUT = 1000;
 
@@ -21,6 +21,7 @@ export class ApiModel {
         private config: HtkConfig,
         private interceptors: _.Dictionary<Interceptor>,
         private getRuleParamKeys: () => string[],
+        private httpClient: HttpClient,
         private callbacks: {
             onTriggerUpdate: () => void,
             onTriggerShutdown: () => void
@@ -209,7 +210,7 @@ export class ApiModel {
         requestDefinition: Client.RequestDefinition,
         requestOptions: Client.RequestOptions
     ) {
-        return Client.sendRequest(requestDefinition, requestOptions);
+        return this.httpClient.sendRequest(requestDefinition, requestOptions);
     }
 
 }

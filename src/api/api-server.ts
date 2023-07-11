@@ -12,6 +12,7 @@ import { shutdown } from '../shutdown';
 import { ApiModel } from './api-model';
 import { exposeGraphQLAPI } from './graphql-api';
 import { exposeRestAPI } from './rest-api';
+import { HttpClient } from '../client/http-client';
 
 /**
  * This file contains the core server API, used by the UI to query
@@ -39,7 +40,11 @@ export class HttpToolkitServerApi extends events.EventEmitter {
 
     private server: express.Application;
 
-    constructor(config: HtkConfig, getRuleParamKeys: () => string[]) {
+    constructor(
+        config: HtkConfig,
+        httpClient: HttpClient,
+        getRuleParamKeys: () => string[]
+    ) {
         super();
 
         const interceptors = buildInterceptors(config);
@@ -114,6 +119,7 @@ export class HttpToolkitServerApi extends events.EventEmitter {
             config,
             interceptors,
             getRuleParamKeys,
+            httpClient,
             {
                 onTriggerUpdate: () => this.emit('update-requested'),
                 onTriggerShutdown: () => shutdown('API call')

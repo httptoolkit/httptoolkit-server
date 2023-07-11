@@ -2,7 +2,7 @@ import * as _ from 'lodash';
 import { expect } from 'chai';
 import * as mockttp from 'mockttp';
 
-import { sendRequest } from '../../src/client/client';
+import { HttpClient } from '../../src/client/http-client';
 import { streamToArray } from '../../src/util/stream';
 import { delay } from '../../src/util/promise';
 
@@ -32,7 +32,8 @@ describe("The HTTP client API", () => {
             };
         });
 
-        const responseStream = sendRequest({
+        const client = new HttpClient({});
+        const responseStream = await client.sendRequest({
             url: mockServer.urlFor('/path?qwe=asd'),
             method: 'POST',
             headers: [
@@ -66,7 +67,7 @@ describe("The HTTP client API", () => {
     });
 
     it("should stop requests if cancelled", async () => {
-        await mockServer.forAnyRequest().thenTimeout()
+        await mockServer.forAnyRequest().thenTimeout();
 
         const requests: any[] = [];
         mockServer.on('request', (req) => requests.push(req));
@@ -75,7 +76,8 @@ describe("The HTTP client API", () => {
 
         const abortController = new AbortController();
 
-        const responseStream = sendRequest({
+        const client = new HttpClient({});
+        const responseStream = await client.sendRequest({
             url: mockServer.url,
             method: 'GET',
             headers: [['host', `localhost:${mockServer.port}`]]
@@ -111,5 +113,41 @@ describe("The HTTP client API", () => {
             'ECONNRESET',
             'ABORT_ERR'
         ]);
-    })
+    });
+
+    describe("given an upstream proxy", () => {
+
+        const proxyServer = mockttp.getLocal();
+
+        beforeEach(() => proxyServer.start());
+        afterEach(() => proxyServer.stop());
+
+        it("should forward requests via the proxy", async () => {
+            const passthroughRule = await proxyServer.forAnyRequest().thenPassThrough();
+            const targetRule = await mockServer.forAnyRequest().thenReply(200);
+
+            const client = new HttpClient({});
+            const responseStream = await client.sendRequest({
+                url: mockServer.url,
+                method: 'GET',
+                headers: [['host', `localhost:${mockServer.port}`]]
+            }, {
+                proxyConfig: {
+                    proxyUrl: proxyServer.url
+                }
+            });
+            await new Promise((resolve) => {
+                responseStream.on('end', resolve);
+                responseStream.resume(); // Without this, it buffers the response data
+            });
+
+            // Both the proxy & target server successfully received the requests:
+            const proxiedRequests = await passthroughRule.getSeenRequests();
+            expect(proxiedRequests.length).to.equal(1);
+
+            const targetServerRequests = await targetRule.getSeenRequests();
+            expect(targetServerRequests.length).to.equal(1);
+        });
+
+    });
 });

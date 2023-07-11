@@ -33,6 +33,7 @@ import {
     stopDockerInterceptionServices
 } from './interceptors/docker/docker-interception-services';
 import { clearWebExtensionConfig, updateWebExtensionConfig } from './webextension';
+import { HttpClient } from './client/http-client';
 
 const APP_NAME = "HTTP Toolkit";
 
@@ -184,11 +185,11 @@ export async function runHTK(options: {
     console.log('Standalone server started in', standaloneSetupTime - certSetupTime, 'ms');
 
     // Start the HTK server API
-    const apiServer = new HttpToolkitServerApi({
-        configPath,
-        authToken: options.authToken,
-        https: httpsConfig
-    }, () => standalone.ruleParameterKeys);
+    const apiServer = new HttpToolkitServerApi(
+        { configPath, authToken: options.authToken, https: httpsConfig },
+        new HttpClient(ruleParameters),
+        () => standalone.ruleParameterKeys
+    );
 
     const updateMutex = new Mutex();
     apiServer.on('update-requested', () => {
