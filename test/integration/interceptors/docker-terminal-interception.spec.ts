@@ -7,15 +7,16 @@ import { ProxySettingCallback } from 'mockttp';
 import { expect } from 'chai';
 
 import { setupTest } from './interceptor-test-utils';
-import { spawnToResult } from '../../src/util/process-management';
-import { delay } from '../../src/util/promise';
+import { FIXTURES_DIR } from '../../test-util';
+import { spawnToResult } from '../../../src/util/process-management';
+import { delay } from '../../../src/util/promise';
 
-import { getTerminalEnvVars } from '../../src/interceptors/terminal/terminal-env-overrides';
+import { getTerminalEnvVars } from '../../../src/interceptors/terminal/terminal-env-overrides';
 
 import {
     startDockerInterceptionServices,
     stopDockerInterceptionServices
-} from '../../src/interceptors/docker/docker-interception-services';
+} from '../../../src/interceptors/docker/docker-interception-services';
 
 const testSetup = setupTest();
 
@@ -52,7 +53,7 @@ describe('Docker CLI interception', function () {
             // Build the target image (may already have been built by the attachment tests)
             const { exitCode: buildExitCode, stdout: buildStdout } = await spawnToResult(
                 'docker', ['build', '.', '-q'],
-                { cwd: path.join(__dirname, '..', 'fixtures', 'docker', target.toLowerCase()) },
+                { cwd: path.join(FIXTURES_DIR, 'docker', target.toLowerCase()) },
                 true
             );
 
@@ -122,7 +123,7 @@ describe('Docker CLI interception', function () {
 
         const { exitCode, stdout, stderr } = await spawnToResult('docker', ['build', '.'], {
             env: { ...process.env, ...terminalEnvOverrides },
-            cwd: path.join(__dirname, '..', 'fixtures', 'docker', 'requests-in-build')
+            cwd: path.join(FIXTURES_DIR, 'docker', 'requests-in-build')
         }, true);
 
         expect(exitCode).to.equal(0);
@@ -224,7 +225,7 @@ Successfully built <hash>
             });
 
         // Create non-intercepted docker-compose containers, like normal use:
-        const composeRoot = path.join(__dirname, '..', 'fixtures', 'docker', 'compose');
+        const composeRoot = path.join(FIXTURES_DIR, 'docker', 'compose');
         await spawnToResult(
             'docker-compose', ['create', '--force-recreate', '--build'],
             { cwd: composeRoot },
@@ -273,7 +274,7 @@ Successfully built <hash>
             });
 
         // Create non-intercepted docker-compose containers, like normal use:
-        const composeRoot = path.join(__dirname, '..', 'fixtures', 'docker', 'compose');
+        const composeRoot = path.join(FIXTURES_DIR, 'docker', 'compose');
         await spawnToResult(
             'docker-compose', ['-f', 'docker-compose.networks.yml', 'create', '--force-recreate', '--build'],
             { cwd: composeRoot },

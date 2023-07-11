@@ -66,7 +66,7 @@ jobs:
           SENTRY_PROJECT: httptoolkit-server
           NPM_CONFIG_UNSAFE_PERM: true
 
-      - run: DOCKER_HOST=$DIND_HOST xvfb-run npm run test:release
+      - run: DOCKER_HOST=$DIND_HOST xvfb-run npm run test:integration:release
 
       - uses: actions/upload-artifact@v3
         with:

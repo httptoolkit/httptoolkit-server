@@ -11,22 +11,23 @@ import fetch from 'node-fetch';
 
 import { getRemote, getLocal } from 'mockttp';
 
-import { delay } from '../src/util/promise';
+import { delay } from '../../src/util/promise';
 
 async function setupServerPath() {
     if (!process.env.TEST_BUILT_TARBALL) {
         // By default, test the current folder code
-        return path.join(__dirname, '..', 'bin', 'run');
+        return path.join(__dirname, '..', '..', 'bin', 'run');
     }
 
     // If TEST_BUILT_TARBALL is set, test the latest built ready-to-go tarball:
     const tmpDir = tmp.dirSync({ prefix: 'name with spaces', unsafeCleanup: true }).name;
-    const version: string = require(path.join('..', 'package.json')).version;
+    const version: string = require(path.join('..', '..', 'package.json')).version;
 
     const channel = (version.split('-')[1] || '').split('.')[0];
 
     const tarballPath = path.join(
         __dirname,
+        '..',
         '..',
         'build',
         'dist',
@@ -52,7 +53,7 @@ const buildGraphql = (
     headers
 });
 
-describe('Integration test', function () {
+describe('End-to-end server API test', function () {
     // Timeout needs to be long, as first test runs (e.g. in CI) generate
     // fresh certificates, which can take a little while.
     this.timeout(30000);
@@ -142,7 +143,7 @@ describe('Integration test', function () {
             }
         `)();
 
-        expect(response.version).to.equal(require('../package.json').version);
+        expect(response.version).to.equal(require('../../package.json').version);
     });
 
     it('exposes the version via REST', async () => {
@@ -154,7 +155,7 @@ describe('Integration test', function () {
         const responseData = await response.json();
 
         expect(responseData).to.deep.equal({
-            version: require('../package.json').version
+            version: require('../../package.json').version
         });
     });
 

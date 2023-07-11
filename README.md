@@ -40,4 +40,5 @@ To get started:
 A few tips:
 
 * New interceptors need to be added to `src/interceptors/index.ts`. They will also need to be added to [the UI](https://github.com/httptoolkit/httptoolkit-ui).
-* The tests assume that the required applications are installed and some docker images are already pulled. See [ci.yml](.github/workflows/ci.yml) and the [build-base](https://github.com/httptoolkit/act-build-base/) image for an example of how to set this up (or just run the tests, look at the errors, and install whatever's missing).
+* Tests (both unit & integration) can be run with `npm test`, or `npm run test:unit`/`npm run test:integration` to run just the unit/integration tests.
+* Note that the integration tests assume the required applications are installed and some docker images are already pulled. See [ci.yml](.github/workflows/ci.yml) and the [build-base](https://github.com/httptoolkit/act-build-base/) image for an example of how to set this up (or just run the tests, look at the errors, and install whatever's missing).

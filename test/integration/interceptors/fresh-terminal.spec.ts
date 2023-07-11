@@ -3,8 +3,9 @@ import { fork } from 'child_process';
 
 import { expect } from 'chai';
 
+import { FIXTURES_DIR } from '../../test-util';
 import { setupInterceptor, itIsAvailable, itCanBeActivated } from './interceptor-test-utils';
-import { getTerminalEnvVars } from '../../src/interceptors/terminal/terminal-env-overrides';
+import { getTerminalEnvVars } from '../../../src/interceptors/terminal/terminal-env-overrides';
 
 const interceptorSetup = setupInterceptor('fresh-terminal');
 
@@ -49,8 +50,8 @@ describe('Fresh terminal interceptor', function () {
 
             // Spawn node, as if it was run inside an intercepted terminal
             const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env);
-            const nodeScript = fork(require.resolve('../fixtures/terminal/js-test-script'), [], {
-                execArgv: ['-r', require.resolve('../../overrides/js/prepend-node.js')],
+            const nodeScript = fork(require.resolve(`${FIXTURES_DIR}/terminal/js-test-script`), [], {
+                execArgv: ['-r', require.resolve('../../../overrides/js/prepend-node.js')],
                 env: Object.assign({}, process.env, terminalEnvOverrides)
             });
             await new Promise((resolve, reject) => {

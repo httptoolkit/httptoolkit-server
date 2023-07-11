@@ -6,6 +6,7 @@ import { expect } from 'chai';
 
 import fetch from 'node-fetch';
 
+import { FIXTURES_DIR } from '../../test-util';
 import { setupInterceptor, itIsAvailable } from './interceptor-test-utils';
 
 const execAsync = util.promisify(exec);
@@ -84,7 +85,7 @@ describe('Existing terminal interceptor', function () {
 
         const scriptOutput = await execAsync(`
             ${result.commands['Bash'].command}
-            node "${require.resolve('../fixtures/terminal/js-test-script')}"
+            node "${require.resolve(`${FIXTURES_DIR}/terminal/js-test-script`)}"
         `, {
             shell: '/bin/bash'
         });

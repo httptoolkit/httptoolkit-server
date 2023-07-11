@@ -7,12 +7,13 @@ import { expect } from 'chai';
 import Docker from 'dockerode';
 import fetch from 'node-fetch';
 
-import { delay } from '../../src/util/promise';
+import { delay } from '../../../src/util/promise';
+import { FIXTURES_DIR } from '../../test-util';
 import { setupInterceptor, itIsAvailable } from './interceptor-test-utils';
-import { waitForDockerStream } from '../../src/interceptors/docker/docker-utils';
+import { waitForDockerStream } from '../../../src/interceptors/docker/docker-utils';
 
 const docker = new Docker();
-const DOCKER_FIXTURES = path.join(__dirname, '..', 'fixtures', 'docker');
+const DOCKER_FIXTURES = path.join(FIXTURES_DIR, 'docker');
 
 async function buildAndRun(dockerFolder: string, options: {
     arguments?: string[],

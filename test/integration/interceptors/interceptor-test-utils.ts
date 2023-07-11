@@ -7,8 +7,8 @@ import { expect } from 'chai';
 
 import { getLocal, generateCACertificate, Mockttp, requestHandlers } from 'mockttp';
 
-import { buildInterceptors, Interceptor } from '../../src/interceptors';
-import { getDnsServer } from '../../src/dns-server';
+import { buildInterceptors, Interceptor } from '../../../src/interceptors';
+import { getDnsServer } from '../../../src/dns-server';
 
 const getCertificateDetails = _.memoize(async (configPath: string) => {
     const keyPath = path.join(configPath, 'ca.key');
