@@ -37,23 +37,23 @@ curl %CURL_OPTIONS% %WITH_ORIGIN% %AS_JSON% -X POST "http://127.0.0.1:45456/star
 echo:
 echo:
 echo Can query the API server version?
-curl %CURL_OPTIONS% %WITH_ORIGIN% %AS_JSON% http://127.0.0.1:45457/ -d "{\"query\": \"query getVersion { version }\"}" || goto :error
+curl %CURL_OPTIONS% %WITH_ORIGIN% http://127.0.0.1:45457/version || goto :error
 
 echo:
 echo:
 echo Can get config?
-curl %CURL_OPTIONS% %WITH_ORIGIN% %AS_JSON% http://127.0.0.1:45457/ -d "{\"query\": \"query getConfig { config { certificateContent certificatePath certificateFingerprint } }\"}" || goto :error
+curl %CURL_OPTIONS% %WITH_ORIGIN% http://127.0.0.1:45457/config || goto :error
 
 echo:
 echo:
 echo Can query interceptors?
-curl %CURL_OPTIONS% %WITH_ORIGIN% %AS_JSON% http://127.0.0.1:45457/ -d "{\"query\": \"query getInterceptors { interceptors { id version, metadata isActivable isActive(proxyPort: 8000) } }\"}" || goto :error
+curl %CURL_OPTIONS% %WITH_ORIGIN% http://127.0.0.1:45457/interceptors || goto :error
 
 echo:
 echo:
 echo Can trigger update?
 REM (can't test that it actually updates, unfortunately)
-curl %CURL_OPTIONS% %WITH_ORIGIN% %AS_JSON% http://127.0.0.1:45457/ -d "{\"query\": \"mutation TriggerUpdate { triggerUpdate }\"}" || goto :error
+curl %CURL_OPTIONS% %WITH_ORIGIN% -X POST http://127.0.0.1:45457/update || goto :error
 
 REM ^ This will fail if they receive anything but a 200 result.
 REM This ensures that the server is startable, and has minimal functionality for launch.
