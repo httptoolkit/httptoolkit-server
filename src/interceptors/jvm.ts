@@ -13,10 +13,6 @@ import { ErrorLike } from '../util/error';
 
 type JvmTarget = { pid: string, name: string, interceptedByProxy: number | undefined };
 
-const OLD_JAVA_MISSING_ATTACH_CLASS = 'com/sun/tools/attach/AgentLoadException';
-const MISSING_ATTACH_LIB_MESSAGE = 'java.lang.UnsatisfiedLinkError: no attach in java.library.path';
-const JRE_NOT_JDK_MESSAGE = 'Are we running in a JRE instead of a JDK';
-
 // Check that Java is present, and that it's compatible with agent attachment:
 const javaBinPromise: Promise<string | false> = (async () => {
     // Check what Java binaries might exist:
@@ -73,16 +69,16 @@ const javaBinPromise: Promise<string | false> = (async () => {
         // The most common reason for this is that outdated Java versions (most notably Java 8) don't include
         // the necessary APIs to attach to remote JVMs. That's inconvenient, but unavoidable & not unusual.
         // Fortunately, I think most active Java developers do have a recent version of Java installed.
-        const unusualJavaErrors = javaTestResults.filter(({ output }) =>
-            // Not caused by a known normal not-supported-in-your-env error:
-            ![
-                MISSING_ATTACH_LIB_MESSAGE, OLD_JAVA_MISSING_ATTACH_CLASS, JRE_NOT_JDK_MESSAGE
-            ].some(knownError =>
-                output.stderr.includes(knownError) || output.stdout.includes(knownError)
-            ) &&
-            // And not caused by ENOENT for an invalid Java path:
-            !('spawnError' in output && output.spawnError.code === 'ENOENT')
-        );
+        const unusualJavaErrors = javaTestResults.filter(({ output }) => {
+            const outputText = output.stderr + '\n' + output.stdout;
+
+            // Ignore any errors that we know definitely aren't recoverable/aren't our problem:
+            return !hasUnsupportedJvmError(outputText) && // Not caused by a known incompatible JVM issue
+                !hasJvmOomError(outputText) && // Not caused by a simple OOM
+                !hasBrokenJvmError(outputText) && // Not a corrupted JVM
+                // And not caused by ENOENT for an invalid Java path:
+                !('spawnError' in output && output.spawnError.code === 'ENOENT')
+        });
 
         if (unusualJavaErrors.length === 0) {
             console.warn('=> Java attach APIs are not available');
@@ -128,6 +124,19 @@ function testJavaBin(possibleJavaBin: string) {
         })
     ]);
 }
+
+const hasUnsupportedJvmError = (testOutput: string) =>
+    testOutput.includes('com/sun/tools/attach/AgentLoadException') || // Old Java missing Attach classes
+    testOutput.includes('java.lang.UnsatisfiedLinkError: no attach in java.library.path') || // Similar
+    testOutput.includes('Are we running in a JRE instead of a JDK') || // JREs aren't sufficient
+    testOutput.includes('Unsupported major.minor version 52.0'); // Pre Java 8(!)
+
+const hasBrokenJvmError = (testOutput: string) =>
+    testOutput.includes('jvm.cfg'); // Somehow it seems that JVMs 'lose' this file and can't start?
+
+const hasJvmOomError = (testOutput: string) =>
+    testOutput.includes('insufficient memory') ||
+    testOutput.includes('Could not reserve enough space for object heap');
 
 export class JvmInterceptor implements Interceptor {
     readonly id = 'attach-jvm';
