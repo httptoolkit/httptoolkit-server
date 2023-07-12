@@ -22,7 +22,7 @@ function maybeBundleImport<T>(moduleName: string): T {
         return require('../' + moduleName);
     }
 }
-const { initErrorTracking, reportError } = maybeBundleImport<ErrorTrackingModule>('error-tracking');
+const { initErrorTracking, logError } = maybeBundleImport<ErrorTrackingModule>('error-tracking');
 initErrorTracking();
 
 import { Command, flags } from '@oclif/command'
@@ -49,7 +49,7 @@ class HttpToolkitServer extends Command {
             configPath: flags.config,
             authToken: envToken || flags.token
         }).catch(async (error) => {
-            await reportError(error);
+            await logError(error);
             throw error;
         });
     }
@@ -65,7 +65,7 @@ class HttpToolkitServer extends Command {
 
         // Be careful - if the server path isn't clearly ours somehow, ignore it.
         if (!isOwnedPath(serverUpdatesPath)) {
-            reportError(`Unexpected server updates path (${serverUpdatesPath}), ignoring`);
+            logError(`Unexpected server updates path (${serverUpdatesPath}), ignoring`);
             return;
         }
 
@@ -84,19 +84,19 @@ class HttpToolkitServer extends Command {
             filename !== '.DS_Store' // Meaningless Mac folder metadata
         )) {
             console.log(serverPaths);
-            reportError(
+            logError(
                 `Server path (${serverUpdatesPath}) contains unexpected content, ignoring`
             );
             return;
         }
 
-        const maybeReportError = (error: Error & { code?: string }) => {
+        const maybeLogError = (error: Error & { code?: string }) => {
             if ([
                 'EBUSY',
                 'EPERM'
             ].includes(error.code!)) return;
 
-            else reportError(error);
+            else logError(error);
         };
 
         if (serverPaths.every((filename) => {
@@ -107,7 +107,7 @@ class HttpToolkitServer extends Command {
             // a new server standalone (not just from an update), because otherwise the
             // update dir can end up in a broken state. Better to clear it completely.
             console.log("Downloaded server directory is entirely outdated, deleting it");
-            deleteFolder(serverUpdatesPath).catch(maybeReportError);
+            deleteFolder(serverUpdatesPath).catch(maybeLogError);
         } else {
             // Some of the servers are outdated, but not all (maybe it includes us).
             // Async delete all server versions older than this currently running version.
@@ -116,7 +116,7 @@ class HttpToolkitServer extends Command {
 
                 if (version && semver.lt(version, currentVersion)) {
                     console.log(`Deleting old server ${filename}`);
-                    deleteFolder(path.join(serverUpdatesPath, filename)).catch(maybeReportError);
+                    deleteFolder(path.join(serverUpdatesPath, filename)).catch(maybeLogError);
                 }
             });
         }
@@ -151,7 +151,7 @@ function isOwnedPath(input: string) {
     if (input.split(path.sep).includes('httptoolkit-server')) {
         return true;
     } else {
-        reportError(`Unexpected unowned path ${input}`);
+        logError(`Unexpected unowned path ${input}`);
         return false;
     }
 }

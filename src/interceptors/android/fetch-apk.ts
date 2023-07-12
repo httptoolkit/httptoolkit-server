@@ -6,7 +6,7 @@ import fetch from 'node-fetch';
 
 import { readDir, createTmp, moveFile, deleteFile } from '../../util/fs';
 import { HtkConfig } from '../../config';
-import { reportError } from '../../error-tracking';
+import { logError } from '../../error-tracking';
 
 async function getLatestRelease(): Promise<{ version: string, url: string } | undefined> {
     try {
@@ -53,7 +53,7 @@ async function getLatestLocalApk(config: HtkConfig) {
         else return latestLocalApk;
     } catch (e) {
         console.log("Could not check for local Android app APK", e);
-        reportError(e);
+        logError(e);
     }
 }
 
@@ -131,7 +131,7 @@ export async function streamLatestApk(config: HtkConfig): Promise<stream.Readabl
             const apkOutputStream = new stream.PassThrough({ highWaterMark: 10485760 });
             apkStream.pipe(apkOutputStream);
 
-            updateLocalApk(latestApkRelease.version, apkFileStream, config).catch(reportError);
+            updateLocalApk(latestApkRelease.version, apkFileStream, config).catch(logError);
             return apkOutputStream;
         }
     }
@@ -147,7 +147,7 @@ export async function streamLatestApk(config: HtkConfig): Promise<stream.Readabl
     fetch(latestApkRelease.url).then((apkResponse) => {
         const apkStream = apkResponse.body;
         return updateLocalApk(latestApkRelease.version, apkStream, config);
-    }).catch(reportError);
+    }).catch(logError);
 
     console.log('Streaming local APK, and updating it async');
     return fs.createReadStream(localApk.path);

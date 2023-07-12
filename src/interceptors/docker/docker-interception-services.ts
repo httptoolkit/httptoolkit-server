@@ -1,7 +1,7 @@
 import Docker from 'dockerode';
 import { ProxySettingCallback } from 'mockttp';
 
-import { reportError } from '../../error-tracking';
+import { logError } from '../../error-tracking';
 import { addShutdownHandler } from '../../shutdown';
 
 import { DOCKER_BUILD_LABEL } from './docker-build-injection';
@@ -117,7 +117,7 @@ export async function ensureDockerServicesRunning(proxyPort: number) {
         getDnsServer(proxyPort),
         // We don't double-check on the injection volume here - that's
         // checked separately at the point of use instead.
-    ]).catch(reportError);
+    ]).catch(logError);
 }
 
 export async function stopDockerInterceptionServices(

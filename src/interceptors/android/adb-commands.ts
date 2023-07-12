@@ -1,7 +1,7 @@
 import * as stream from 'stream';
 import * as path from 'path';
 import adb, * as Adb from '@devicefarmer/adbkit';
-import { reportError } from '../../error-tracking';
+import { logError } from '../../error-tracking';
 import { isErrorLike } from '../../util/error';
 import { delay, waitUntil } from '../../util/promise';
 import { getCertificateFingerprint, parseCert } from '../../certificates';
@@ -35,7 +35,7 @@ export function createAdbClient() {
 
     // We listen for errors and report them. This only happens if adbkit completely
     // fails to handle or listen to a connection error. We'd rather report that than crash.
-    client.on('error', reportError);
+    client.on('error', logError);
 
     return client;
 }
@@ -92,7 +92,7 @@ export const getConnectedDevices = batchCalls(async (adbClient: Adb.Client) => {
             }
             return [];
         } else {
-            reportError(e);
+            logError(e);
             throw e;
         }
     }
@@ -222,7 +222,7 @@ export async function getRootCommand(adbClient: Adb.DeviceClient): Promise<RootC
             : undefined; // Still not root, no luck.
     } catch (e) {
         console.error(e);
-        reportError('ADB root check crashed');
+        logError('ADB root check crashed');
         return undefined;
     } finally {
         // Try to clean up the root test script, just to be tidy

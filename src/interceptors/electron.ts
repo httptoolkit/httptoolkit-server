@@ -14,7 +14,7 @@ import { ErrorLike, isErrorLike } from '../util/error';
 import { canAccess, readFile } from '../util/fs';
 import { windowsClose } from '../util/process-management';
 import { getTerminalEnvVars, OVERRIDES_DIR } from './terminal/terminal-env-overrides';
-import { reportError, addBreadcrumb } from '../error-tracking';
+import { logError, addBreadcrumb } from '../error-tracking';
 import { findExecutableInApp } from '@httptoolkit/osx-find-executable';
 
 const isAppBundle = (path: string) => {
@@ -83,7 +83,7 @@ export class ElectronInterceptor implements Interceptor {
         let spawnError: ErrorLike | undefined;
 
         appProcess.on('error', async (e) => {
-            reportError(e);
+            logError(e);
 
             if (debugClient) {
                 // Try to close the debug connection if open, but very carefully

@@ -18,7 +18,7 @@ import updateCommand from '@oclif/plugin-update/lib/commands/update';
 
 import { HttpToolkitServerApi } from './api/api-server';
 import { checkBrowserConfig } from './browsers';
-import { reportError } from './error-tracking';
+import { logError } from './error-tracking';
 import { MOCKTTP_ALLOWED_ORIGINS } from './constants';
 
 import { delay } from './util/promise';
@@ -207,7 +207,7 @@ export async function runHTK(options: {
                 }
 
                 console.log(error);
-                reportError('Failed to check for updates');
+                logError('Failed to check for updates');
             })
         );
     });

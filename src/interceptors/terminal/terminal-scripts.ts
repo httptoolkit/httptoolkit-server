@@ -5,7 +5,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import { canAccess, writeFile, renameFile, readFile, getRealPath } from '../../util/fs';
-import { reportError } from '../../error-tracking';
+import { logError } from '../../error-tracking';
 import { OVERRIDE_BIN_PATH } from './terminal-env-overrides';
 
 // Generate POSIX paths for git-bash on Windows (or use the normal path everywhere else)
@@ -159,7 +159,7 @@ export const editShellStartupScripts = async () => {
         ],
         true, // We always write .profile
         SH_SHELL_PATH_CONFIG
-    ).catch(reportError);
+    ).catch(logError);
 
     // Bash login shells use some other files by preference, if they exist.
     // Note that on OSX, all shells are login - elsewhere they only are at actual login time.
@@ -170,7 +170,7 @@ export const editShellStartupScripts = async () => {
         ],
         false, // Do nothing if they don't exist - it falls back to .profile
         SH_SHELL_PATH_CONFIG
-    ).catch(reportError);
+    ).catch(logError);
 
     // Bash non-login shells use .bashrc, if it exists:
     appendToFirstExisting(
@@ -179,7 +179,7 @@ export const editShellStartupScripts = async () => {
         ],
         SHELL === 'bash', // If you use bash, we _always_ want to set this
         SH_SHELL_PATH_CONFIG
-    ).catch(reportError);
+    ).catch(logError);
 
     // Zsh has its own files (both are actually used)
     appendToFirstExisting(
@@ -189,7 +189,7 @@ export const editShellStartupScripts = async () => {
         ],
         SHELL === 'zsh', // If you use zsh, we _always_ write a config file
         SH_SHELL_PATH_CONFIG
-    ).catch(reportError);
+    ).catch(logError);
 
     // Fish always uses the same config file
     appendToFirstExisting(
@@ -198,7 +198,7 @@ export const editShellStartupScripts = async () => {
         ],
         SHELL === 'fish' || await canAccess(path.join(os.homedir(), '.config', 'fish')),
         FISH_SHELL_PATH_CONFIG
-    ).catch(reportError);
+    ).catch(logError);
 };
 
 const removeConfigSectionsFromFile = async (path: string) => {
@@ -245,6 +245,6 @@ export const resetShellStartupScripts = () => {
         path.join(os.homedir(), '.zshrc'),
         path.join(os.homedir(), '.config', 'fish', 'config.fish'),
     ].map((configFile) =>
-        removeConfigSectionsFromFile(configFile).catch(reportError)
+        removeConfigSectionsFromFile(configFile).catch(logError)
     ));
 };

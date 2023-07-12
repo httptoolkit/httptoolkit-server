@@ -6,7 +6,7 @@ import { getSystemProxy } from 'os-proxy-config';
 
 import { SERVER_VERSION } from "../constants";
 import { delay } from '../util/promise';
-import { reportError, addBreadcrumb } from '../error-tracking';
+import { logError, addBreadcrumb } from '../error-tracking';
 import { HtkConfig } from "../config";
 import { ActivationError, Interceptor } from "../interceptors";
 import { getDnsServer } from '../dns-server';
@@ -170,7 +170,7 @@ export class ApiModel {
         // After 30s, don't stop activating, but report an error if we're not done yet
         let activationDone = false;
         delay(30000).then(() => {
-            if (!activationDone) reportError(`Timeout activating ${id}`)
+            if (!activationDone) logError(`Timeout activating ${id}`)
         });
 
         try {
@@ -183,7 +183,7 @@ export class ApiModel {
             activationDone = true;
             if (activationError.reportable !== false) {
                 addBreadcrumb(`Failed to activate ${id}`, { category: 'interceptor' });
-                reportError(err);
+                logError(err);
             }
             return {
                 success: false,
@@ -202,7 +202,7 @@ export class ApiModel {
         const interceptor = this.interceptors[id];
         if (!interceptor) throw new Error(`Unknown interceptor ${id}`);
 
-        await interceptor.deactivate(proxyPort, options).catch(reportError);
+        await interceptor.deactivate(proxyPort, options).catch(logError);
         return { success: !interceptor.isActive(proxyPort) };
     }
 
@@ -219,7 +219,7 @@ export class ApiModel {
 const withFallback = <R>(p: () => Promise<R>, timeoutMs: number, defaultValue: R) =>
     Promise.race([
         p().catch((error) => {
-            reportError(error);
+            logError(error);
             return defaultValue;
         }),
         delay(timeoutMs).then(() => defaultValue)

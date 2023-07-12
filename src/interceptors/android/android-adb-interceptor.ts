@@ -6,7 +6,7 @@ import { Interceptor } from '..';
 import { HtkConfig } from '../../config';
 import { generateSPKIFingerprint } from 'mockttp';
 
-import { reportError } from '../../error-tracking';
+import { logError } from '../../error-tracking';
 import { delay } from '../../util/promise';
 import { isErrorLike } from '../../util/error';
 import {
@@ -89,7 +89,7 @@ export class AndroidAdbInterceptor implements Interceptor {
         await bringToFront(
             deviceClient,
             'tech.httptoolkit.android.v1/tech.httptoolkit.android.MainActivity'
-        ).catch(reportError); // Not that important, so we continue if this fails somehow
+        ).catch(logError); // Not that important, so we continue if this fails somehow
 
         // Build a trigger URL to activate the proxy on the device:
         const setupParams = {
@@ -225,7 +225,7 @@ export class AndroidAdbInterceptor implements Interceptor {
             ]);
             console.log('Android Chrome flags set');
         } catch (e) {
-            reportError(e);
+            logError(e);
         }
     }
 }

@@ -12,7 +12,7 @@ import type {
 import type { ParsedQs } from 'qs';
 
 import { ErrorLike, StatusError } from '../util/error';
-import { reportError } from '../error-tracking';
+import { logError } from '../error-tracking';
 import { ApiModel } from './api-model';
 import * as Client from '../client/client-types';
 
@@ -175,7 +175,7 @@ function handleErrors<
             const error = e as ErrorLike;
 
             console.log(`Error handling request to ${req.path}: ${error.message ?? error}`);
-            reportError(error);
+            logError(error);
 
             // Use default error handler if response started (kills the connection)
             if (res.headersSent) return next(error)

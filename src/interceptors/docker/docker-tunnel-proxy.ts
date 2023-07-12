@@ -5,7 +5,7 @@ import { Mutex } from 'async-mutex';
 import { isImageAvailable } from './docker-commands';
 import { isDockerAvailable } from './docker-interception-services';
 import { delay } from '../../util/promise';
-import { reportError } from '../../error-tracking';
+import { logError } from '../../error-tracking';
 import { waitForDockerStream } from './docker-utils';
 
 const DOCKER_TUNNEL_IMAGE = "httptoolkit/docker-socks-tunnel:v1.2.0";
@@ -100,7 +100,7 @@ export function ensureDockerTunnelRunning(proxyPort: number) {
                     })
             );
             portCache[proxyPort] = refreshTunnelPort;
-            refreshTunnelPort.catch(reportError);
+            refreshTunnelPort.catch(logError);
         }
     }).finally(() => {
         // Clean up the promise, so that future calls to ensureRunning re-run this check.

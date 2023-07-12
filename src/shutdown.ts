@@ -1,4 +1,4 @@
-import { reportError } from './error-tracking';
+import { logError } from './error-tracking';
 import { delay } from './util/promise';
 
 type ShutdownHandler = () => Promise<unknown>;
@@ -21,7 +21,7 @@ export async function shutdown(cause: string) {
             try {
                 await handler();
             } catch (e) {
-                reportError(e);
+                logError(e);
             }
         }
     ));
