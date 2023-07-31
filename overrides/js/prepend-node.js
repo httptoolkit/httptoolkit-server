@@ -12,6 +12,14 @@
 
 const wrapModule = require('./wrap-require');
 
+// These should always both be set identically by HTTP Toolkit, so this should be a no-op.
+// Unfortunately, on Windows env vars are case insensitive, and the logic to handle this
+// in worker threads this has a bug in some versions, so this is required. More details in
+// https://github.com/httptoolkit/httptoolkit-server/issues/91.
+if (process.env.http_proxy && !process.env.HTTP_PROXY) {
+    process.env.HTTP_PROXY = process.env.http_proxy;
+}
+
 wrapModule('axios', function wrapAxios (loadedModule) {
     // Global agent handles this automatically, if used (i.e. Node >= 10)
     if (global.GLOBAL_AGENT) return;
