@@ -19,13 +19,13 @@ import updateCommand from '@oclif/plugin-update/lib/commands/update';
 import { HttpToolkitServerApi } from './api/api-server';
 import { checkBrowserConfig } from './browsers';
 import { logError } from './error-tracking';
-import { MOCKTTP_ALLOWED_ORIGINS } from './constants';
+import { IS_PROD_BUILD, MOCKTTP_ALLOWED_ORIGINS } from './constants';
 
 import { delay } from './util/promise';
 import { isErrorLike } from './util/error';
 import { readFile, checkAccess, writeFile, ensureDirectoryExists } from './util/fs';
 
-import { registerShutdownHandler } from './shutdown';
+import { registerShutdownHandler, shutdown } from './shutdown';
 import { getTimeToCertExpiry, parseCert } from './certificates';
 
 import {
@@ -77,6 +77,8 @@ function checkCertExpiry(certContents: string): void {
     }
 }
 
+let shutdownTimer: NodeJS.Timeout | undefined;
+
 function manageBackgroundServices(
     standalone: PluggableAdmin.AdminServer<{
         http: MockttpAdminPlugin,
@@ -84,7 +86,15 @@ function manageBackgroundServices(
     }>,
     httpsConfig: { certPath: string, certContent: string }
 ) {
+    let activeSessions = 0;
+
     standalone.on('mock-session-started', async ({ http, webrtc }, sessionId) => {
+        activeSessions += 1;
+        if (shutdownTimer) {
+            clearTimeout(shutdownTimer);
+            shutdownTimer = undefined;
+        }
+
         const httpProxyPort = http.getMockServer().port;
 
         console.log(`Mock session started, http on port ${
@@ -105,6 +115,7 @@ function manageBackgroundServices(
     });
 
     standalone.on('mock-session-stopping', ({ http }) => {
+        activeSessions -= 1;
         const httpProxyPort = http.getMockServer().port;
 
         stopDockerInterceptionServices(httpProxyPort, ruleParameters)
@@ -113,6 +124,23 @@ function manageBackgroundServices(
         });
 
         clearWebExtensionConfig(httpProxyPort);
+
+        // In some odd cases, the server can end up running even though all UIs & desktop have exited
+        // completely. This can be problematic, as it leaves the server holding ports that HTTP Toolkit
+        // needs, and blocks future startups. To avoid this, if no Mock sessions are running at all
+        // for 10 minutes, the server shuts down automatically. Skipped for dev, where that might be OK.
+        // This should catch even hard desktop shell crashes, as sessions shut down automatically if the
+        // client websocket becomes non-responsive.
+        if (activeSessions <= 0 && IS_PROD_BUILD) {
+            if (shutdownTimer) {
+                clearTimeout(shutdownTimer);
+                shutdownTimer = undefined;
+            }
+
+            shutdownTimer = setTimeout(() => {
+                if (activeSessions === 0) shutdown('10 minutes inactive');
+            }, 1000 * 60 * 10).unref();
+        }
     });
 }
 
