@@ -122,7 +122,7 @@ export class HttpToolkitServerApi extends events.EventEmitter {
             httpClient,
             {
                 onTriggerUpdate: () => this.emit('update-requested'),
-                onTriggerShutdown: () => shutdown('API call')
+                onTriggerShutdown: () => shutdown(0, 'API call')
             }
         )
 

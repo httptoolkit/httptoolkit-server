@@ -138,7 +138,9 @@ function manageBackgroundServices(
             }
 
             shutdownTimer = setTimeout(() => {
-                if (activeSessions === 0) shutdown('10 minutes inactive');
+                if (activeSessions === 0) {
+                    shutdown(99, '10 minutes inactive');
+                }
             }, 1000 * 60 * 10).unref();
         }
     });
