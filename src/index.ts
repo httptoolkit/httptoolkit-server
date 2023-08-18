@@ -137,11 +137,17 @@ function manageBackgroundServices(
                 shutdownTimer = undefined;
             }
 
+            // We do a two-step timer here: 1 minute then a logged warning, then 9 more minutes
+            // until an automatic server shutdown:
             shutdownTimer = setTimeout(() => {
-                if (activeSessions === 0) {
+                if (activeSessions !== 0) return;
+                console.log('Server is inactive, preparing for auto-shutdown...');
+
+                shutdownTimer = setTimeout(() => {
+                    if (activeSessions !== 0) return;
                     shutdown(99, '10 minutes inactive');
-                }
-            }, 1000 * 60 * 10).unref();
+                }, 1000 * 60 * 9).unref();
+            }, 1000 * 60 * 1).unref();
         }
     });
 }
