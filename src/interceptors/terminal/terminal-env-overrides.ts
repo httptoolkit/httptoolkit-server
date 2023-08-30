@@ -78,10 +78,16 @@ export function getTerminalEnvVars(
     const binPath = joinPath(overridePath, BIN_OVERRIDE_DIR);
 
     return {
-        'http_proxy': proxyUrl,
+        // The main env vars, which in theory should be used by most well-behaved clients:
         'HTTP_PROXY': proxyUrl,
-        'https_proxy': proxyUrl,
         'HTTPS_PROXY': proxyUrl,
+        // The same in lowercase, to fully cover even oddly behaved cases:
+        'http_proxy': proxyUrl,
+        'https_proxy': proxyUrl,
+        // The same for WebSockets, as some clients treat these differently:
+        'WS_PROXY': proxyUrl,
+        'WSS_PROXY': proxyUrl,
+
         // Used by global-agent to configure node.js HTTP(S) defaults
         'GLOBAL_AGENT_HTTP_PROXY': proxyUrl,
         // Used by some CGI engines to avoid 'httpoxy' vulnerability
