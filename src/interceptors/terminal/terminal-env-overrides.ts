@@ -96,15 +96,13 @@ export function getTerminalEnvVars(
         'SSL_CERT_FILE': httpsConfig.certPath,
         // Trust cert when using Node 7.3.0+
         'NODE_EXTRA_CA_CERTS': httpsConfig.certPath,
-        // Trust cert when using Requests (Python)
-        'REQUESTS_CA_BUNDLE': httpsConfig.certPath,
         // Trust cert when using Perl LWP
         'PERL_LWP_SSL_CA_FILE': httpsConfig.certPath,
         // Trust cert for HTTPS requests from Git
         'GIT_SSL_CAINFO': httpsConfig.certPath,
         // Trust cert in Rust's Cargo:
         'CARGO_HTTP_CAINFO': httpsConfig.certPath,
-        // Trust cert in CURL (only required when not using OpenSSL):
+        // Trust cert in CURL (only required when not using OpenSSL) and Python Requests:
         'CURL_CA_BUNDLE': httpsConfig.certPath,
 
         // Flag used by subprocesses to check they're running in an intercepted env
