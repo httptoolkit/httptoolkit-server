@@ -131,7 +131,8 @@ function manageBackgroundServices(
         // for 10 minutes, the server shuts down automatically. Skipped for dev, where that might be OK.
         // This should catch even hard desktop shell crashes, as sessions shut down automatically if the
         // client websocket becomes non-responsive.
-        if (activeSessions <= 0 && IS_PROD_BUILD) {
+        // We skip this on Mac, where apps don't generally close when the last window closes.
+        if (activeSessions <= 0 && IS_PROD_BUILD && process.platform !== 'darwin') {
             if (shutdownTimer) {
                 clearTimeout(shutdownTimer);
                 shutdownTimer = undefined;
