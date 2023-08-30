@@ -63,7 +63,6 @@ module.exports = {
         'registry-js', // Native module
         'win-version-info', // Native module
         'node-datachannel', // Native module
-        'vm2', // Does odd things with require, can't be webpack'd
         '_stream_wrap', // Used in httpolyglot only in old Node, where it's available
         function (context, request, callback) {
             if (context !== __dirname && request.endsWith('/error-tracking')) {
