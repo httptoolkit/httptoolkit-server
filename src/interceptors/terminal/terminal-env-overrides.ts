@@ -104,6 +104,8 @@ export function getTerminalEnvVars(
         'CARGO_HTTP_CAINFO': httpsConfig.certPath,
         // Trust cert in CURL (only required when not using OpenSSL) and Python Requests:
         'CURL_CA_BUNDLE': httpsConfig.certPath,
+        // Trust our CA in the AWS CLI:
+        'AWS_CA_BUNDLE': httpsConfig.certPath,
 
         // Flag used by subprocesses to check they're running in an intercepted env
         'HTTP_TOOLKIT_ACTIVE': 'true',
