@@ -81,6 +81,13 @@ export const getAvailableBrowsers = async (configPath: string) => {
     return (await getLauncher(configPath)).browsers;
 };
 
+export const getBrowserDetails = async (configPath: string, variant: string): Promise<Browser | undefined> => {
+    const browsers = await getAvailableBrowsers(configPath);
+
+    // Get the details for the first matching browsers that is installed:
+    return browsers.find(b => b.name === variant);
+};
+
 export { LaunchOptions };
 
 export const launchBrowser = async (url: string, options: LaunchOptions, configPath: string) => {

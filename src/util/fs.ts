@@ -56,8 +56,11 @@ export const deleteFolder = promisify(rimraf);
 export const ensureDirectoryExists = (path: string) =>
     checkAccess(path).catch(() => mkDir(path, { recursive: true }));
 
+export const resolveCommandPath = (path: string): Promise<string | undefined> =>
+    lookpath(path);
+
 export const commandExists = (path: string): Promise<boolean> =>
-    lookpath(path).then((result) => result !== undefined);
+    resolveCommandPath(path).then((result) => result !== undefined);
 
 export const createTmp = (options: tmp.Options = {}) => new Promise<{
     path: string,

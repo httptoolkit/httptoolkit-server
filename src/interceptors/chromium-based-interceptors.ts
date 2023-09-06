@@ -4,10 +4,9 @@ import { generateSPKIFingerprint } from 'mockttp';
 import { HtkConfig } from '../config';
 
 import {
-    getAvailableBrowsers,
+    getBrowserDetails,
     launchBrowser,
     BrowserInstance,
-    Browser,
     LaunchOptions
 } from '../browsers';
 import { delay } from '../util/promise';
@@ -17,13 +16,6 @@ import { HideWarningServer } from '../hide-warning-server';
 import { Interceptor } from '.';
 import { logError } from '../error-tracking';
 import { WEBEXTENSION_INSTALL } from '../webextension';
-
-const getBrowserDetails = async (config: HtkConfig, variant: string): Promise<Browser | undefined> => {
-    const browsers = await getAvailableBrowsers(config.configPath);
-
-    // Get the details for the first of these browsers that is installed.
-    return _.find(browsers, b => b.name === variant);
-};
 
 const getChromiumLaunchOptions = async (
     browser: string,
@@ -91,7 +83,7 @@ abstract class FreshChromiumBasedInterceptor implements Interceptor {
     }
 
     async isActivable() {
-        const browserDetails = await getBrowserDetails(this.config, this.variantName)
+        const browserDetails = await getBrowserDetails(this.config.configPath, this.variantName)
         return !!browserDetails;
     }
 
@@ -101,7 +93,7 @@ abstract class FreshChromiumBasedInterceptor implements Interceptor {
         const hideWarningServer = new HideWarningServer(this.config);
         await hideWarningServer.start('https://amiusing.httptoolkit.tech');
 
-        const browserDetails = await getBrowserDetails(this.config, this.variantName);
+        const browserDetails = await getBrowserDetails(this.config.configPath, this.variantName);
 
         const browser = await launchBrowser(hideWarningServer.hideWarningUrl,
             await getChromiumLaunchOptions(
@@ -186,7 +178,7 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
     ) { }
 
     async browserDetails() {
-        return getBrowserDetails(this.config, this.variantName);
+        return getBrowserDetails(this.config.configPath, this.variantName);
     }
 
     isActive(proxyPort: number | string) {
@@ -273,7 +265,7 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
             }
         }
 
-        const browserDetails = await getBrowserDetails(this.config, this.variantName);
+        const browserDetails = await getBrowserDetails(this.config.configPath, this.variantName);
         const launchOptions = await getChromiumLaunchOptions(
             browserDetails ? browserDetails.name : this.variantName,
             this.config,
