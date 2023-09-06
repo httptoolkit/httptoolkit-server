@@ -4,7 +4,7 @@ import * as util from 'util';
 import * as os from 'os';
 import * as path from 'path';
 
-import { canAccess, writeFile, renameFile, readFile, getRealPath } from '../../util/fs';
+import { canAccess, writeFile, moveFile, readFile, getRealPath } from '../../util/fs';
 import { logError } from '../../error-tracking';
 import { OVERRIDE_BIN_PATH } from './terminal-env-overrides';
 
@@ -228,7 +228,7 @@ const removeConfigSectionsFromFile = async (path: string) => {
     // as much as we reasonably can.
     const tempFile = targetPath + Date.now() + '.temp';
     await writeFile(tempFile, fileLines.join('\n'));
-    return renameFile(tempFile, targetPath);
+    return moveFile(tempFile, targetPath);
 };
 
 // Cleanup: strip our extra config line from all config files
