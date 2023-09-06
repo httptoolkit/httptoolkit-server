@@ -243,7 +243,7 @@ export class FreshFirefox implements Interceptor {
         if (!browserDetails) throw new Error('Firefox could not be detected');
 
         const profilePath = await isSnap(browserDetails.command)
-            ? path.join(getSnapConfigPath('firefox'), 'profile')
+            ? path.join(await getSnapConfigPath('firefox'), 'profile')
             : path.join(this.config.configPath, 'firefox-profile');
 
         const firefoxPrefsFile = path.join(profilePath, 'prefs.js');

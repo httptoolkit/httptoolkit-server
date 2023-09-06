@@ -1,7 +1,13 @@
 import _ from 'lodash';
+import * as path from 'path';
 import { generateSPKIFingerprint } from 'mockttp';
 
 import { HtkConfig } from '../config';
+
+import { delay } from '../util/promise';
+import { readFile, deleteFolder } from '../util/fs';
+import { listRunningProcesses, windowsClose, waitForExit } from '../util/process-management';
+import { getSnapConfigPath, isSnap } from '../util/snap';
 
 import {
     getBrowserDetails,
@@ -9,9 +15,6 @@ import {
     BrowserInstance,
     LaunchOptions
 } from '../browsers';
-import { delay } from '../util/promise';
-import { readFile, deleteFolder } from '../util/fs';
-import { listRunningProcesses, windowsClose, waitForExit } from '../util/process-management';
 import { HideWarningServer } from '../hide-warning-server';
 import { Interceptor } from '.';
 import { logError } from '../error-tracking';
@@ -20,6 +23,7 @@ import { WEBEXTENSION_INSTALL } from '../webextension';
 const getChromiumLaunchOptions = async (
     browser: string,
     config: HtkConfig,
+    profilePath: string | null | undefined,
     proxyPort: number,
     hideWarningServer: HideWarningServer,
     webExtensionEnabled: boolean
@@ -28,6 +32,7 @@ const getChromiumLaunchOptions = async (
     const spkiFingerprint = generateSPKIFingerprint(certificatePem);
 
     return {
+        profile: profilePath,
         browser,
         proxy: `https://127.0.0.1:${proxyPort}`,
         noProxy: [
@@ -95,10 +100,15 @@ abstract class FreshChromiumBasedInterceptor implements Interceptor {
 
         const browserDetails = await getBrowserDetails(this.config.configPath, this.variantName);
 
+        const profilePath = browserDetails && await isSnap(browserDetails.command)
+            ? path.join(await getSnapConfigPath(this.variantName), 'profile')
+            : undefined;
+
         const browser = await launchBrowser(hideWarningServer.hideWarningUrl,
             await getChromiumLaunchOptions(
                 browserDetails ? browserDetails.name : this.variantName,
                 this.config,
+                profilePath,
                 proxyPort,
                 hideWarningServer,
                 !!options.webExtensionEnabled
@@ -121,7 +131,7 @@ abstract class FreshChromiumBasedInterceptor implements Interceptor {
             if (process.platform === 'win32' && this.variantName === 'opera') return;
             await delay(1000); // No hurry, make sure the browser & related processes have all cleaned up
 
-            if (Object.keys(this.activeBrowsers).length === 0 && browserDetails && _.isString(browserDetails.profile)) {
+            if (Object.keys(this.activeBrowsers).length === 0 && typeof browserDetails?.profile === 'string') {
                 // If we were the last browser, and we have a profile path, and it's in our config
                 // (just in case something's gone wrong) -> delete the profile to reset everything.
 
@@ -269,6 +279,7 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
         const launchOptions = await getChromiumLaunchOptions(
             browserDetails ? browserDetails.name : this.variantName,
             this.config,
+            null, // Null profile path ensures we use the system default profile
             proxyPort,
             hideWarningServer,
             !!options.webExtensionEnabled
@@ -290,8 +301,7 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
 
         const browser = await launchBrowser("", {
             ...launchOptions,
-            skipDefaults: true,
-            profile: null // Enforce that we use the default profile
+            skipDefaults: true
         }, this.config.configPath);
 
         if (browser.process.stdout) browser.process.stdout.pipe(process.stdout);
