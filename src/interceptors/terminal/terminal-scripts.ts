@@ -1,10 +1,9 @@
 import _ from 'lodash';
-import * as fs from 'fs';
 import * as util from 'util';
 import * as os from 'os';
 import * as path from 'path';
 
-import { canAccess, writeFile, moveFile, readFile, getRealPath } from '../../util/fs';
+import * as fs from '../../util/fs';
 import { logError } from '../../error-tracking';
 import { OVERRIDE_BIN_PATH } from './terminal-env-overrides';
 
@@ -15,16 +14,15 @@ const POSIX_OVERRIDE_BIN_PATH = process.platform === 'win32'
 
 const SHELL = (process.env.SHELL || '').split('/').slice(-1)[0];
 
-const appendOrCreateFile = util.promisify(fs.appendFile);
 const appendToFirstExisting = async (paths: string[], forceWrite: boolean, contents: string) => {
     for (let path of paths) {
         // Follow the path through symlinks (relatively common for terminal config):
-        const realPath = await getRealPath(path);
+        const realPath = await fs.getRealPath(path);
         if (!realPath) continue; // File (or linked file) does not exist
 
-        if (await canAccess(realPath)) {
+        if (await fs.canAccess(realPath)) {
             // Found our first valid readable file - append our extra config
-            return appendOrCreateFile(realPath, contents);
+            return fs.appendOrCreateFile(realPath, contents);
         }
 
         // ^ Small races here, if the file content/perms change between check and write, but
@@ -33,7 +31,7 @@ const appendToFirstExisting = async (paths: string[], forceWrite: boolean, conte
 
     if (forceWrite) {
         // If force write is set, write the last file anyway, even though it didn't exist before:
-        return appendOrCreateFile(paths.slice(-1)[0], contents);
+        return fs.appendOrCreateFile(paths.slice(-1)[0], contents);
     }
 };
 
@@ -196,7 +194,7 @@ export const editShellStartupScripts = async () => {
         [
             path.join(os.homedir(), '.config', 'fish', 'config.fish'),
         ],
-        SHELL === 'fish' || await canAccess(path.join(os.homedir(), '.config', 'fish')),
+        SHELL === 'fish' || await fs.canAccess(path.join(os.homedir(), '.config', 'fish')),
         FISH_SHELL_PATH_CONFIG
     ).catch(logError);
 };
@@ -204,11 +202,11 @@ export const editShellStartupScripts = async () => {
 const removeConfigSectionsFromFile = async (path: string) => {
     let fileLines: string[];
 
-    const targetPath = await getRealPath(path); // Follow symlinks, if present
+    const targetPath = await fs.getRealPath(path); // Follow symlinks, if present
     if (!targetPath) return; // File doesn't exist, no need to clean it up
 
     try {
-        fileLines = (await readFile(targetPath, 'utf8')).split('\n');
+        fileLines = (await fs.readFile(targetPath, 'utf8')).split('\n');
     } catch (e) {
         // Silently skip any files we can't read
         return;
@@ -227,8 +225,8 @@ const removeConfigSectionsFromFile = async (path: string) => {
     // Write & rename to ensure this is atomic, and avoid races here
     // as much as we reasonably can.
     const tempFile = targetPath + Date.now() + '.temp';
-    await writeFile(tempFile, fileLines.join('\n'));
-    return moveFile(tempFile, targetPath);
+    await fs.writeFile(tempFile, fileLines.join('\n'));
+    return fs.moveFile(tempFile, targetPath);
 };
 
 // Cleanup: strip our extra config line from all config files

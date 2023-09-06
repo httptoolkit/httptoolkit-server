@@ -18,6 +18,10 @@ export const chmod = fs.promises.chmod;
 export const mkDir = fs.promises.mkdir;
 export const writeFile = fs.promises.writeFile;
 export const copyFile = fs.promises.copyFile;
+export const appendOrCreateFile = fs.promises.appendFile;
+
+export const createReadStream = fs.createReadStream;
+export const createWriteStream = fs.createWriteStream;
 
 export const copyRecursive = async (from: string, to: string) => {
     // fs.cp is only available in Node 16.7.0+
