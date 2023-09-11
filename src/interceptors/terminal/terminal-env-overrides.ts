@@ -102,6 +102,8 @@ export function getTerminalEnvVars(
         'SSL_CERT_FILE': httpsConfig.certPath,
         // Trust cert when using Node 7.3.0+
         'NODE_EXTRA_CA_CERTS': httpsConfig.certPath,
+        // Deno:
+        'DENO_CERT': httpsConfig.certPath,
         // Trust cert when using Perl LWP
         'PERL_LWP_SSL_CA_FILE': httpsConfig.certPath,
         // Trust cert for HTTPS requests from Git
