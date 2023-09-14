@@ -25,17 +25,19 @@ export function getTerminalEnvVars(
         | { [key: string]: string | undefined }
         | 'posix-runtime-inherit'
         | 'powershell-runtime-inherit',
-    targetEnvConfig: {
-        httpToolkitHost?: string,
-        overridePath?: string,
-        targetPlatform?: NodeJS.Platform
-    } = {}
+
+    // All 3 of the below must be overriden together, or not at all, to avoid
+    // mixing platforms & default (platform-specific) paths
+    targetEnvConfig?: {
+        httpToolkitHost: string,
+        overridePath: string,
+        targetPlatform: NodeJS.Platform
+    }
 ): { [key: string]: string } {
-    const { overridePath, targetPlatform, httpToolkitHost } = {
+    const { overridePath, targetPlatform, httpToolkitHost } = targetEnvConfig ?? {
         httpToolkitHost: '127.0.0.1',
         overridePath: OVERRIDES_DIR,
-        targetPlatform: process.platform,
-        ...targetEnvConfig
+        targetPlatform: process.platform
     };
 
     const runtimeInherit = currentEnv === 'posix-runtime-inherit'
@@ -63,7 +65,16 @@ export function getTerminalEnvVars(
     const rubyGemsPath = joinPath(overridePath, RUBY_OVERRIDE_DIR);
     const pythonPath = joinPath(overridePath, PYTHON_OVERRIDE_DIR);
     const phpPath = joinPath(overridePath, PHP_OVERRIDE_DIR);
-    const nodePrependScript = joinPath(overridePath, ...NODE_PREPEND_SCRIPT);
+
+    // Node supports POSIX paths everywhere, and using those solves some weird issues
+    // when combining backslashes with quotes in Git Bash on Windows:
+    const nodePrependScript = path.posix.join(
+        ...(targetPlatform === 'win32'
+            ? overridePath.split(path.win32.sep)
+            : [overridePath]
+        ),
+        ...NODE_PREPEND_SCRIPT
+    );
     const nodePrependOption = `--require ${
         // Avoid quoting except when necessary, because node 8 doesn't support quotes here
         nodePrependScript.includes(' ')

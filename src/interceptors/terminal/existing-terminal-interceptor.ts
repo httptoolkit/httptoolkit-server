@@ -83,7 +83,7 @@ export class ExistingTerminalInterceptor implements Interceptor {
 
         const serverState = { server, isActive: false };
 
-        const posixEnvVars = getTerminalEnvVars(proxyPort, this.config.https, 'posix-runtime-inherit', {});
+        const posixEnvVars = getTerminalEnvVars(proxyPort, this.config.https, 'posix-runtime-inherit');
 
         // Endpoints for each of the various setup scripts:
         await server.forGet('/setup').thenReply(200,
@@ -99,7 +99,7 @@ export class ExistingTerminalInterceptor implements Interceptor {
             { "content-type": "application/x-fish" }
         );
 
-        const powerShellEnvVars = getTerminalEnvVars(proxyPort, this.config.https, 'powershell-runtime-inherit', {});
+        const powerShellEnvVars = getTerminalEnvVars(proxyPort, this.config.https, 'powershell-runtime-inherit');
         await server.forGet('/ps-setup').thenReply(200,
             getPowerShellScript(server.urlFor('/success'), powerShellEnvVars),
             { "content-type": "text/plain" }

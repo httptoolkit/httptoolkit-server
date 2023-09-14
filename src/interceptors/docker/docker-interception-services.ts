@@ -107,7 +107,8 @@ export async function startDockerInterceptionServices(
         // container connecting to a network):
         prepareDockerTunnel(),
         // Create a Docker volume, containing our cert and the override files:
-        ensureDockerInjectionVolumeExists(httpsConfig.certContent)]);
+        ensureDockerInjectionVolumeExists(httpsConfig.certContent)
+    ]);
 }
 
 export async function ensureDockerServicesRunning(proxyPort: number) {
