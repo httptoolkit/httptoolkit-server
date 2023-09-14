@@ -236,12 +236,12 @@ export async function runHTK(options: {
                 if (isErrorLike(error)) {
                     // Did we receive a successful update, that wants to restart the server:
                     if (error.code === 'EEXIT') {
-                        // Block future update checks for one hour.
+                        // Block future update checks for 6 hours.
 
                         // If we don't, we'll redownload the same update again every check.
                         // We don't want to block it completely though, in case this server
                         // stays open for a very long time.
-                        return delay(1000 * 60 * 60);
+                        return delay(1000 * 60 * 60 * 6);
                     }
 
                     // Report any HTTP response errors cleanly & explicitly:
