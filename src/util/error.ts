@@ -4,6 +4,7 @@ export type ErrorLike = Partial<Error> & {
     cmd?: string;
     signal?: string;
     status?: number;
+    statusCode?: number;
 };
 
 // Useful to easily cast and then examine errors that are otherwise 'unknown':

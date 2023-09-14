@@ -233,18 +233,36 @@ export async function runHTK(options: {
         updateMutex.runExclusive(() =>
             (<Promise<void>> updateCommand.run(['stable']))
             .catch((error) => {
-                // Received successful update that wants to restart the server
-                if (isErrorLike(error) && error.code === 'EEXIT') {
-                    // Block future update checks for one hour.
+                if (isErrorLike(error)) {
+                    // Did we receive a successful update, that wants to restart the server:
+                    if (error.code === 'EEXIT') {
+                        // Block future update checks for one hour.
 
-                    // If we don't, we'll redownload the same update again every check.
-                    // We don't want to block it completely though, in case this server
-                    // stays open for a very long time.
-                    return delay(1000 * 60 * 60);
+                        // If we don't, we'll redownload the same update again every check.
+                        // We don't want to block it completely though, in case this server
+                        // stays open for a very long time.
+                        return delay(1000 * 60 * 60);
+                    }
+
+                    // Report any HTTP response errors cleanly & explicitly:
+                    if (error.statusCode) {
+                        let url: string | undefined;
+                        if ('http' in error) {
+                            const request = (error as any).http?.request;
+                            url = `${request?.protocol}//${request?.host}${request?.path}`
+                        }
+
+                        logError(`Failed to check for updates due to ${error.statusCode} response ${
+                            url
+                                ? `from ${url}`
+                                : 'from unknown URL'
+                        }`);
+                        return;
+                    }
                 }
 
-                console.log(error);
-                logError('Failed to check for updates');
+                console.log(error.message);
+                logError(`Failed to check for updates: ${error.message}`);
             })
         );
     });
