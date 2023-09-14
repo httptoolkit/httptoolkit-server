@@ -352,7 +352,10 @@ export async function injectSystemCertificate(
 
     // Actually run the script that we just pushed above, as root
     const scriptOutput = await run(adbClient, runAsRoot('sh', injectionScriptPath));
-    console.log(scriptOutput);
+
+    if (!scriptOutput.includes("System cert successfully injected")) {
+        throw new Error('System certificate injection failed');
+    }
 }
 
 export async function setChromeFlags(

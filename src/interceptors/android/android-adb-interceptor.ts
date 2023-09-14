@@ -210,8 +210,9 @@ export class AndroidAdbInterceptor implements Interceptor {
                     0o444
                 );
 
-                await injectSystemCertificate(deviceClient, rootCmd, certPath);
-                console.log(`Cert injected`);
+                await injectSystemCertificate(deviceClient, rootCmd, certPath)
+                    .then(() => console.log('Cert injected'))
+                    .catch((e) => logError(e)); // Continue but log the failure
             } else {
                 console.log("Cert already installed, nothing to do");
             }
