@@ -241,7 +241,7 @@ export async function runHTK(options: {
                         // If we don't, we'll redownload the same update again every check.
                         // We don't want to block it completely though, in case this server
                         // stays open for a very long time.
-                        return delay(1000 * 60 * 60 * 6);
+                        return delay(1000 * 60 * 60 * 6, { unref: true });
                     }
 
                     // Report any HTTP response errors cleanly & explicitly:

@@ -1,5 +1,8 @@
-export function delay(durationMs: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, durationMs));
+export function delay(durationMs: number, options: { unref?: boolean } = {}): Promise<void> {
+    return new Promise((resolve) => {
+        const timer = setTimeout(resolve, durationMs);
+        if (options.unref) timer.unref();
+    });
 }
 
 export async function waitUntil<T extends unknown>(
