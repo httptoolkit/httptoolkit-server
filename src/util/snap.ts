@@ -19,7 +19,9 @@ export async function isSnap(bin: string) {
     // & firefox use these. Check the end and see if we recognize it:
 
     const fileSize = await fs.statFile(binPath);
-    const stream = fs.createReadStream(binPath, { start: fileSize.size - 100 });
+    const stream = fs.createReadStream(binPath, {
+        start: Math.max(fileSize.size - 100, 0)
+    });
     const lastChunkOfFile = (await streamToBuffer(stream)).toString('utf8');
 
     return lastChunkOfFile.includes('exec /snap/bin/');
