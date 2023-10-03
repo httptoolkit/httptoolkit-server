@@ -315,6 +315,7 @@ export async function injectSystemCertificate(
                     if [ -n "$Z_PID" ]; then
                         nsenter --mount=/proc/$(echo $Z_PID)/ns/mnt -- \
                             /bin/mount --bind /system/etc/security/cacerts /apex/com.android.conscrypt/cacerts
+                    fi
                 done
 
                 echo 'Zygote APEX certificates remounted'
