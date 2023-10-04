@@ -311,9 +311,8 @@ export async function injectSystemCertificate(
                 # Apps inherit the Zygote's mounts at startup, so we inject here to ensure all newly
                 # started apps will see these certs straight away:
                 for Z_PID in "$ZYGOTE_PID" "$ZYGOTE64_PID"; do
-                    # We use 'echo' below to trim spaces
                     if [ -n "$Z_PID" ]; then
-                        nsenter --mount=/proc/$(echo $Z_PID)/ns/mnt -- \
+                        nsenter --mount=/proc/$Z_PID/ns/mnt -- \
                             /bin/mount --bind /system/etc/security/cacerts /apex/com.android.conscrypt/cacerts
                     fi
                 done
