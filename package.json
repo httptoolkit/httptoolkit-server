@@ -191,7 +191,7 @@
         }
       },
       "node": {
-        "version": "16.20.1",
+        "version": "20.8.0",
         "targets": [
           "win32-x64",
           "linux-x64",
