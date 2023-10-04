@@ -3,7 +3,7 @@ import type { Application as ExpressApp } from 'express';
 
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import { GraphQLScalarType } from 'graphql';
-import { graphqlHTTP } from 'express-graphql';
+import { createHandler as createGraphQLHandler } from 'graphql-http/lib/use/express';
 import gql from 'graphql-tag';
 import { ApiModel } from './api-model';
 
@@ -170,8 +170,5 @@ export function exposeGraphQLAPI(
         resolvers: buildResolvers(apiModel)
     });
 
-    server.post('/', graphqlHTTP({
-        schema,
-        graphiql: false
-    }));
+    server.post('/', createGraphQLHandler({ schema }));
 }
