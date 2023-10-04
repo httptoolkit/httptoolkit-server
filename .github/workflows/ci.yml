@@ -138,7 +138,7 @@ jobs:
       - test-distributables
     steps:
       - name: Get our distributables
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: distributables
           path: distributables
