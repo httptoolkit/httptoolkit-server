@@ -170,5 +170,8 @@ export function exposeGraphQLAPI(
         resolvers: buildResolvers(apiModel)
     });
 
-    server.post('/', createGraphQLHandler({ schema }));
+    server.post('/', createGraphQLHandler({
+        schema,
+        context: () => ({}) // Fresh empty context for every request
+    }));
 }
