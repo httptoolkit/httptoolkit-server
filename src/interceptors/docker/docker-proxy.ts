@@ -6,7 +6,6 @@ import * as net from 'net';
 import * as http from 'http';
 import Dockerode from 'dockerode';
 import getRawBody from 'raw-body';
-import { AbortController } from 'node-abort-controller';
 import { makeDestroyable, DestroyableServer } from 'destroyable-server';
 
 import { chmod, deleteFile, readDir } from '../../util/fs';
