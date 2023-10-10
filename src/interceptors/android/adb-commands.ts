@@ -306,11 +306,12 @@ export async function injectSystemCertificate(
                 # First we get the Zygote process(es), which launch each app
                 ZYGOTE_PID=$(pidof zygote || true)
                 ZYGOTE64_PID=$(pidof zygote64 || true)
-                # N.b. some devices appear to have both!
+                Z_PIDS="$ZYGOTE_PID $ZYGOTE64_PID"
+                # N.b. some devices appear to have both, some have >1 of each (!)
 
                 # Apps inherit the Zygote's mounts at startup, so we inject here to ensure all newly
                 # started apps will see these certs straight away:
-                for Z_PID in "$ZYGOTE_PID" "$ZYGOTE64_PID"; do
+                for Z_PID in $Z_PIDS; do
                     if [ -n "$Z_PID" ]; then
                         nsenter --mount=/proc/$Z_PID/ns/mnt -- \
                             /bin/mount --bind /system/etc/security/cacerts /apex/com.android.conscrypt/cacerts
@@ -323,7 +324,7 @@ export async function injectSystemCertificate(
 
                 # Get the PID of every process whose parent is one of the Zygotes:
                 APP_PIDS=$(
-                    echo "$ZYGOTE_PID $ZYGOTE64_PID" | \
+                    echo $Z_PIDS | \
                     xargs -n1 ps -o 'PID' -P | \
                     grep -v PID
                 )
