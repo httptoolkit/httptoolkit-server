@@ -11,7 +11,7 @@ echo "\nStarting server..."
 ./httptoolkit-server/bin/httptoolkit-server start &
 SERVER_PID=$!
 
-sleep 5
+sleep 10
 
 echo "\nTesting server..."
 
