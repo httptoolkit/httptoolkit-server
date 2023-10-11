@@ -54,7 +54,9 @@ const getChromiumLaunchOptions = async (
             '--disable-features=ChromeWhatsNewUI',
             // Avoid annoying extra network noise:
             '--disable-background-networking',
-            '--disable-component-update',
+            // Disable component update (without disabling components themselves, e.g. widevine)
+            // See https://bugs.chromium.org/p/chromium/issues/detail?id=331932
+            '--component-updater=url-source=http://disabled-chromium-update.localhost:0',
             '--check-for-update-interval=31536000', // Don't update for a year
             ...(webExtensionEnabled && WEBEXTENSION_INSTALL
                 // Install HTTP Toolkit's extension, for advanced hook setup. Feature
