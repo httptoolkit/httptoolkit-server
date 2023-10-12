@@ -55,6 +55,7 @@ class DnsServer extends dns2.UDPServer {
         // Multiple questions are allowed in theory, but apparently nobody
         // supports it, so we don't either.
         const [question] = request.questions;
+        if (!question) return sendResponse(response); // Send an empty response
 
         const answers = this.getHostAddresses(question.name);
 
