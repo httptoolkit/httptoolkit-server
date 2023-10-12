@@ -8,7 +8,8 @@ const envToken = process.env.HTK_SERVER_TOKEN;
 delete process.env.HTK_SERVER_TOKEN; // Don't let anything else see this
 
 import * as path from 'path';
-import { promises as fs } from 'fs'
+import { promises as fs } from 'fs';
+import * as net from 'net';
 import * as semver from 'semver';
 
 import { IS_PROD_BUILD } from '../constants';
@@ -43,8 +44,10 @@ class HttpToolkitServer extends Command {
     async run() {
         const { flags } = this.parse(HttpToolkitServer);
 
+        if (net.setDefaultAutoSelectFamily) { // Backward compat for Node <v20
+            net.setDefaultAutoSelectFamily(false); // Disable this for now - new in Node v20 and seems unstable
+        }
         this.setProcessTitle();
-
         this.cleanupOldServers(); // Async cleanup old server versions
 
         await runHTK({
