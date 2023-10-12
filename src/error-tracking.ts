@@ -1,4 +1,5 @@
 import * as path from 'path';
+import { randomUUID } from 'crypto';
 import * as child_process from 'child_process';
 import * as Sentry from '@sentry/node';
 import { RewriteFrames } from '@sentry/integrations';
@@ -84,6 +85,14 @@ export function initErrorTracking() {
 
         Sentry.configureScope((scope) => {
             scope.setTag('platform', process.platform);
+        });
+
+        Sentry.configureScope((scope) => {
+            // We use a random id to distinguish between many errors in one session vs
+            // one error in many sessions. This isn't persisted and can't be used to
+            // identify anybody between sessions.
+            const randomId = randomUUID();
+            scope.setUser({ id: randomId, username: `anon-${randomId}` });
         });
 
         // Include breadcrumbs for subprocess spawning, to trace interceptor startup details:
