@@ -16,3 +16,21 @@ export const waitForDockerStream = (
         resolve();
     });
 });
+
+export const getDockerAddress = async (docker: Docker): Promise<
+    | { socketPath: string }
+    | { host: string, port: number }
+> => {
+    // Hacky logic to reuse docker-modem's internal env + OS parsing logic to
+    // work out where the local Docker host is:
+    const modem = docker.modem as any as ({
+        getSocketPath(): undefined | Promise<string>;
+        host: string;
+        port: number;
+    });
+
+    const modemSocketPath = await modem.getSocketPath();
+    return modemSocketPath
+        ? { socketPath: modemSocketPath }
+        : { host: modem.host, port: modem.port };
+}
