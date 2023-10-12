@@ -78,9 +78,15 @@ async function createDockerProxy(
 
     // Hacky logic to reuse docker-modem's internal env + OS parsing logic to
     // work out where the local Docker host is:
-    const modem = docker.modem as any as ({ socketPath: string } | { host: string, port: number });
-    const dockerHostOptions = 'socketPath' in modem
-        ? { socketPath: modem.socketPath }
+    const modem = docker.modem as any as ({
+        getSocketPath(): undefined | Promise<string>;
+        host: string;
+        port: number;
+    });
+
+    const modemSocketPath = await modem.getSocketPath();
+    const dockerHostOptions = modemSocketPath
+        ? { socketPath: modemSocketPath }
         : { host: modem.host, port: modem.port };
 
     const agent = new http.Agent({ keepAlive: true });
