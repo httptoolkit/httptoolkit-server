@@ -11,7 +11,7 @@ import type * as Mockttp from 'mockttp';
 import {
     getDnsLookupFunction,
     shouldUseStrictHttps,
-    UPSTREAM_TLS_OPTIONS as MOCKTTP_UPSTREAM_TLS_OPTIONS
+    getUpstreamTlsOptions as getUpstreamMockttpTlsOptions
 } from 'mockttp/dist/rules/passthrough-handling';
 import { getAgent } from 'mockttp/dist/rules/http-agents';
 import { getEffectivePort } from 'mockttp/dist/util/request-utils';
@@ -104,11 +104,7 @@ export class HttpClient {
             lookup: this.getDns(options.lookupOptions?.servers),
 
             // TLS options (should be effectively identical to Mockttp's passthrough config)
-            ...MOCKTTP_UPSTREAM_TLS_OPTIONS,
-            minVersion: strictHttpsChecks
-                ? tls.DEFAULT_MIN_VERSION
-                : 'TLSv1', // Allow TLSv1, if !strict
-            rejectUnauthorized: strictHttpsChecks,
+            ...getUpstreamMockttpTlsOptions(strictHttpsChecks),
             ...caConfig,
             ...options.clientCertificate
         });
