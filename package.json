@@ -62,7 +62,7 @@
     "destroyable-server": "^1.0.0",
     "dns2": "^2.0.1",
     "docker-file-parser": "^1.0.5",
-    "dockerode": "^4.0.0",
+    "dockerode": "^4.0.2",
     "env-paths": "^1.0.0",
     "event-stream": "^4.0.1",
     "express": "^4.17.3",
