@@ -91,6 +91,7 @@ const getLinuxTerminalCommand = async (): Promise<SpawnArgs | null> => {
     // If a specific term like this is installed, it's probably the preferred one
     if (await commandExists('konsole')) return getKonsoleTerminalCommand();
     if (await commandExists('xfce4-terminal')) return getXfceTerminalCommand();
+    if (await commandExists('kgx')) return { command: 'kgx' };
     if (await commandExists('kitty')) return { command: 'kitty' };
     if (await commandExists('urxvt')) return { command: 'urxvt' };
     if (await commandExists('rxvt')) return { command: 'rxvt' };
