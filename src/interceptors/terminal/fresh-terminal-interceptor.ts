@@ -21,6 +21,9 @@ interface SpawnArgs {
     args?: string[];
     options?: SpawnOptions;
     skipStartupScripts?: true;
+    envVars: {
+        [key: string]: string;
+    };
 }
 
 const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
@@ -80,6 +83,7 @@ const getLinuxTerminalCommand = async (): Promise<SpawnArgs | null> => {
         const defaultTerminal = gSettingsTerminalKey && gSettingsTerminalKey.getValue();
         if (defaultTerminal && await commandExists(defaultTerminal)) {
             if (defaultTerminal.includes('gnome-terminal')) return getGnomeTerminalCommand(defaultTerminal);
+            if (defaultTerminal.includes('kgx')) return getKgxCommand(defaultTerminal);
             if (defaultTerminal.includes('konsole')) return getKonsoleTerminalCommand(defaultTerminal);
             if (defaultTerminal.includes('xfce4-terminal')) return getXfceTerminalCommand(defaultTerminal);
             if (defaultTerminal.includes('x-terminal-emulator')) return getXTerminalCommand(defaultTerminal);
@@ -91,7 +95,7 @@ const getLinuxTerminalCommand = async (): Promise<SpawnArgs | null> => {
     // If a specific term like this is installed, it's probably the preferred one
     if (await commandExists('konsole')) return getKonsoleTerminalCommand();
     if (await commandExists('xfce4-terminal')) return getXfceTerminalCommand();
-    if (await commandExists('kgx')) return { command: 'kgx' };
+    if (await commandExists('kgx')) return getKgxCommand();
     if (await commandExists('kitty')) return { command: 'kitty' };
     if (await commandExists('urxvt')) return { command: 'urxvt' };
     if (await commandExists('rxvt')) return { command: 'rxvt' };
@@ -134,6 +138,10 @@ const getXTerminalCommand = async (command = 'x-terminal-emulator'): Promise<Spa
 
     // If there's an error, or we just don't recognize the console, give up & run it directly
     return { command };
+};
+
+const getKgxCommand = async (command = 'kgx'): Promise<SpawnArgs> => {
+    return { command, envVars: { DBUS_SESSION_BUS_ADDRESS: '' } };
 };
 
 const getKonsoleTerminalCommand = async (command = 'konsole'): Promise<SpawnArgs> => {
@@ -207,7 +215,7 @@ export class FreshTerminalInterceptor implements Interceptor {
         const terminalSpawnArgs = await getTerminalCommand();
         if (!terminalSpawnArgs) throw new Error('Could not find a suitable terminal');
 
-        const { command, args, options, skipStartupScripts } = terminalSpawnArgs;
+        const { command, args, options, skipStartupScripts, envVars } = terminalSpawnArgs;
 
         // Our PATH override below may not work, e.g. because OSX's path_helper always prepends
         // the real paths over the top, and git-bash ignore env var paths overrides. To fix this,
@@ -230,6 +238,7 @@ export class FreshTerminalInterceptor implements Interceptor {
                 env: {
                     ...currentEnv,
                     ...getTerminalEnvVars(proxyPort, this.config.https, currentEnv),
+                    ...envVars,
                 },
                 cwd: currentEnv.HOME || currentEnv.USERPROFILE
             })
