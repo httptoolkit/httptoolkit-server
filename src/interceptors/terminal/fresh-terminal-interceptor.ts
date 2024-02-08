@@ -21,7 +21,7 @@ interface SpawnArgs {
     args?: string[];
     options?: SpawnOptions;
     skipStartupScripts?: true;
-    envVars: {
+    envVars?: {
         [key: string]: string;
     };
 }
