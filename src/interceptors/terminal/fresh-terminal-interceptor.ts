@@ -35,7 +35,10 @@ const getTerminalCommand = _.memoize(async (): Promise<SpawnArgs | null> => {
     else result = Promise.resolve(null);
 
     result.then((terminal) => {
-        if (terminal) addBreadcrumb('Found terminal', { data: { terminal } });
+        if (terminal) {
+            console.log(`Detected terminal command: ${terminal.command}`);
+            addBreadcrumb('Found terminal', { data: { terminal } });
+        }
         else logError('No terminal could be detected');
     });
 
