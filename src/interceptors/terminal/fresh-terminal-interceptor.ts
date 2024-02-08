@@ -8,7 +8,7 @@ import { Interceptor } from '..';
 import { HtkConfig } from '../../config';
 import { logError, addBreadcrumb } from '../../error-tracking';
 import { isErrorLike } from '../../util/error';
-import { canAccess, commandExists } from '../../util/fs';
+import { canAccess, commandExists, getRealPath, resolveCommandPath } from '../../util/fs';
 import { spawnToResult } from '../../util/process-management';
 
 import { getTerminalEnvVars } from './terminal-env-overrides';
@@ -108,38 +108,6 @@ const getLinuxTerminalCommand = async (): Promise<SpawnArgs | null> => {
     return null;
 };
 
-const getXTerminalCommand = async (command = 'x-terminal-emulator'): Promise<SpawnArgs> => {
-    // x-terminal-emulator is a wrapper/symlink to the terminal of choice.
-    // Unfortunately, we need to pass specific args that aren't supported by all terminals (to ensure
-    // terminals run in the foreground), and the Debian XTE wrapper at least doesn't pass through
-    // any of the args we want to use. To fix this, we parse --help to try and detect the underlying
-    // terminal, and run it directly with the args we need.
-    try {
-        // Run the command with -h to get some output we can use to infer the terminal itself.
-        // --version would be nice, but the debian wrapper ignores it. --help isn't supported by xterm.
-        const { stdout } = await spawnToResult(command, ['-h']);
-        const helpOutput = stdout.toLowerCase().replace(/[^\w\d]+/g, ' ');
-
-        if (helpOutput.includes('gnome terminal') && await commandExists('gnome-terminal')) {
-            return getGnomeTerminalCommand();
-        } else if (helpOutput.includes('xfce4 terminal') && await commandExists('xfce4-terminal')) {
-            return getXfceTerminalCommand();
-        } else if (helpOutput.includes('konsole') && await commandExists('konsole')) {
-            return getKonsoleTerminalCommand();
-        }
-    } catch (e) {
-        if (isErrorLike(e) && e.message?.includes('rxvt')) {
-            // Bizarrely, rxvt -h prints help but always returns a non-zero exit code.
-            // Doesn't need any special arguments anyway though, so just ignore it
-        } else {
-            logError(e);
-        }
-    }
-
-    // If there's an error, or we just don't recognize the console, give up & run it directly
-    return { command };
-};
-
 const getKgxCommand = async (command = 'kgx'): Promise<SpawnArgs> => {
     return { command, envVars: { DBUS_SESSION_BUS_ADDRESS: '' } };
 };
@@ -192,6 +160,59 @@ const getXfceTerminalCommand = async (command = 'xfce4-terminal'): Promise<Spawn
     }
 
     return { command, args: extraArgs };
+};
+
+const X_TERMINAL_MATCHERS = [
+    { helpString: 'gnome terminal', command: 'gnome-terminal', commandBuilder: getGnomeTerminalCommand },
+    { helpString: 'xfce4 terminal', command: 'xfce4-terminal', commandBuilder: getXfceTerminalCommand },
+    { helpString: 'konsole', command: 'konsole', commandBuilder: getKonsoleTerminalCommand },
+    { helpString: 'kgx', command: 'kgx', commandBuilder: getKgxCommand }
+] as const;
+
+const getXTerminalCommand = async (command = 'x-terminal-emulator'): Promise<SpawnArgs> => {
+    // x-terminal-emulator is a wrapper/symlink to the terminal of choice.
+    // Unfortunately, we need to pass specific args that aren't supported by all terminals (to ensure
+    // terminals run in the foreground), and the Debian XTE wrapper at least doesn't pass through
+    // any of the args we want to use. To fix this, we parse --help to try and detect the underlying
+    // terminal, and run it directly with the args we need.
+    try {
+        // In parallel, get the command's help output, and its real resolved path on disk:
+        const [helpOutput, commandPath] = await Promise.all([
+            // Run the command with -h to get some output we can use to infer the terminal itself.
+            // --version would be nice, but the debian wrapper ignores it. --help isn't supported by xterm.
+            spawnToResult(command, ['-h'])
+                .then(({ stdout }) => stdout.toLowerCase().replace(/[^\w\d]+/g, ' ')),
+            // We find the command in PATH, and then follow any symbolic links, and see what the real
+            // underlying path is:
+            resolveCommandPath(command)
+                .then((path) => { if (path) return getRealPath(path) })
+        ]);
+
+        for (let terminalPattern of X_TERMINAL_MATCHERS) {
+            // We match the help output or command path for known strings:
+            if (
+                !helpOutput.includes(terminalPattern.helpString) &&
+                !commandPath?.includes(command)
+            ) continue;
+
+            // If found, we use the terminal _if_ it exists globally with our expected command.
+            // We can't use 'command' directly, because some terms (gnome-terminal, Debian generally)
+            // use weird wrappers that don't behave properly.
+            if (await commandExists(terminalPattern.command)) {
+                return terminalPattern.commandBuilder();
+            }
+        }
+    } catch (e) {
+        if (isErrorLike(e) && e.message?.includes('rxvt')) {
+            // Bizarrely, rxvt -h prints help but always returns a non-zero exit code.
+            // Doesn't need any special arguments anyway though, so just ignore it
+        } else {
+            logError(e);
+        }
+    }
+
+    // If there's an error, or we just don't recognize the console, give up & run it directly:
+    return { command };
 };
 
 const terminals: _.Dictionary<ChildProcess[] | undefined> = {}
