@@ -37,8 +37,9 @@ To get started:
     * Running `npm run start:web` there to start the UI without its own server.
     * Opening `http://local.httptoolkit.tech:8080` in a Chromium-based browser
 
-A few tips:
+A few things to be aware of:
 
-* New interceptors need to be added to `src/interceptors/index.ts`. They will also need to be added to [the UI](https://github.com/httptoolkit/httptoolkit-ui).
+* If you're looking to add a new interceptor, those also need to be registered in `src/interceptors/index.ts`, and will also need to be added to [the UI](https://github.com/httptoolkit/httptoolkit-ui) to make that available.
 * Tests (both unit & integration) can be run with `npm test`, or `npm run test:unit`/`npm run test:integration` to run just the unit/integration tests.
 * Note that the integration tests assume the required applications are installed and some docker images are already pulled. See [ci.yml](.github/workflows/ci.yml) and the [build-base](https://github.com/httptoolkit/act-build-base/) image for an example of how to set this up (or just run the tests, look at the errors, and install whatever's missing).
+* If running the server in serious use (self-hosting, or long-term ongoing development) you probably want to set a `HTK_SERVER_TOKEN` env var with a random key, and pass this similarly to the UI as an `authToken=<token>` URL parameter. This is useful because the API is very powerful (it can launch arbitrary applications on your machine). The API only listens on localhost and blocks CORS requests, so strictly speaking this shouldn't be necessary, but it is useful as a stronger guarantee & defense in depth. This is handled automatically in the production desktop app.
