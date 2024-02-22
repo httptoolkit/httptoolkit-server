@@ -106,7 +106,7 @@ abstract class FreshChromiumBasedInterceptor implements Interceptor {
 
         const browserDetails = await getBrowserDetails(this.config.configPath, this.variantName);
 
-        const profilePath = browserDetails && await isSnap(browserDetails.command)
+        const snapProfilePath = browserDetails && await isSnap(browserDetails.command)
             ? path.join(await getSnapConfigPath(this.variantName), 'profile')
             : undefined;
 
@@ -114,7 +114,7 @@ abstract class FreshChromiumBasedInterceptor implements Interceptor {
             await getChromiumLaunchOptions(
                 browserDetails ? browserDetails.name : this.variantName,
                 this.config,
-                profilePath,
+                snapProfilePath,
                 proxyPort,
                 hideWarningServer,
                 !!options.webExtensionEnabled
@@ -139,22 +139,27 @@ abstract class FreshChromiumBasedInterceptor implements Interceptor {
             if (process.platform === 'win32' && this.variantName === 'opera') return;
             await delay(1000); // No hurry, make sure the browser & related processes have all cleaned up
 
-            if (Object.keys(this.activeBrowsers).length === 0 && typeof browserDetails?.profile === 'string') {
-                // If we were the last browser, and we have a profile path, and it's in our config
-                // (just in case something's gone wrong) -> delete the profile to reset everything.
+            const activeBrowserCount = Object.keys(this.activeBrowsers).length;
+            const profilePath = snapProfilePath ?? browserDetails?.profile;
+            if (activeBrowserCount === 0 && typeof profilePath === 'string') {
+                // If we were the last browser and we have a profile path, and it's definitely part of our
+                // local/snap config (just in case something's gone wrong) -> delete it & reset everything.
 
-                const profilePath = browserDetails.profile;
-                if (!profilePath.startsWith(this.config.configPath)) {
+                if (
+                    // Part of our local config path:
+                    !profilePath.startsWith(this.config.configPath) &&
+                    // Or part of the .httptoolkit dir within a Snap's data dir:
+                    !profilePath.includes(path.join('snap', this.variantName, 'current', '.httptoolkit'))
+                ) {
                     logError(
                         `Unexpected ${this.variantName} profile location, not deleting: ${profilePath}`
                     );
                 } else {
-                    const profileFolder = browserDetails.profile;
-                    deleteFolder(profileFolder)
+                    deleteFolder(profilePath)
                     .catch(async() => {
                         // After 1 error, wait a little and retry
                         await delay(1000);
-                        await deleteFolder(profileFolder);
+                        await deleteFolder(profilePath);
                     }).catch(console.warn); // If it still fails, just give up, not a big deal
                 }
             }
