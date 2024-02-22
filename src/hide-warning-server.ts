@@ -9,7 +9,8 @@ import { EPHEMERAL_PORT_RANGE } from './constants';
 export class HideWarningServer {
 
     constructor(
-        private config: HtkConfig
+        private config: HtkConfig,
+        private options: { delay: number | undefined } = { delay: undefined }
     ) {}
 
     private server: Mockttp = getLocal();
@@ -37,11 +38,20 @@ export class HideWarningServer {
                 <script>
                     const targetUrl = ${JSON.stringify(targetUrl)};
                     window.open(targetUrl, '_blank');
-                    window.close();
+
+                    ${this.options.delay === undefined
+                        ? 'window.close();'
+                        // In some cases (Opera) closing too quickly can make the browser
+                        // crash, so we delay eeeeeever so slightly:
+                        : `setTimeout(() => {
+                            window.close();
+                        }, ${this.options.delay});`
+                    }
+
                 </script>
                 <body>
                     This page should disappear momentarily. If it doesn't, click
-                    <a href="${targetUrl}">this link</a>
+                    <a href="${targetUrl}">this link</a>.
                 </body>
             </html>
         `, { "content-type": "text/html" });

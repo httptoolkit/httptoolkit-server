@@ -97,7 +97,11 @@ abstract class FreshChromiumBasedInterceptor implements Interceptor {
     async activate(proxyPort: number, options: { webExtensionEnabled?: boolean } = {}) {
         const alreadyActive = this.isActive(proxyPort);
 
-        const hideWarningServer = new HideWarningServer(this.config);
+        const hideWarningServer = new HideWarningServer(this.config, {
+            delay: this.variantName === 'opera'
+                ? 1
+                : undefined
+        });
         await hideWarningServer.start('https://amiusing.httptoolkit.tech');
 
         const browserDetails = await getBrowserDetails(this.config.configPath, this.variantName);
