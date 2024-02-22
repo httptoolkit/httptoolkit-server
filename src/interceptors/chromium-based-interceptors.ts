@@ -121,7 +121,9 @@ abstract class FreshChromiumBasedInterceptor implements Interceptor {
         if (browser.process.stderr) browser.process.stderr.pipe(process.stderr);
 
         await hideWarningServer.completedPromise;
-        await hideWarningServer.stop();
+        // We want to stop the warning server, but some browsers (Opera) sometimes reload during app startup,
+        // and this causes problems if it goes away quickly, so we wait just a moment first:
+        delay(10_000).then(() => hideWarningServer.stop());
 
         if (alreadyActive) return; // If we're just opening a new tab, we're done, don't track the process.
 
