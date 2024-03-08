@@ -168,12 +168,20 @@ export class AndroidAdbInterceptor implements Interceptor {
         const deviceIds = this.deviceProxyMapping[port] || [];
 
         return Promise.all(
-            deviceIds.map(deviceId => {
+            deviceIds.map(async (deviceId) => {
                 const deviceClient = new DeviceClient(this.adbClient, deviceId);
-                deviceClient.startActivity({
+
+                // Bring app to the front, as otherwise it can't run intents (to tell
+                // the background service to stop the VPN)
+                await bringToFront(
+                    deviceClient,
+                    'tech.httptoolkit.android.v1/tech.httptoolkit.android.MainActivity'
+                ).catch(logError); // Not that important, so we continue if this fails somehow
+
+                await deviceClient.startActivity({
                     wait: true,
                     action: 'tech.httptoolkit.android.DEACTIVATE'
-                })
+                });
             })
         );
     }
