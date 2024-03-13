@@ -1,3 +1,4 @@
+import * as _ from 'lodash';
 import * as path from 'path';
 
 import { APP_ROOT } from '../../constants';
@@ -175,4 +176,28 @@ export function getTerminalEnvVars(
         // For now, we don't support intercepting BuildKit builds - disable them:
         'DOCKER_BUILDKIT': '0'
     };
+}
+
+export function getInheritableCurrentEnv() {
+    const currentEnv = (process.platform === 'win32')
+        // Windows env var behaviour is very odd. Windows env vars are case-insensitive, and node
+        // simulates this for process.env accesses, but when used in an object they become
+        // case-*sensitive* object keys, and it's easy to end up with duplicates.
+        // To fix this, on Windows we enforce here that all env var input keys are uppercase.
+        ? _.mapKeys(process.env, (_value, key) => key.toUpperCase())
+        : process.env;
+
+    // We drop various keys that are set by the server or desktop shell, and which shouldn't generally
+    // be inherited through the independently running apps.
+    return _.omit(currentEnv, [
+        // Set by us to mildly widen platform support:
+        'NODE_SKIP_PLATFORM_CHECK',
+        // Set by Oclif:
+        'HTTPTOOLKIT_SERVER_BINPATH',
+        // Set by Electron:
+        'NO_AT_BRIDGE',
+        'ORIGINAL_XDG_CURRENT_DESKTOP',
+        'GDK_BACKEND',
+        'CHROME_DESKTOP'
+    ]);
 }
