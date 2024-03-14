@@ -20,6 +20,7 @@ export const ALLOWED_ORIGINS = IS_PROD_BUILD
         // above, but it'd require a DNS MitM too (to stop local.httptoolkit.tech
         // resolving to localhost and never hitting the network).
         /^https?:\/\/localhost(:\d+)?$/,
+        /^https?:\/\/127.0.0.\d+(:\d+)?$/,
         /^http:\/\/local\.httptoolkit\.tech(:\d+)?$/,
         /^https:\/\/app\.httptoolkit\.tech$/,
     ];
