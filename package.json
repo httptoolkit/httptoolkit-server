@@ -23,7 +23,7 @@
     "build:pack": "ts-node ./pack.ts",
     "build:release": "npm-run-all build:manifest build:bundle build:pack",
     "prepare": "ts-node ./prepare.ts",
-    "prepack": "npm-run-all build:src oclif-dev manifest",
+    "prepack": "npm-run-all build:src build:manifest",
     "test": "npm-run-all test:unit test:integration",
     "test:unit": "cross-env TS_NODE_FILES=true mocha --exit -r ts-node/register 'test/unit/*.spec.ts'",
     "test:integration": "cross-env TS_NODE_FILES=true mocha --exit -r ts-node/register 'test/integration/**/*.spec.ts'",
