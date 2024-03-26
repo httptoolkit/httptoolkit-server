@@ -65,7 +65,7 @@
     "dockerode": "^4.0.2",
     "env-paths": "^1.0.0",
     "event-stream": "^4.0.1",
-    "express": "^4.17.3",
+    "express": "^4.19.2",
     "graphql": "^15.8.0",
     "graphql-http": "^1.22.0",
     "graphql-tag": "^2.12.6",
