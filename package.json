@@ -14,7 +14,7 @@
     "/overrides"
   ],
   "scripts": {
-    "start": "node-dev ./bin/run start",
+    "start": "node --watch ./bin/run start",
     "build:src": "npm-run-all build:src:clean build:src:ts",
     "build:src:clean": "rimraf lib/",
     "build:src:ts": "tsc --build --force",
@@ -121,7 +121,6 @@
     "klaw": "^4.0.1",
     "mocha": "^10.1.0",
     "needle": "^2.4.0",
-    "node-dev": "^6.4.0",
     "node-noop": "^1.0.0",
     "npm-run-all": "^4.1.5",
     "request": "^2.88.0",
