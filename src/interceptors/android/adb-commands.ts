@@ -189,7 +189,8 @@ export async function getRootCommand(adbClient: Adb.DeviceClient): Promise<RootC
         // Run our whoami script with each of the possible root commands
         const rootCheckResults = await Promise.all(
             runAsRootCommands.map((runAsRoot) =>
-                run(adbClient, runAsRoot(...rootTestCommand), { timeout: 1000 }).catch(console.log)
+                run(adbClient, runAsRoot(...rootTestCommand), { timeout: 1000 })
+                    .catch((e: any) => console.log(e.message ?? e))
                 .then((whoami) => ({ cmd: runAsRoot, whoami }))
             )
         )
@@ -206,7 +207,7 @@ export async function getRootCommand(adbClient: Adb.DeviceClient): Promise<RootC
         // We prefer explicit "su" calls if possible, to limit access & side effects.
         await adbClient.root().catch((e: any) => {
             if (isErrorLike(e) && e.message?.includes("adbd is already running as root")) return;
-            else console.log(e);
+            else console.log(e.message ?? e);
         });
 
         // Sometimes switching to root can disconnect ADB devices, so double-check
@@ -267,6 +268,8 @@ export async function injectSystemCertificate(
         adbClient,
         stringAsStream(`
             set -e # Fail on error
+
+            echo "\n---\nInjecting certificate:"
 
             # Create a separate temp directory, to hold the current certificates
             # Without this, when we add the mount we can't read the current certs anymore.
@@ -343,7 +346,7 @@ export async function injectSystemCertificate(
             rm -r /data/local/tmp/htk-ca-copy
             rm ${injectionScriptPath}
 
-            echo "System cert successfully injected"
+            echo "System cert successfully injected\n---\n"
         `),
         injectionScriptPath,
         // Due to an Android bug, user mode is always duplicated to group & others. We set as read-only
