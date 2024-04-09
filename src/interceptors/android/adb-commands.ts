@@ -234,24 +234,67 @@ export async function getRootCommand(adbClient: Adb.DeviceClient): Promise<RootC
 export async function hasCertInstalled(
     adbClient: Adb.DeviceClient,
     certHash: string,
-    certFingerprint: string
+    expectedFingerprint: string
 ) {
+    // We have to check both of these paths. If /system exists but /apex does not, then something
+    // has gone wrong and we need to reinstall the cert to fix it.
+    const systemCertPath = `/system/etc/security/cacerts/${certHash}.0`;
+    const apexCertPath = `/apex/com.android.conscrypt/cacerts/${certHash}.0`;
+
     try {
-        const certPath = `/system/etc/security/cacerts/${certHash}.0`;
-        const certStream = await adbClient.pull(certPath);
+        const existingCertChecks = await Promise.all([
+            adbClient.pull(systemCertPath)
+                .then(async (certStream) => {
+                    if (await isMatchingCert(certStream, expectedFingerprint)) {
+                        console.log('Matching /system cacert exists');
+                        return true;
+                    } else {
+                        console.log('/system cacert exists but mismatched');
+                        return false;
+                    }
+                }),
 
-        // Wait until it's clear that the read is successful
-        const data = await streamToBuffer(certStream);
+            run(adbClient, ['ls', '/apex/com.android.conscrypt'])
+                .then(async (lsOutput) => {
+                    if (lsOutput.includes('cacerts')) {
+                        const certStream = await adbClient.pull(apexCertPath);
+                        if (await isMatchingCert(certStream, expectedFingerprint)) {
+                            console.log('Matching /apex cacert exists');
+                            return true;
+                        } else {
+                            console.log('/apex cacert exists but mismatched');
+                            return false;
+                        }
+                    } else {
+                        console.log('No need for /apex cacerts injection');
+                        // If apex dir doesn't exist, we don't need to inject anything
+                        return true;
+                    }
+                })
+        ]);
 
-        // The device already has an HTTP Toolkit cert. But is it the right one?
-        const existingCert = parseCert(data.toString('utf8'));
-        const existingFingerprint = getCertificateFingerprint(existingCert);
-        return certFingerprint === existingFingerprint;
-    } catch (e) {
+        return existingCertChecks.every(result => result === true);
+    } catch (e: any) {
         // Couldn't read the cert, or some other error - either way, we probably
         // don't have a working system cert installed.
+        console.log(`Couldn't detect cert via ADB: ${e.message}`);
         return false;
     }
+}
+
+// The device already has an HTTP Toolkit cert. But is it the right one?
+const isMatchingCert = async (certStream: stream.Readable, expectedFingerprint: string) => {
+    // Wait until it's clear that the read is successful
+    const data = await streamToBuffer(certStream);
+
+    // Note that due to https://github.com/DeviceFarmer/adbkit/issues/464 we may see
+    // 'empty' data for files that are actually missing entirely.
+    if (data.byteLength === 0) return false;
+
+    const certData = data.toString('utf8');
+    const existingCert = parseCert(certData);
+    const existingFingerprint = getCertificateFingerprint(existingCert);
+    return expectedFingerprint === existingFingerprint;
 }
 
 export async function injectSystemCertificate(
@@ -305,6 +348,10 @@ export async function injectSystemCertificate(
                 # When the APEX manages cacerts, we need to mount them at that path too. We can't do
                 # this globally as APEX mounts are namespaced per process, so we need to inject a
                 # bind mount for this directory into every mount namespace.
+
+                # First we mount for the shell itself, for completeness and so we can see this
+                # when we check for correct installation on later runs
+                mount --bind /system/etc/security/cacerts /apex/com.android.conscrypt/cacerts
 
                 # First we get the Zygote process(es), which launch each app
                 ZYGOTE_PID=$(pidof zygote || true)
