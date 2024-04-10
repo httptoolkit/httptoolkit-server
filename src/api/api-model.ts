@@ -7,9 +7,12 @@ import { getSystemProxy } from 'os-proxy-config';
 import { SERVER_VERSION } from "../constants";
 import { delay } from '../util/promise';
 import { logError, addBreadcrumb } from '../error-tracking';
+
 import { HtkConfig } from "../config";
 import { ActivationError, Interceptor } from "../interceptors";
 import { getDnsServer } from '../dns-server';
+import { getCertExpiry, parseCert } from '../certificates';
+
 import * as Client from '../client/client-types';
 import { HttpClient } from '../client/http-client';
 
@@ -64,6 +67,9 @@ export class ApiModel {
         return {
             certificatePath: this.config.https.certPath,
             certificateContent: this.config.https.certContent,
+            certificateExpiry: getCertExpiry(
+                parseCert(this.config.https.certContent)
+            ),
 
             // We could calculate this client side, but it  requires node-forge or some
             // other heavyweight crypto lib, and we already have that here, so it's

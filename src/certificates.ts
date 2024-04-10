@@ -3,9 +3,12 @@ import * as forge from 'node-forge';
 
 export const parseCert = forge.pki.certificateFromPem;
 
+export function getCertExpiry(cert: forge.pki.Certificate): number {
+    return cert.validity.notAfter.valueOf();
+}
+
 export function getTimeToCertExpiry(cert: forge.pki.Certificate): number {
-    const expiry = cert.validity.notAfter.valueOf();
-    return expiry - Date.now();
+    return getCertExpiry(cert) - Date.now();
 }
 
 // A series of magic incantations that matches the behaviour of openssl's
