@@ -66,6 +66,21 @@ export function exposeRestAPI(
         });
     }));
 
+    // Get the complete details of a sub-part of interceptor state, i.e. even more detailed
+    // metadata about one target of many options available.
+    server.get('/interceptors/:id/metadata/:subId', handleErrors(async (req, res) => {
+        const interceptorId = req.params.id;
+        const subId = req.params.subId;
+
+        res.send({
+            interceptorMetadata: await apiModel.getInterceptorMetadata(
+                interceptorId,
+                'detailed',
+                subId
+            )
+        });
+    }));
+
     server.post('/interceptors/:id/activate/:proxyPort', handleErrors(async (req, res) => {
         const interceptorId = req.params.id;
         const proxyPort = parseInt(req.params.proxyPort, 10);

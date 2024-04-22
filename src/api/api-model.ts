@@ -153,15 +153,17 @@ export class ApiModel {
         );
     }
 
-    // Seperate purely to support the GQL API resolver structure
-    async getInterceptorMetadata(id: string, metadataType: 'summary' | 'detailed') {
+    async getInterceptorMetadata(id: string, metadataType: 'summary' | 'detailed', subId?: string) {
         const interceptor = this.interceptors[id];
+
         const metadataTimeout = metadataType === 'summary'
             ? INTERCEPTOR_TIMEOUT
             : INTERCEPTOR_TIMEOUT * 10; // Longer timeout for detailed metadata
 
         return withFallback(
-            async () => interceptor.getMetadata?.(metadataType),
+            async () => subId
+                ? interceptor.getSubMetadata?.(subId)
+                : interceptor.getMetadata?.(metadataType),
             metadataTimeout,
             undefined
         )

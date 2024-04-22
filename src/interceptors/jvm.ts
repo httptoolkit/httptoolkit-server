@@ -171,7 +171,7 @@ export class JvmInterceptor implements Interceptor {
             this.targetsPromise = this.getTargets()
                 .finally(() => { this.targetsPromise = undefined; });
         }
-        const targets = await this.targetsPromise
+        const targets = await this.targetsPromise;
 
         return {
             jvmTargets: _.keyBy(targets, 'pid')

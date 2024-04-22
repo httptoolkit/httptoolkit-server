@@ -26,12 +26,14 @@ import { AndroidAdbInterceptor } from './android/android-adb-interceptor';
 import { DockerContainerInterceptor } from './docker/docker-interceptor';
 import { ElectronInterceptor } from './electron';
 import { JvmInterceptor } from './jvm';
+import { FridaAndroidInterceptor } from './frida/frida-android-interceptor';
 
 export interface Interceptor {
     id: string;
     version: string;
 
     getMetadata?(type: 'summary' | 'detailed'): Promise<any>;
+    getSubMetadata?(subId: string): Promise<any>;
 
     isActivable(): Promise<boolean>;
     activableTimeout?: number;
@@ -91,6 +93,7 @@ export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> 
         new ElectronInterceptor(config),
 
         new AndroidAdbInterceptor(config),
+        new FridaAndroidInterceptor(config),
 
         new JvmInterceptor(config),
         new DockerContainerInterceptor(config)

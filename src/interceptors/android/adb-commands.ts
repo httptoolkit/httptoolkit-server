@@ -150,6 +150,12 @@ export async function pushFile(
     });
 }
 
+export async function isProbablyRooted(deviceClient: Adb.DeviceClient) {
+    return run(deviceClient, ['which', 'su'], { timeout: 500 })
+        .then((result) => result.includes('/su'))
+        .catch(() => false);
+}
+
 const runAsRootCommands = [
     // Maybe we're already root?
     (...cmd: string[]) => [...cmd],

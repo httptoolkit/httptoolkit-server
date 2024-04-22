@@ -271,6 +271,7 @@ describe('End-to-end server API test', function () {
             activable('existing-terminal'),
             activable('electron', '1.0.1'),
             inactivable('android-adb'),
+            inactivable('android-frida'),
             activable('attach-jvm', '1.0.1'),
             activable('docker-attach')
         ]);
