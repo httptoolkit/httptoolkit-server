@@ -27,7 +27,11 @@ describe("The HTTP client API", () => {
             return {
                 statusCode: 200,
                 statusMessage: 'Custom status message',
-                headers: { 'custom-HEADER': 'custom-VALUE' },
+                headers: {
+                    'custom-HEADER': 'custom-VALUE',
+                    'Transfer-Encoding': 'chunked'
+                },
+                trailers: { 'custom-TRAILER': 'trailer-VALUE' },
                 rawBody: Buffer.from('Mock response body')
             };
         });
@@ -46,7 +50,7 @@ describe("The HTTP client API", () => {
 
         const responseEvents = await streamToArray<any>(responseStream);
 
-        expect(responseEvents.length).to.equal(4);
+        expect(responseEvents.length).to.equal(5);
         expect(_.omit(responseEvents[0], 'timestamp', 'startTime')).to.deep.equal({
             type: 'request-start'
         });
@@ -55,13 +59,22 @@ describe("The HTTP client API", () => {
             statusCode: 200,
             statusMessage: 'Custom status message',
             headers: [
-                ['custom-HEADER', 'custom-VALUE']
+                ['custom-HEADER', 'custom-VALUE'],
+                ['Transfer-Encoding', 'chunked']
             ]
         });
 
         expect(responseEvents[2].type).equal('response-body-part');
         expect(responseEvents[2].rawBody.toString()).to.equal('Mock response body');
+
         expect(_.omit(responseEvents[3], 'timestamp')).to.deep.equal({
+            type: 'response-trailers',
+            trailers: [
+                ['custom-TRAILER', 'trailer-VALUE']
+            ]
+        });
+
+        expect(_.omit(responseEvents[4], 'timestamp')).to.deep.equal({
             type: 'response-end'
         });
     });

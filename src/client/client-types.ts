@@ -3,6 +3,7 @@ import type * as Mockttp from 'mockttp';
 // --- Request definition types ---
 
 export type RawHeaders = Mockttp.RawHeaders;
+export type RawTrailers = Mockttp.RawTrailers;
 
 export interface RequestDefinition {
     method: string;
@@ -87,6 +88,7 @@ export type ResponseStreamEvents =
     | RequestStart
     | ResponseHead
     | ResponseBodyPart
+    | ResponseTrailers
     | ResponseEnd;
 // Other notable event is errors (via 'error' event)
 
@@ -107,6 +109,12 @@ export interface ResponseHead {
 export interface ResponseBodyPart {
     type: 'response-body-part';
     rawBody: Buffer;
+    timestamp: number;
+}
+
+export interface ResponseTrailers {
+    type: 'response-trailers';
+    trailers: RawTrailers;
     timestamp: number;
 }
 

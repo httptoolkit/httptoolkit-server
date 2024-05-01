@@ -163,6 +163,13 @@ export class HttpClient {
             }));
 
             response.on('end', () => {
+                if (response.rawTrailers?.length) {
+                    resultsStream.push({
+                        type: 'response-trailers',
+                        trailers: pairFlatRawHeaders(response.rawTrailers),
+                        timestamp: performance.now()
+                    });
+                }
                 resultsStream.push({ type: 'response-end', timestamp: performance.now() });
                 resultsStream.push(null);
             });
