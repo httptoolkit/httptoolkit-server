@@ -87,6 +87,9 @@ jobs:
     strategy:
       matrix:
         include:
+          - platform: Ubuntu 24.04
+            os: "ubuntu-24.04"
+            test-script: "./unix.sh linux"
           - platform: Ubuntu 22.04
             os: "ubuntu-22.04"
             test-script: "./unix.sh linux"
