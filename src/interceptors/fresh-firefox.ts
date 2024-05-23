@@ -1,26 +1,25 @@
 import _ from 'lodash';
 import * as path from 'path';
-import { SpawnOptions } from 'child_process';
+import {SpawnOptions} from 'child_process';
 
-import { APP_ROOT } from '../constants';
-import { HtkConfig } from '../config';
-import { logError } from '../error-tracking';
+import {APP_ROOT} from '../constants';
+import {HtkConfig} from '../config';
+import {logError} from '../error-tracking';
 
-import { delay } from '../util/promise';
-import { isErrorLike } from '../util/error';
-import { isSnap, getSnapConfigPath } from '../util/snap';
+import {delay} from '../util/promise';
+import {isErrorLike} from '../util/error';
+import {isSnap, getSnapConfigPath} from '../util/snap';
 
-import { launchBrowser, BrowserInstance, getBrowserDetails } from '../browsers';
-import { readFile, canAccess, deleteFolder } from '../util/fs';
-import { windowsKill, spawnToResult } from '../util/process-management';
-import { MessageServer } from '../message-server';
-import { CertCheckServer } from '../cert-check-server';
-import { Interceptor } from '.';
+import {launchBrowser, BrowserInstance, getBrowserDetails} from '../browsers';
+import {readFile, canAccess, deleteFolder} from '../util/fs';
+import {windowsKill, spawnToResult} from '../util/process-management';
+import {MessageServer} from '../message-server';
+import {CertCheckServer} from '../cert-check-server';
+import {Interceptor} from '.';
 
 const FIREFOX_PREF_REGEX = /\w+_pref\("([^"]+)", (.*)\);/
 
 let profileSetupBrowser: BrowserInstance | undefined;
-let browsers: _.Dictionary<BrowserInstance> = {};
 
 export const NSS_DIR = path.join(APP_ROOT, 'nss');
 
@@ -41,13 +40,13 @@ const testCertutil = (command: string, options?: SpawnOptions) => {
 
 const getCertutilCommand = _.memoize(async () => {
     // If a working certutil is available in our path, we're all good
-    if (await testCertutil('certutil')) return { command: 'certutil' };
+    if (await testCertutil('certutil')) return {command: 'certutil'};
 
     // If not, try to use the relevant bundled version
     const bundledCertUtil = path.join(NSS_DIR, process.platform, 'certutil');
     if (process.platform !== 'linux') {
         if (await testCertutil(bundledCertUtil)) {
-            return { command: bundledCertUtil };
+            return {command: bundledCertUtil};
         } else {
             throw new Error("No certutil available");
         }
@@ -62,25 +61,33 @@ const getCertutilCommand = _.memoize(async () => {
             : path.join(NSS_DIR, process.platform)
     };
 
-    if (await testCertutil(bundledCertUtil, { env: certutilEnv })) {
-        return { command: bundledCertUtil, options: { env: certutilEnv } };
+    if (await testCertutil(bundledCertUtil, {env: certutilEnv})) {
+        return {command: bundledCertUtil, options: {env: certutilEnv}};
     } else {
         throw new Error("No certutil available");
     }
 });
 
-export class FreshFirefox implements Interceptor {
-    id = 'fresh-firefox';
-    version = '1.1.0';
+abstract class Firefox implements Interceptor {
+    readonly abstract id: string;
+    readonly abstract version: string;
 
-    constructor(private config: HtkConfig) { }
+    protected constructor(
+        private config: HtkConfig,
+        private variantName: string,
+        private pathName: string = variantName + '-profile',
+    ) {}
+
+    private readonly activeBrowsers: _.Dictionary<BrowserInstance> = {};
+
 
     isActive(proxyPort: number | string) {
-        return browsers[proxyPort] != null && !!browsers[proxyPort].pid;
+        const browser = this.activeBrowsers[proxyPort];
+        return !!browser && !!browser.pid;
     }
 
     async isActivable() {
-        const firefoxBrowser = await getBrowserDetails(this.config.configPath, 'firefox');
+        const firefoxBrowser = await getBrowserDetails(this.config.configPath, this.variantName);
 
         return !!firefoxBrowser && // Must have Firefox installed
             parseInt(firefoxBrowser.version.split('.')[0], 0) >= 58 && // Must use cert9.db
@@ -96,7 +103,7 @@ export class FreshFirefox implements Interceptor {
         const initialUrl = initialServer.url;
 
         const browser = await launchBrowser(initialUrl, {
-            browser: 'firefox',
+            browser: this.variantName,
             profile: profilePath,
             proxy: proxyPort ? `127.0.0.1:${proxyPort}` : undefined,
             prefs: _.assign(
@@ -239,18 +246,18 @@ export class FreshFirefox implements Interceptor {
     async activate(proxyPort: number) {
         if (this.isActive(proxyPort) || !!profileSetupBrowser) return;
 
-        const browserDetails = await getBrowserDetails(this.config.configPath, 'firefox');
+        const browserDetails = await getBrowserDetails(this.config.configPath, this.variantName);
         if (!browserDetails) throw new Error('Firefox could not be detected');
 
         const profilePath = await isSnap(browserDetails.command)
-            ? path.join(await getSnapConfigPath('firefox'), 'profile')
-            : path.join(this.config.configPath, 'firefox-profile');
+            ? path.join(await getSnapConfigPath(this.variantName), 'profile')
+            : path.join(this.config.configPath, this.pathName);
 
         const firefoxPrefsFile = path.join(profilePath, 'prefs.js');
 
         let existingPrefs: _.Dictionary<any> = {};
 
-        if (await canAccess(firefoxPrefsFile) === false) {
+        if (!await canAccess(firefoxPrefsFile)) {
             /*
             First time, we do a separate pre-usage startup & stop, without the proxy, for certificate setup.
             This helps avoid initial Firefox profile setup request noise, and tidies up some awkward UX where
@@ -288,10 +295,10 @@ export class FreshFirefox implements Interceptor {
             logError(e);
         });
 
-        browsers[proxyPort] = browser;
+        this.activeBrowsers[proxyPort] = browser;
         browser.process.once('close', async (exitCode) => {
             console.log('Firefox closed');
-            delete browsers[proxyPort];
+            delete this.activeBrowsers[proxyPort];
 
             // It seems maybe this can happen when firefox is just updated - it starts and
             // closes immediately, but loses some settings along the way. In that case, the 2nd
@@ -316,7 +323,7 @@ export class FreshFirefox implements Interceptor {
 
     async deactivate(proxyPort: number | string) {
         if (this.isActive(proxyPort)) {
-            const browser = browsers[proxyPort];
+            const browser = this.activeBrowsers[proxyPort];
             const closePromise = new Promise((resolve) => browser.process.once('close', resolve));
             browser.stop();
             await closePromise;
@@ -325,11 +332,31 @@ export class FreshFirefox implements Interceptor {
 
     async deactivateAll(): Promise<void> {
         await Promise.all(
-            Object.keys(browsers).map((proxyPort) => this.deactivate(proxyPort))
+            Object.keys(this.activeBrowsers).map((proxyPort) => this.deactivate(proxyPort))
         );
         if (profileSetupBrowser) {
             profileSetupBrowser.stop();
             return new Promise((resolve) => profileSetupBrowser!.process.once('close', resolve));
         }
+    }
+};
+
+export class FreshFirefox extends Firefox {
+
+    id = 'fresh-firefox';
+    version = '1.1.0';
+
+    constructor(config: HtkConfig) {
+        super(config, 'firefox');
+    }
+};
+
+export class FreshFirefoxDeveloper extends Firefox {
+
+    id = 'fresh-firefox-dev';
+    version = '1.1.0';
+
+    constructor(config: HtkConfig) {
+        super(config, 'firefox-developer');
     }
 };
