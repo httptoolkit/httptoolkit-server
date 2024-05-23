@@ -360,3 +360,13 @@ export class FreshFirefoxDeveloper extends Firefox {
         super(config, 'firefox-developer');
     }
 };
+
+export class FreshFirefoxNightly extends Firefox {
+
+    id = 'fresh-firefox-nightly';
+    version = '1.1.0';
+
+    constructor(config: HtkConfig) {
+        super(config, 'firefox-nightly');
+    }
+};

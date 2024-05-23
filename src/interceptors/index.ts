@@ -4,7 +4,7 @@ import { HtkConfig } from '../config';
 import { addShutdownHandler } from '../shutdown';
 import { ErrorLike } from '../util/error';
 
-import {FreshFirefox, FreshFirefoxDeveloper} from './fresh-firefox';
+import {FreshFirefox, FreshFirefoxDeveloper, FreshFirefoxNightly} from './fresh-firefox';
 import {
     FreshChrome,
     ExistingChrome,
@@ -83,6 +83,7 @@ export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> 
         new FreshBrave(config),
         new FreshFirefox(config),
         new FreshFirefoxDeveloper(config),
+        new FreshFirefoxNightly(config),
 
         new FreshTerminalInterceptor(config),
         new ExistingTerminalInterceptor(config),
