@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import * as path from 'path';
-import { SpawnOptions} from 'child_process';
+import { SpawnOptions } from 'child_process';
 
 import { APP_ROOT } from '../constants';
 import { HtkConfig } from '../config';
@@ -46,7 +46,7 @@ const getCertutilCommand = _.memoize(async () => {
     const bundledCertUtil = path.join(NSS_DIR, process.platform, 'certutil');
     if (process.platform !== 'linux') {
         if (await testCertutil(bundledCertUtil)) {
-            return {command: bundledCertUtil};
+            return { command: bundledCertUtil };
         } else {
             throw new Error("No certutil available");
         }
@@ -61,8 +61,8 @@ const getCertutilCommand = _.memoize(async () => {
             : path.join(NSS_DIR, process.platform)
     };
 
-    if (await testCertutil(bundledCertUtil, {env: certutilEnv})) {
-        return { command: bundledCertUtil, options: {env: certutilEnv} };
+    if (await testCertutil(bundledCertUtil, { env: certutilEnv })) {
+        return { command: bundledCertUtil, options: { env: certutilEnv } };
     } else {
         throw new Error("No certutil available");
     }
