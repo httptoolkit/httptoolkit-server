@@ -265,6 +265,8 @@ describe('End-to-end server API test', function () {
             inactivable('fresh-opera', '1.0.3'),
             inactivable('fresh-brave'),
             activable('fresh-firefox', '1.1.0'),
+            inactivable('fresh-firefox-dev'),
+            inactivable('fresh-firefox-nightly'),
             activable('fresh-terminal'),
             activable('existing-terminal'),
             activable('electron', '1.0.1'),

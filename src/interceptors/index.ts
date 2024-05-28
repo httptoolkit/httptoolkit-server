@@ -4,7 +4,7 @@ import { HtkConfig } from '../config';
 import { addShutdownHandler } from '../shutdown';
 import { ErrorLike } from '../util/error';
 
-import {FreshFirefox, FreshFirefoxDeveloper, FreshFirefoxNightly} from './fresh-firefox';
+import { FreshFirefox, FreshFirefoxDeveloper, FreshFirefoxNightly } from './fresh-firefox';
 import {
     FreshChrome,
     ExistingChrome,

@@ -1,21 +1,21 @@
 import _ from 'lodash';
 import * as path from 'path';
-import {SpawnOptions} from 'child_process';
+import { SpawnOptions} from 'child_process';
 
-import {APP_ROOT} from '../constants';
-import {HtkConfig} from '../config';
-import {logError} from '../error-tracking';
+import { APP_ROOT } from '../constants';
+import { HtkConfig } from '../config';
+import { logError } from '../error-tracking';
 
-import {delay} from '../util/promise';
-import {isErrorLike} from '../util/error';
-import {isSnap, getSnapConfigPath} from '../util/snap';
+import { delay } from '../util/promise';
+import { isErrorLike } from '../util/error';
+import { isSnap, getSnapConfigPath } from '../util/snap';
 
-import {launchBrowser, BrowserInstance, getBrowserDetails} from '../browsers';
-import {readFile, canAccess, deleteFolder} from '../util/fs';
-import {windowsKill, spawnToResult} from '../util/process-management';
-import {MessageServer} from '../message-server';
-import {CertCheckServer} from '../cert-check-server';
-import {Interceptor} from '.';
+import { launchBrowser, BrowserInstance, getBrowserDetails } from '../browsers';
+import { readFile, canAccess, deleteFolder } from '../util/fs';
+import { windowsKill, spawnToResult } from '../util/process-management';
+import { MessageServer } from '../message-server';
+import { CertCheckServer } from '../cert-check-server';
+import { Interceptor } from '.';
 
 const FIREFOX_PREF_REGEX = /\w+_pref\("([^"]+)", (.*)\);/
 
@@ -40,7 +40,7 @@ const testCertutil = (command: string, options?: SpawnOptions) => {
 
 const getCertutilCommand = _.memoize(async () => {
     // If a working certutil is available in our path, we're all good
-    if (await testCertutil('certutil')) return {command: 'certutil'};
+    if (await testCertutil('certutil')) return { command: 'certutil' };
 
     // If not, try to use the relevant bundled version
     const bundledCertUtil = path.join(NSS_DIR, process.platform, 'certutil');
@@ -62,7 +62,7 @@ const getCertutilCommand = _.memoize(async () => {
     };
 
     if (await testCertutil(bundledCertUtil, {env: certutilEnv})) {
-        return {command: bundledCertUtil, options: {env: certutilEnv}};
+        return { command: bundledCertUtil, options: {env: certutilEnv} };
     } else {
         throw new Error("No certutil available");
     }
