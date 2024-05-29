@@ -344,7 +344,7 @@ abstract class Firefox implements Interceptor {
 export class FreshFirefox extends Firefox {
 
     id = 'fresh-firefox';
-    version = '1.1.0';
+    version = '1.2.0';
 
     constructor(config: HtkConfig) {
         super(config, 'firefox');
@@ -354,7 +354,7 @@ export class FreshFirefox extends Firefox {
 export class FreshFirefoxDeveloper extends Firefox {
 
     id = 'fresh-firefox-dev';
-    version = '1.1.0';
+    version = '1.2.0';
 
     constructor(config: HtkConfig) {
         super(config, 'firefox-developer');
@@ -364,7 +364,7 @@ export class FreshFirefoxDeveloper extends Firefox {
 export class FreshFirefoxNightly extends Firefox {
 
     id = 'fresh-firefox-nightly';
-    version = '1.1.0';
+    version = '1.2.0';
 
     constructor(config: HtkConfig) {
         super(config, 'firefox-nightly');
