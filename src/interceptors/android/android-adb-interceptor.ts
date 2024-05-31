@@ -1,5 +1,4 @@
 import _ from 'lodash';
-import * as os from 'os';
 import { DeviceClient } from '@devicefarmer/adbkit';
 
 import { Interceptor } from '..';
@@ -24,6 +23,7 @@ import {
 } from './adb-commands';
 import { streamLatestApk, clearAllApks } from './fetch-apk';
 import { parseCert, getCertificateFingerprint, getCertificateSubjectHash } from '../../certificates';
+import { getReachableInterfaces } from '../../util/network';
 
 function urlSafeBase64(content: string) {
     return Buffer.from(content, 'utf8').toString('base64')
@@ -98,17 +98,9 @@ export class AndroidAdbInterceptor implements Interceptor {
                 '10.0.3.2', // Genymotion localhost ip
             ].concat(
                 // Every other external network ip
-                _.flatMap(os.networkInterfaces(), (addresses, iface) =>
-                    (addresses || [])
-                        .filter(a =>
-                            !a.internal && // Loopback interfaces
-                            a.family === "IPv4" && // Android VPN app supports IPv4 only
-                            iface !== 'docker0' && // Docker default bridge interface
-                            !iface.startsWith('br-') && // More docker bridge interfaces
-                            !iface.startsWith('veth') // Virtual interfaces for each docker container
-                        )
-                        .map(a => a.address)
-                )
+                getReachableInterfaces().filter(a =>
+                    a.family === "IPv4" // Android VPN app supports IPv4 only
+                ).map(a => a.address)
             ),
             port: proxyPort,
             localTunnelPort: proxyPort,
