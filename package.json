@@ -90,6 +90,7 @@
     "tar-stream": "^2.2.0",
     "tmp": "0.0.33",
     "tslib": "^1.9.3",
+    "usbmux-client": "^0.1.1",
     "win-version-info": "^5.0.1"
   },
   "devDependencies": {

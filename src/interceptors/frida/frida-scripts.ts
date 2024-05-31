@@ -41,3 +41,24 @@ export async function buildAndroidFridaScript(
 
     return scripts.join('\n');
 }
+
+export async function buildIosFridaScript(
+    caCertContent: string,
+    proxyHost: string,
+    proxyPort: number
+) {
+    const scripts = await Promise.all([
+        fs.readFile(path.join(FRIDA_SCRIPTS_ROOT, 'config.js'), { encoding: 'utf8' })
+            .then((configTemplate) =>
+                buildFridaConfig(configTemplate, caCertContent, proxyHost, proxyPort)
+            ),
+        ...[
+            ['ios', 'ios-connect-hook.js'],
+            ['native-tls-hook.js']
+        ].map((hookRelPath) =>
+            fs.readFile(path.join(FRIDA_SCRIPTS_ROOT, ...hookRelPath), { encoding: 'utf8' })
+        )
+    ]);
+
+    return scripts.join('\n');
+}

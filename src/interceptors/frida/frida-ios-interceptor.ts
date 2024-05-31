@@ -1,24 +1,22 @@
 import _ from 'lodash';
+import { UsbmuxClient } from 'usbmux-client';
 
 import { Interceptor } from "..";
 import { HtkConfig } from '../../config';
 
-import { createAdbClient } from '../android/adb-commands';
 import { FridaHost, FridaTarget } from './frida-integration';
 import {
-    getAndroidFridaHosts,
-    getAndroidFridaTargets,
-    interceptAndroidFridaTarget,
-    launchAndroidHost,
-    setupAndroidHost
-} from './frida-android-integration';
+    getIosFridaHosts,
+    getIosFridaTargets,
+    interceptIosFridaTarget
+} from './frida-ios-integration';
 
-export class FridaAndroidInterceptor implements Interceptor {
+export class FridaIosInterceptor implements Interceptor {
 
-    id: string = "android-frida";
+    id: string = "ios-frida";
     version: string = "1.0.0";
 
-    private adbClient = createAdbClient();
+    private usbmuxClient = new UsbmuxClient();
 
     constructor(
         private config: HtkConfig
@@ -29,7 +27,7 @@ export class FridaAndroidInterceptor implements Interceptor {
         if (!this._fridaTargetsPromise) {
             // We cache the targets lookup whilst it's active, so that concurrent calls
             // all just run one lookup and return the same result.
-            this._fridaTargetsPromise = getAndroidFridaHosts(this.adbClient)
+            this._fridaTargetsPromise = getIosFridaHosts(this.usbmuxClient)
                 .finally(() => { this._fridaTargetsPromise = undefined; });
         }
         return await this._fridaTargetsPromise;
@@ -54,24 +52,18 @@ export class FridaAndroidInterceptor implements Interceptor {
 
     async getSubMetadata(hostId: string): Promise<{ targets: Array<FridaTarget> }> {
         return {
-            targets: await getAndroidFridaTargets(this.adbClient, hostId)
+            targets: await getIosFridaTargets(this.usbmuxClient, hostId)
         }
     }
 
     async activate(
         proxyPort: number,
         options:
-            | { action: 'setup', hostId: string }
-            | { action: 'launch', hostId: string }
             | { action: 'intercept', hostId: string, targetId: string }
     ): Promise<void> {
-        if (options.action === 'setup') {
-            await setupAndroidHost(this.adbClient, options.hostId);
-        } else if (options.action === 'launch') {
-            await launchAndroidHost(this.adbClient, options.hostId);
-        } else if (options.action === 'intercept') {
-            await interceptAndroidFridaTarget(
-                this.adbClient,
+        if (options.action === 'intercept') {
+            await interceptIosFridaTarget(
+                this.usbmuxClient,
                 options.hostId,
                 options.targetId,
                 this.config.https.certContent,

@@ -27,6 +27,7 @@ import { DockerContainerInterceptor } from './docker/docker-interceptor';
 import { ElectronInterceptor } from './electron';
 import { JvmInterceptor } from './jvm';
 import { FridaAndroidInterceptor } from './frida/frida-android-interceptor';
+import { FridaIosInterceptor } from './frida/frida-ios-interceptor';
 
 export interface Interceptor {
     id: string;
@@ -94,6 +95,7 @@ export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> 
 
         new AndroidAdbInterceptor(config),
         new FridaAndroidInterceptor(config),
+        new FridaIosInterceptor(config),
 
         new JvmInterceptor(config),
         new DockerContainerInterceptor(config)

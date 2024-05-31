@@ -4,38 +4,16 @@ import * as FridaJs from 'frida-js';
 import { getConnectedDevices, getRootCommand, isProbablyRooted } from '../android/adb-commands';
 import { waitUntil } from '../../util/promise';
 import { buildAndroidFridaScript } from './frida-scripts';
-
-/**
- * Terminology:
- * - FridaHost: a device which may contain 1+ Frida targets
- * - FridaTarget: a single app that can be intercepted
- **/
-
-export interface FridaHost {
-    id: string;
-    name: string;
-    type: string;
-    state:
-        | 'unavailable' // Probably not Frida compatible (e.g. not rooted)
-        | 'setup-required' // Probably compatible but Frida not installed
-        | 'launch-required' // Frida installed, should work if launched
-        | 'available', // Frida seems to be running & ready right now
-    targets?: FridaTarget[]
-}
-
-export interface FridaTarget {
-    id: string;
-    name: string;
-}
-
-const FRIDA_DEFAULT_PORT = 27042;
-const FRIDA_ALTERNATE_PORT = 24072; // Reversed to mildly inconvenience detection
-
-const FRIDA_VERSION = '16.1.7';
+import {
+    FRIDA_ALTERNATE_PORT,
+    FRIDA_BINARY_NAME,
+    FRIDA_DEFAULT_PORT,
+    FRIDA_VERSION,
+    FridaHost
+} from './frida-integration';
 
 const ANDROID_DEVICE_HTK_PATH = '/data/local/tmp/.httptoolkit';
-const FRIDA_BINARY_NAME = `adirf-server`; // Reversed to mildly inconvenience detection
-const FRIDA_BINARY_PATH = `${ANDROID_DEVICE_HTK_PATH}/${FRIDA_BINARY_NAME}`;
+const ANDROID_FRIDA_BINARY_PATH = `${ANDROID_DEVICE_HTK_PATH}/${FRIDA_BINARY_NAME}`;
 
 const ALL_X_PERMS = 0o00111;
 
@@ -100,7 +78,7 @@ const getHostStatus = async (adbClient: AdbClient, deviceId: string) => {
     } as const;
 };
 
-const ABI_ARCH_MAP = {
+const ANDROID_ABI_FRIDA_ARCH_MAP = {
     'arm64-v8a': 'arm64',
     'armeabi': 'arm',
     'armabi-v7a': 'arm',
@@ -117,12 +95,12 @@ export async function setupAndroidHost(adbClient: AdbClient, hostId: string) {
         [deviceProperties['ro.product.cpu.abi']]
     ).map(abi => abi.trim());
 
-    const firstKnownAbi = supportedAbis.find((abi): abi is keyof typeof ABI_ARCH_MAP =>
-        Object.keys(ABI_ARCH_MAP).includes(abi)
+    const firstKnownAbi = supportedAbis.find((abi): abi is keyof typeof ANDROID_ABI_FRIDA_ARCH_MAP =>
+        Object.keys(ANDROID_ABI_FRIDA_ARCH_MAP).includes(abi)
     );
     if (!firstKnownAbi) throw new Error(`Did not recognize any device ABIs from ${supportedAbis.join(',')}`);
 
-    const deviceArch = ABI_ARCH_MAP[firstKnownAbi];
+    const deviceArch = ANDROID_ABI_FRIDA_ARCH_MAP[firstKnownAbi];
 
     const serverStream = await FridaJs.downloadFridaServer({
         version: FRIDA_VERSION,
@@ -130,7 +108,7 @@ export async function setupAndroidHost(adbClient: AdbClient, hostId: string) {
         arch: deviceArch
     });
 
-    await deviceClient.push(serverStream, FRIDA_BINARY_PATH, 0o555);
+    await deviceClient.push(serverStream, ANDROID_FRIDA_BINARY_PATH, 0o555);
 }
 
 export async function launchAndroidHost(adbClient: AdbClient, hostId: string) {
@@ -143,7 +121,7 @@ export async function launchAndroidHost(adbClient: AdbClient, hostId: string) {
     }
 
     const fridaServerStream = await deviceClient.shell(
-        runAsRoot(FRIDA_BINARY_PATH, '-l', `127.0.0.1:${FRIDA_ALTERNATE_PORT}`)
+        runAsRoot(ANDROID_FRIDA_BINARY_PATH, '-l', `127.0.0.1:${FRIDA_ALTERNATE_PORT}`)
     );
     fridaServerStream.pipe(process.stdout);
 
@@ -177,7 +155,7 @@ export async function getAndroidFridaTargets(adbClient: AdbClient, hostId: strin
     });
 
     const apps = await fridaSession.enumerateApplications();
-    fridaSession.disconnect();
+    fridaSession.disconnect().catch(() => {});
     return apps;
 }
 
