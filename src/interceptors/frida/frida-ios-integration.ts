@@ -5,7 +5,8 @@ import { buildIosFridaScript } from './frida-scripts';
 
 import {
     FRIDA_DEFAULT_PORT,
-    FridaHost
+    FridaHost,
+    testAndSelectProxyAddress
 } from './frida-integration';
 
 const isDevicePortOpen = (usbmuxClient: UsbmuxClient, deviceId: number, port: number) =>
@@ -16,7 +17,7 @@ const isDevicePortOpen = (usbmuxClient: UsbmuxClient, deviceId: number, port: nu
         return true;
     }).catch((e) => {
         // If the port is closed, we jump straight to the error state instead
-        return false
+        return false;
     });
 
 // We scan frequently, but we don't want to spam the logs, so we just log the first
@@ -109,11 +110,53 @@ export async function interceptIosFridaTarget(
         stream: fridaStream
     });
 
-    const script = await buildIosFridaScript(
-        caCertContent,
-        '192.168.1.249', // TODO: Placeholder - obviously this won't work elsewhere yet!
-        proxyPort
-    );
+    const { session } = await fridaSession.spawnPaused(appId, undefined);
 
-    await fridaSession.spawnWithScript(appId, undefined, script);
+    try {
+        const proxyIp = await testAndSelectProxyAddress(session, proxyPort);
+
+        const interceptionScript = await buildIosFridaScript(
+            caCertContent,
+            proxyIp,
+            proxyPort
+        );
+
+        const scriptSession = await session.createScript(interceptionScript);
+
+        await new Promise((resolve, reject) => {
+            session.onMessage((message) => {
+                if (message.type === 'error') {
+                    const error = new Error(message.description);
+                    error.stack = message.stack;
+                    reject(error);
+                } else {
+                    console.log(message);
+                }
+            });
+
+            scriptSession.loadScript()
+                .then(resolve)
+                .catch(reject);
+        });
+
+        // Script started successfully - now replace the message listener, and resume the app
+
+        session.onMessage((message) => {
+            if (message.type === 'error') {
+                const error = new Error(message.description);
+                error.stack = message.stack;
+                console.warn('Frida iOS injection error:', error);
+            } else if (message.type === 'log') {
+                console.log(`Frida iOS [${message.level}]: ${message.payload}`);
+            } else {
+                console.log(message);
+            }
+        });
+
+        await session.resume();
+    } catch (e) {
+        // If anything goes wrong, just make sure we shut down the app again
+        await session.kill();
+        throw e;
+    }
 }

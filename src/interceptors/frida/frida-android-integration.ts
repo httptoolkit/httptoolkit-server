@@ -9,7 +9,8 @@ import {
     FRIDA_BINARY_NAME,
     FRIDA_DEFAULT_PORT,
     FRIDA_VERSION,
-    FridaHost
+    FridaHost,
+    testAndSelectProxyAddress
 } from './frida-integration';
 
 const ANDROID_DEVICE_HTK_PATH = '/data/local/tmp/.httptoolkit';
@@ -168,6 +169,8 @@ export async function interceptAndroidFridaTarget(
 ) {
     const deviceClient = adbClient.getDevice(hostId);
 
+    await deviceClient.reverse('tcp:' + proxyPort, 'tcp:' + proxyPort);
+
     // Try alt port first (preferred and more likely to work - it's ours)
     const fridaStream = await deviceClient.openTcp(FRIDA_ALTERNATE_PORT)
         .catch(() => deviceClient.openTcp(FRIDA_DEFAULT_PORT));
@@ -176,11 +179,57 @@ export async function interceptAndroidFridaTarget(
         stream: fridaStream
     });
 
-    const script = await buildAndroidFridaScript(
-        caCertContent,
-        '10.0.0.102', // TODO: Placeholder - obviously this won't work elsewhere yet!
-        proxyPort
-    );
+    const { session } = await fridaSession.spawnPaused(appId, undefined);
 
-    await fridaSession.spawnWithScript(appId, undefined, script);
+    try {
+        const proxyIp = await testAndSelectProxyAddress(session, proxyPort, {
+            // Localhost here is local to the device - it's the reverse tunnel
+            // over ADB, which is generally more robust than wifi etc
+            includeLocalhost: true
+        });
+
+        const interceptionScript = await buildAndroidFridaScript(
+            caCertContent,
+            proxyIp,
+            proxyPort
+        );
+
+        const scriptSession = await session.createScript(interceptionScript);
+
+        await new Promise((resolve, reject) => {
+            session.onMessage((message) => {
+                if (message.type === 'error') {
+                    const error = new Error(message.description);
+                    error.stack = message.stack;
+                    reject(error);
+                } else {
+                    console.log(message);
+                }
+            });
+
+            scriptSession.loadScript()
+                .then(resolve)
+                .catch(reject);
+        });
+
+        // Script started successfully - now replace the message listener, and resume the app
+
+        session.onMessage((message) => {
+            if (message.type === 'error') {
+                const error = new Error(message.description);
+                error.stack = message.stack;
+                console.warn('Frida Android injection error:', error);
+            } else if (message.type === 'log') {
+                console.log(`Frida Android [${message.level}]: ${message.payload}`);
+            } else {
+                console.log(message);
+            }
+        });
+
+        await session.resume();
+    } catch (e) {
+        // If anything goes wrong, just make sure we shut down the app again
+        await session.kill();
+        throw e;
+    }
 }

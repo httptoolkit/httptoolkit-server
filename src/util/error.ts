@@ -26,6 +26,16 @@ abstract class CustomErrorBase extends Error {
         Object.setPrototypeOf(this, new.target.prototype);
     }
 }
+
+export class ErrorWithCode extends CustomErrorBase {
+    constructor(
+        public readonly code: string,
+        message: string
+    ) {
+        super(message);
+    }
+}
+
 export class StatusError extends CustomErrorBase {
     constructor(
         /**

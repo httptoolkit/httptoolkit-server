@@ -62,3 +62,16 @@ export async function buildIosFridaScript(
 
     return scripts.join('\n');
 }
+
+export async function buildIpTestScript(
+    ips: string[],
+    proxyPort: number
+) {
+    const baseScript = await fs.readFile(
+        path.join(FRIDA_SCRIPTS_ROOT, 'utilities', 'test-ip-connectivity.js'),
+        { encoding: 'utf8' }
+    );
+
+    return baseScript.replace(/(?<=const IP_ADDRESSES_TO_TEST = )\[\s+\](?=;)/s, JSON.stringify(ips))
+        .replace(/(?<=const TARGET_PORT = )0(?=;)/, proxyPort.toString());
+}
