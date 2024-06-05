@@ -206,12 +206,20 @@ export async function interceptAndroidFridaTarget(
 
         const scriptSession = await session.createScript(interceptionScript);
 
+        let scriptLoaded = false;
         await new Promise((resolve, reject) => {
             session.onMessage((message) => {
                 if (message.type === 'error') {
                     const error = new Error(message.description);
                     error.stack = message.stack;
-                    reject(error);
+
+                    if (!scriptLoaded) {
+                        reject(error);
+                    } else {
+                        console.warn('Frida Android injection error:', error);
+                    }
+                } else if (message.type === 'log') {
+                    console.log(`Frida Android [${message.level}]: ${message.payload}`);
                 } else {
                     console.log(message);
                 }
@@ -222,20 +230,7 @@ export async function interceptAndroidFridaTarget(
                 .catch(reject);
         });
 
-        // Script started successfully - now replace the message listener, and resume the app
-
-        session.onMessage((message) => {
-            if (message.type === 'error') {
-                const error = new Error(message.description);
-                error.stack = message.stack;
-                console.warn('Frida Android injection error:', error);
-            } else if (message.type === 'log') {
-                console.log(`Frida Android [${message.level}]: ${message.payload}`);
-            } else {
-                console.log(message);
-            }
-        });
-
+        scriptLoaded = true;
         await session.resume();
     } catch (e) {
         // If anything goes wrong, just make sure we shut down the app again
