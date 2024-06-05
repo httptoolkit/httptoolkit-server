@@ -19,7 +19,9 @@ import {
     hasCertInstalled,
     bringToFront,
     setChromeFlags,
-    startActivity
+    startActivity,
+    createPersistentReverseTunnel,
+    closeReverseTunnel
 } from './adb-commands';
 import { streamLatestApk, clearAllApks } from './fetch-apk';
 import { parseCert, getCertificateFingerprint, getCertificateSubjectHash } from '../../certificates';
@@ -108,7 +110,8 @@ export class AndroidAdbInterceptor implements Interceptor {
         };
         const intentData = urlSafeBase64(JSON.stringify(setupParams));
 
-        await deviceClient.reverse('tcp:' + proxyPort, 'tcp:' + proxyPort).catch(() => {});
+        await createPersistentReverseTunnel(deviceClient, proxyPort, proxyPort)
+            .catch(() => {}); // If we can't tunnel that's OK - we'll use wifi/etc instead
 
         // Use ADB to launch the app with the proxy details
         await startActivity(deviceClient, {
@@ -118,41 +121,8 @@ export class AndroidAdbInterceptor implements Interceptor {
         });
 
         this.deviceProxyMapping[proxyPort] = this.deviceProxyMapping[proxyPort] || [];
-
         if (!this.deviceProxyMapping[proxyPort].includes(options.deviceId)) {
             this.deviceProxyMapping[proxyPort].push(options.deviceId);
-
-            let tunnelConnectFailures = 0;
-
-            // The reverse tunnel can break when connecting/disconnecting from the VPN. This is a problem! It can
-            // also break in other cases, e.g. when ADB is restarted for some reason. To handle this, we constantly
-            // reinforce the tunnel while HTTP Toolkit is running & the device is connected.
-            const tunnelCheckInterval = setInterval(async () => {
-                if (this.deviceProxyMapping[proxyPort].includes(options.deviceId)) {
-                    try {
-                        await deviceClient.reverse('tcp:' + proxyPort, 'tcp:' + proxyPort)
-                        tunnelConnectFailures = 0;
-                    } catch (e) {
-                        tunnelConnectFailures += 1;
-                        console.log(`${options.deviceId} ADB tunnel failed`,
-                            isErrorLike(e) ? e.message : e
-                        );
-
-                        if (tunnelConnectFailures >= 5) {
-                            // After 10 seconds disconnected, give up
-                            console.log(`${options.deviceId} disconnected, dropping the ADB tunnel`);
-                            this.deviceProxyMapping[proxyPort] = this.deviceProxyMapping[proxyPort]
-                                .filter(id => id !== options.deviceId);
-                            clearInterval(tunnelCheckInterval);
-                        }
-                    }
-                } else {
-                    // Deactivation at shutdown will clear the proxy data, and so clear this interval
-                    // will automatically shut down.
-                    clearInterval(tunnelCheckInterval);
-                }
-            }, 2000);
-            tunnelCheckInterval.unref(); // Don't let this block shutdown
         }
     }
 
@@ -174,6 +144,8 @@ export class AndroidAdbInterceptor implements Interceptor {
                     wait: true,
                     action: 'tech.httptoolkit.android.DEACTIVATE'
                 });
+
+                closeReverseTunnel(deviceClient, port, port);
             })
         );
     }

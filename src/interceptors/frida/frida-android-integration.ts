@@ -1,7 +1,7 @@
 import { Client as AdbClient, DeviceClient } from '@devicefarmer/adbkit';
 import * as FridaJs from 'frida-js';
 
-import { getConnectedDevices, getRootCommand, isProbablyRooted } from '../android/adb-commands';
+import { createPersistentReverseTunnel, getConnectedDevices, getRootCommand, isProbablyRooted } from '../android/adb-commands';
 import { waitUntil } from '../../util/promise';
 import { buildAndroidFridaScript } from './frida-scripts';
 import {
@@ -169,7 +169,8 @@ export async function interceptAndroidFridaTarget(
 ) {
     const deviceClient = adbClient.getDevice(hostId);
 
-    await deviceClient.reverse('tcp:' + proxyPort, 'tcp:' + proxyPort);
+    await createPersistentReverseTunnel(deviceClient, proxyPort, proxyPort)
+        .catch(() => {}); // If we can't tunnel that's OK - we'll use wifi/etc instead
 
     // Try alt port first (preferred and more likely to work - it's ours)
     const fridaStream = await deviceClient.openTcp(FRIDA_ALTERNATE_PORT)

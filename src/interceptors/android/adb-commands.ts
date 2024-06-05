@@ -523,3 +523,71 @@ export async function startActivity(
         }
     }
 }
+
+const adbTunnelIds: { [id: string]: NodeJS.Timeout } = {};
+
+export function closeReverseTunnel(
+    adbClient: Adb.DeviceClient,
+    localPort: number | string,
+    remotePort: number | string,
+) {
+    const id = `${adbClient.serial}:${localPort}->${remotePort}`;
+    const tunnelInterval = adbTunnelIds[id];
+    if (!tunnelInterval) return;
+
+    // This ensures the interval maintaining the tunnel stops:
+    clearInterval(tunnelInterval);
+    delete adbTunnelIds[id];
+}
+
+export async function createPersistentReverseTunnel(
+    adbClient: Adb.DeviceClient,
+    localPort: number,
+    remotePort: number,
+    options: {
+        maxFailures: number,
+        delay: number
+    } = { maxFailures: 5, delay: 2000 } // 10 seconds total
+) {
+    const id = `${adbClient.serial}:${localPort}->${remotePort}`;
+
+    await adbClient.reverse('tcp:' + localPort, 'tcp:' + remotePort);
+
+    // This tunnel can break in quite a few days, notably when connecting/disconnecting
+    // from the VPN app with a wifi connection, or when ADB is restarted, when using flaky
+    // cables, or switching ADB into root mode, etc etc. This is a problem!
+
+    // To handle this, we constantly reinforce the tunnel while HTTP Toolkit is running &
+    // the device is connected, until it actually persistently fails.
+
+    // If tunnel is already being maintained elsewhere, no need to repeat (although we
+    // do re-create it above, just in case there's any flakiness at this exact moment)
+    if (adbTunnelIds[id]) return;
+
+    let tunnelConnectFailures = 0;
+
+    const tunnelCheckInterval = adbTunnelIds[id] = setInterval(async () => {
+        if (adbTunnelIds[id] !== tunnelCheckInterval) {
+            clearInterval(tunnelCheckInterval);
+            return;
+        }
+
+        try {
+            // Repeated calls to do this do nothing if the tunnel is already in place
+            await adbClient.reverse('tcp:' + remotePort, 'tcp:' + localPort);
+            tunnelConnectFailures = 0;
+        } catch (e) {
+            tunnelConnectFailures += 1;
+            console.log(`${id} ADB tunnel failed`, isErrorLike(e) ? e.message : e);
+
+            if (tunnelConnectFailures >= options.maxFailures) {
+                // After 10 seconds disconnected, give up
+                console.warn(`${id} tunnel disconnected`);
+
+                delete adbTunnelIds[id];
+                clearInterval(tunnelCheckInterval);
+            }
+        }
+    }, options.delay);
+    tunnelCheckInterval.unref(); // Don't let this block shutdown
+}
