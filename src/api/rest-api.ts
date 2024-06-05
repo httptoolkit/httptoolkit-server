@@ -71,13 +71,7 @@ export function exposeRestAPI(
         const proxyPort = parseInt(req.params.proxyPort, 10);
         if (isNaN(proxyPort)) throw new StatusError(400, `Could not parse required proxy port: ${req.params.proxyPort}`);
 
-        let interceptorOptions = req.body;
-
-        if (_.isEmpty(interceptorOptions) && !_.isEmpty(req.query)) {
-            // TEMPORARY (drop by August 2023) fix for UI bug that briefly passed options wrong
-            interceptorOptions = req.query;
-        }
-
+        const interceptorOptions = req.body;
         const result = await apiModel.activateInterceptor(interceptorId, proxyPort, interceptorOptions);
         res.send({ result });
     }));
