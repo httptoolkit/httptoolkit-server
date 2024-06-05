@@ -21,7 +21,8 @@ import {
     setChromeFlags,
     startActivity,
     createPersistentReverseTunnel,
-    closeReverseTunnel
+    closeReverseTunnel,
+    EMULATOR_HOST_IPS
 } from './adb-commands';
 import { streamLatestApk, clearAllApks } from './fetch-apk';
 import { parseCert, getCertificateFingerprint, getCertificateSubjectHash } from '../../certificates';
@@ -95,10 +96,7 @@ export class AndroidAdbInterceptor implements Interceptor {
 
         // Build a trigger URL to activate the proxy on the device:
         const setupParams = {
-            addresses: [
-                '10.0.2.2', // Standard emulator localhost ip
-                '10.0.3.2', // Genymotion localhost ip
-            ].concat(
+            addresses: EMULATOR_HOST_IPS.concat(
                 // Every other external network ip
                 getReachableInterfaces().filter(a =>
                     a.family === "IPv4" // Android VPN app supports IPv4 only

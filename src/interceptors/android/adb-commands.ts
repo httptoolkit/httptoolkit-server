@@ -10,6 +10,11 @@ import { streamToBuffer } from '../../util/stream';
 export const ANDROID_TEMP = '/data/local/tmp';
 export const SYSTEM_CA_PATH = '/system/etc/security/cacerts';
 
+export const EMULATOR_HOST_IPS = [
+    '10.0.2.2', // Standard emulator localhost ip
+    '10.0.3.2', // Genymotion localhost ip
+];
+
 export function createAdbClient() {
     const client = adb.createClient({
         port: process.env['ANDROID_ADB_SERVER_PORT']

@@ -1,7 +1,13 @@
 import { Client as AdbClient, DeviceClient } from '@devicefarmer/adbkit';
 import * as FridaJs from 'frida-js';
 
-import { createPersistentReverseTunnel, getConnectedDevices, getRootCommand, isProbablyRooted } from '../android/adb-commands';
+import {
+    EMULATOR_HOST_IPS,
+    createPersistentReverseTunnel,
+    getConnectedDevices,
+    getRootCommand,
+    isProbablyRooted
+} from '../android/adb-commands';
 import { waitUntil } from '../../util/promise';
 import { buildAndroidFridaScript } from './frida-scripts';
 import {
@@ -186,7 +192,10 @@ export async function interceptAndroidFridaTarget(
         const proxyIp = await testAndSelectProxyAddress(session, proxyPort, {
             // Localhost here is local to the device - it's the reverse tunnel
             // over ADB, which is generally more robust than wifi etc
-            includeLocalhost: true
+            extraAddresses: [
+                '127.0.0.1',
+                ...EMULATOR_HOST_IPS,
+            ]
         });
 
         const interceptionScript = await buildAndroidFridaScript(

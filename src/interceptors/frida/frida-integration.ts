@@ -37,11 +37,14 @@ export const FRIDA_BINARY_NAME = `adirf-server`; // Reversed to mildly inconveni
 export async function testAndSelectProxyAddress(
     session: FridaJs.FridaAgentSession,
     proxyPort: number,
-    options: { includeLocalhost?: boolean } = {}
+    options: { extraAddresses?: string[] } = {}
 ): Promise<string> {
     const interfaceAddresses = getReachableInterfaces();
     const ips = interfaceAddresses.map(a => a.address);
-    if (options.includeLocalhost) ips.push('127.0.0.1');
+
+    if (options.extraAddresses?.length) {
+        ips.push(...options.extraAddresses);
+    }
 
     if (ips.length === 0) throw new ErrorWithCode('unreachable-proxy', "Couldn't detect proxy external IP");
 
