@@ -110,7 +110,8 @@ async function run(
     adbClient: Adb.DeviceClient,
     command: string[],
     options: {
-        timeout?: number
+        timeout?: number,
+        skipLogging?: boolean
     } = {
         timeout: 10000
     }
@@ -120,7 +121,9 @@ async function run(
             .then(adb.util.readAll)
             .then((buffer: Buffer) => buffer.toString('utf8'))
             .then((result) => {
-                console.debug("Android command", command, "returned", `\`${result.trimEnd()}\``);
+                if (!options.skipLogging) {
+                    console.debug("Android command", command, "returned", `\`${result.trimEnd()}\``);
+                }
                 return result;
             }),
         ...(options.timeout
@@ -131,7 +134,9 @@ async function run(
             : []
         )
     ]).catch((e) => {
-        console.debug("Android command", command, "threw", e.message);
+        if (!options.skipLogging) {
+            console.debug("Android command", command, "threw", e.message);
+        }
         throw e;
     });
 }
@@ -151,7 +156,7 @@ export async function pushFile(
 }
 
 export async function isProbablyRooted(deviceClient: Adb.DeviceClient) {
-    return run(deviceClient, ['which', 'su'], { timeout: 500 })
+    return run(deviceClient, ['which', 'su'], { timeout: 500, skipLogging: true })
         .then((result) => result.includes('/su'))
         .catch(() => false);
 }
