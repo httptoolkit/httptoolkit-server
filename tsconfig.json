@@ -7,7 +7,7 @@
         "rootDir": "src",
         "outDir": "lib",
         "strict": true,
-        "target": "es2017",
+        "target": "es2020",
         "resolveJsonModule": true,
         "esModuleInterop": true,
         "composite": true,
