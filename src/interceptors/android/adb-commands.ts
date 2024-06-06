@@ -170,34 +170,34 @@ export async function getRootCommand(adbClient: Adb.DeviceClient): Promise<RootC
     const rootTestScriptPath = `${ANDROID_TEMP}/htk-root-test.sh`;
 
     try {
-        // Just running 'whoami' doesn't fully check certain tricky cases around how the root commands
-        // handle multiple arguments etc. Pushing & running this script is an accurate test of which
-        // root mechanisms will actually work on this device:
+        // Just running 'id' doesn't fully check certain tricky cases around how the root commands handle
+        // multiple arguments etc. N.b. whoami also doesn't exist on older devices. Pushing & running
+        // this script is an accurate test of which root mechanisms will actually work on this device:
         let rootTestCommand = ['sh', rootTestScriptPath];
         try {
             await pushFile(adbClient, stringAsStream(`
                 set -e # Fail on error
-                whoami # Log the current user name, to confirm if we're root
+                id # Log the current user details, to confirm if we're root
             `), rootTestScriptPath, 0o444);
         } catch (e) {
             console.log(`Couldn't write root test script to ${rootTestScriptPath}`, e);
-            // Ok, so we can't write the test script, but let's still test for root via whoami directly,
+            // Ok, so we can't write the test script, but let's still test for root  directly,
             // because maybe if we get root then that won't be a problem
-            rootTestCommand = ['whoami'];
+            rootTestCommand = ['id'];
         }
 
-        // Run our whoami script with each of the possible root commands
+        // Run our root test script with each of the possible root commands
         const rootCheckResults = await Promise.all(
             runAsRootCommands.map((runAsRoot) =>
                 run(adbClient, runAsRoot(...rootTestCommand), { timeout: 1000 })
                     .catch((e: any) => console.log(e.message ?? e))
-                .then((whoami) => ({ cmd: runAsRoot, whoami }))
+                .then((result) => ({ cmd: runAsRoot, result }))
             )
         )
 
-        // Filter to just commands that successfully printed 'root'
+        // Filter to just commands that successfully printed 'uid=0(root)'
         const validRootCommands = rootCheckResults
-            .filter((result) => (result.whoami || '').trim() === 'root')
+            .filter((result) => (result.result || '').includes('uid=0(root)'))
             .map((result) => result.cmd);
 
         if (validRootCommands.length >= 1) return validRootCommands[0];
@@ -214,11 +214,11 @@ export async function getRootCommand(adbClient: Adb.DeviceClient): Promise<RootC
         // they're still here, and wait a few seconds for them to come back if not.
 
         await delay(500); // Wait, since they may not disconnect immediately
-        const whoami = await waitUntil(250, 10, (): Promise<string | false> => {
+        const idResult = await waitUntil(250, 10, (): Promise<string | false> => {
             return run(adbClient, rootTestCommand, { timeout: 1000 }).catch(() => false)
         }).catch(console.log);
 
-        return (whoami || '').trim() === 'root'
+        return (idResult || '').includes('uid=0(root)')
             ? (...cmd: string[]) => cmd // All commands now run as root
             : undefined; // Still not root, no luck.
     } catch (e) {
