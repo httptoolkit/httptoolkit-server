@@ -16,6 +16,7 @@ import {
     FRIDA_DEFAULT_PORT,
     FRIDA_VERSION,
     FridaHost,
+    launchScript,
     testAndSelectProxyAddress
 } from './frida-integration';
 
@@ -204,34 +205,9 @@ export async function interceptAndroidFridaTarget(
             proxyPort
         );
 
-        const scriptSession = await session.createScript(interceptionScript);
-
-        let scriptLoaded = false;
-        await new Promise((resolve, reject) => {
-            session.onMessage((message) => {
-                if (message.type === 'error') {
-                    const error = new Error(message.description);
-                    error.stack = message.stack;
-
-                    if (!scriptLoaded) {
-                        reject(error);
-                    } else {
-                        console.warn('Frida Android injection error:', error);
-                    }
-                } else if (message.type === 'log') {
-                    console.log(`Frida Android [${message.level}]: ${message.payload}`);
-                } else {
-                    console.log(message);
-                }
-            });
-
-            scriptSession.loadScript()
-                .then(resolve)
-                .catch(reject);
-        });
-
-        scriptLoaded = true;
+        await launchScript(`Android (${appId})`, session, interceptionScript);
         await session.resume();
+        console.log(`Frida Android interception started: ${appId} on ${hostId} forwarding to ${proxyIp}:${proxyPort}`);
     } catch (e) {
         // If anything goes wrong, just make sure we shut down the app again
         await session.kill();

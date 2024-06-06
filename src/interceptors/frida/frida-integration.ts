@@ -92,3 +92,41 @@ export async function testAndSelectProxyAddress(
         throw new FridaProxyError("No proxy IPs were reachable from the target", e);
     });
 }
+
+/**
+ * Launch a script, watching for errors during its initial exception, and logging any
+ * output or returned messages from the session to the console.
+ *
+ * Note that only one session monitor can be active at any time, so this will replace
+ * any existing session message monitoring.
+ */
+export async function launchScript(targetName: string, session: FridaJs.FridaAgentSession, script: string) {
+    const scriptSession = await session.createScript(script);
+
+    let scriptLoaded = false;
+    await new Promise((resolve, reject) => {
+        session.onMessage((message) => {
+            if (message.type === 'error') {
+                const error = new Error(message.description);
+                error.stack = message.stack;
+
+                if (!scriptLoaded) {
+                    reject(error);
+                } else {
+                    console.warn(`Frida ${targetName} injection error:`, error);
+                }
+            } else if (message.type === 'log') {
+                if (message.payload.trim() === '') return;
+                console.log(`Frida ${targetName} [${message.level}]: ${message.payload}`);
+            } else {
+                console.log(message);
+            }
+        });
+
+        scriptSession.loadScript()
+            .then(resolve)
+            .catch(reject);
+    });
+
+    scriptLoaded = true;
+}
