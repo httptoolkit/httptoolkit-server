@@ -1,8 +1,8 @@
 import _ from 'lodash';
+import { ErrorLike } from '@httptoolkit/util';
 
 import { HtkConfig } from '../config';
 import { addShutdownHandler } from '../shutdown';
-import { ErrorLike } from '../util/error';
 
 import { FreshFirefox, FreshFirefoxDeveloper, FreshFirefoxNightly } from './fresh-firefox';
 import {

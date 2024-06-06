@@ -1,8 +1,8 @@
 import * as FridaJs from 'frida-js';
+import { CustomError } from '@httptoolkit/util';
 
 import { getReachableInterfaces } from '../../util/network';
 import { buildIpTestScript } from './frida-scripts';
-import { ErrorWithCode } from '../../util/error';
 
 /**
  * Terminology:
@@ -46,7 +46,11 @@ export async function testAndSelectProxyAddress(
         ips.push(...options.extraAddresses);
     }
 
-    if (ips.length === 0) throw new ErrorWithCode('unreachable-proxy', "Couldn't detect proxy external IP");
+    if (ips.length === 0) {
+        throw new CustomError("Couldn't detect proxy external IP", {
+            code: 'unreachable-proxy'
+        });
+    }
 
     const ipTestScript = await buildIpTestScript(ips, proxyPort);
 
@@ -57,13 +61,11 @@ export async function testAndSelectProxyAddress(
                     if (message.payload.type === 'connected') {
                         resolve(message.payload.ip as string);
                     } else if (message.payload.type === 'connection-failed') {
-                        reject(new ErrorWithCode('unreachable-proxy',
-                            `Could not connect to proxy on port ${proxyPort} at ${
-                                ips.length > 1
-                                ? `any of: ${ips.join(', ')}`
-                                : ips[0]
-                            }`
-                        ));
+                        reject(new CustomError(`Could not connect to proxy on port ${proxyPort} at ${
+                            ips.length > 1
+                            ? `any of: ${ips.join(', ')}`
+                            : ips[0]
+                        }`, { code: 'unreachable-proxy' }));
                     } else {
                         reject(new Error(`Unexpected message type: ${message.payload.type}`));
                     }

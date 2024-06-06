@@ -10,8 +10,8 @@ import type {
     RouteParameters
 } from 'express-serve-static-core';
 import type { ParsedQs } from 'qs';
+import { ErrorLike, StatusError } from '@httptoolkit/util';
 
-import { ErrorLike, StatusError } from '../util/error';
 import { logError } from '../error-tracking';
 import { ApiModel } from './api-model';
 import * as Client from '../client/client-types';
@@ -195,8 +195,8 @@ function handleErrors<
             // Use default error handler if response started (kills the connection)
             if (res.headersSent) return next(error)
             else {
-                const status = (error.status && error.status >= 400 && error.status < 600)
-                    ? error.status
+                const status = (error.statusCode && error.statusCode >= 400 && error.statusCode < 600)
+                    ? error.statusCode
                     : 500;
 
                 res.status(status).send({

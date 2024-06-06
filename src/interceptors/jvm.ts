@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import * as path from 'path';
 
-import { delay } from '@httptoolkit/util';
+import { delay, ErrorLike } from '@httptoolkit/util';
 
 import { Interceptor } from '.';
 
@@ -10,7 +10,6 @@ import { spawnToResult, waitForExit } from '../util/process-management';
 import { OVERRIDE_JAVA_AGENT } from './terminal/terminal-env-overrides';
 import { logError } from '../error-tracking';
 import { commandExists, canAccess } from '../util/fs';
-import { ErrorLike } from '../util/error';
 
 type JvmTarget = { pid: string, name: string, interceptedByProxy: number | undefined };
 
