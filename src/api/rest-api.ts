@@ -73,7 +73,13 @@ export function exposeRestAPI(
 
         const interceptorOptions = req.body;
         const result = await apiModel.activateInterceptor(interceptorId, proxyPort, interceptorOptions);
-        res.send({ result });
+
+        if (result.success === true || result.error === false) {
+            // Some non-success is just temporary, e.g. global Chrome "exit running app please" confirmation.
+            res.json({ result });
+        } else {
+            res.status(500).json({ result });
+        }
     }));
 
     server.post('/client/send', handleErrors(async (req, res) => {

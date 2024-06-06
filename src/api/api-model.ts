@@ -199,7 +199,7 @@ export class ApiModel {
                         code: activationError.code,
                         message: activationError.message
                     }
-                    : {}
+                    : false
             };
         }
     }
