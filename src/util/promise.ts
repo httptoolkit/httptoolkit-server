@@ -1,9 +1,4 @@
-export function delay(durationMs: number, options: { unref?: boolean } = {}): Promise<void> {
-    return new Promise((resolve) => {
-        const timer = setTimeout(resolve, durationMs);
-        if (options.unref) timer.unref();
-    });
-}
+import { delay } from '@httptoolkit/util';
 
 export async function waitUntil<T extends unknown>(
     delayMs: number,
@@ -20,24 +15,4 @@ export async function waitUntil<T extends unknown>(
 
     if (!result) throw new Error(`Wait loop failed`);
     else return result as Exclude<T, false>;
-}
-
-export interface Deferred<T> {
-    resolve: (arg: T) => void,
-    reject: (e?: Error) => void,
-    promise: Promise<T>
-}
-
-export function getDeferred<T = void>(): Deferred<T> {
-    let resolve: undefined | ((arg: T) => void) = undefined;
-    let reject: undefined | ((e?: Error) => void) = undefined;
-
-    let promise = new Promise<T>((resolveCb, rejectCb) => {
-        resolve = resolveCb;
-        reject = rejectCb;
-    });
-
-    // TS thinks we're using these before they're assigned, which is why
-    // we need the undefined types, and the any here.
-    return { resolve, reject, promise } as any;
 }

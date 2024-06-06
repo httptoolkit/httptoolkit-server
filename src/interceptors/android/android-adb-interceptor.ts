@@ -1,13 +1,12 @@
 import _ from 'lodash';
 import { DeviceClient } from '@devicefarmer/adbkit';
+import { delay } from '@httptoolkit/util';
 
 import { Interceptor } from '..';
 import { HtkConfig } from '../../config';
 import { generateSPKIFingerprint } from 'mockttp';
 
 import { logError } from '../../error-tracking';
-import { delay } from '../../util/promise';
-import { isErrorLike } from '../../util/error';
 import {
     ANDROID_TEMP,
     createAdbClient,

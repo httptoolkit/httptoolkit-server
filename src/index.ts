@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import envPaths from 'env-paths';
 import { Mutex } from 'async-mutex';
 
+import { delay } from '@httptoolkit/util';
 import {
     PluggableAdmin,
     generateCACertificate
@@ -21,7 +22,6 @@ import { checkBrowserConfig } from './browsers';
 import { logError } from './error-tracking';
 import { IS_PROD_BUILD, MOCKTTP_ALLOWED_ORIGINS } from './constants';
 
-import { delay } from './util/promise';
 import { isErrorLike } from './util/error';
 import { readFile, checkAccess, writeFile, ensureDirectoryExists } from './util/fs';
 

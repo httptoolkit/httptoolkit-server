@@ -2,6 +2,7 @@ import * as _ from 'lodash';
 import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 
+import { delay } from '@httptoolkit/util';
 import * as request from 'request-promise-native';
 import * as tmp from 'tmp';
 import decompress from 'decompress';
@@ -10,8 +11,6 @@ import getGraphQL from 'graphql.js';
 import fetch from 'node-fetch';
 
 import { getRemote, getLocal } from 'mockttp';
-
-import { delay } from '../../src/util/promise';
 
 async function setupServerPath() {
     if (!process.env.TEST_BUILT_TARBALL) {

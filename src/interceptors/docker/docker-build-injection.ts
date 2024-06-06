@@ -1,14 +1,15 @@
 import _ from 'lodash';
 import * as path from 'path';
 import * as stream from 'stream';
+
 import * as EventStream from 'event-stream';
 import getRawBody from 'raw-body';
 import maybeGunzip = require('gunzip-maybe');
 import * as tarStream from 'tar-stream';
 import { parse as parseDockerfile, CommandEntry } from 'docker-file-parser';
+import { getDeferred } from '@httptoolkit/util';
 
 import { getTerminalEnvVars } from '../terminal/terminal-env-overrides';
-import { getDeferred } from '../../util/promise';
 import { getDockerHostAddress } from './docker-commands';
 import { packOverrideFiles } from './docker-data-injection';
 

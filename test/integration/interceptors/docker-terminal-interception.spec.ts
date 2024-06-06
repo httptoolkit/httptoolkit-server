@@ -5,11 +5,11 @@ import Docker from 'dockerode';
 import { ProxySettingCallback } from 'mockttp';
 
 import { expect } from 'chai';
+import { delay } from '@httptoolkit/util';
 
 import { setupTest } from './interceptor-test-utils';
 import { FIXTURES_DIR } from '../../test-util';
 import { spawnToResult } from '../../../src/util/process-management';
-import { delay } from '../../../src/util/promise';
 
 import { getTerminalEnvVars } from '../../../src/interceptors/terminal/terminal-env-overrides';
 

@@ -1,8 +1,8 @@
 import { getLocal, Mockttp } from 'mockttp';
+import { getDeferred } from '@httptoolkit/util';
 
 import { HtkConfig } from './config';
 import { EPHEMERAL_PORT_RANGE } from './constants';
-import { getDeferred } from './util/promise';
 
 export class MessageServer {
 

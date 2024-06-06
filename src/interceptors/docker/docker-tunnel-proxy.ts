@@ -1,10 +1,10 @@
 import _ = require('lodash');
 import Docker from 'dockerode';
 import { Mutex } from 'async-mutex';
+import { delay } from '@httptoolkit/util';
 
 import { isImageAvailable } from './docker-commands';
 import { isDockerAvailable } from './docker-interception-services';
-import { delay } from '../../util/promise';
 import { logError } from '../../error-tracking';
 import { waitForDockerStream } from './docker-utils';
 

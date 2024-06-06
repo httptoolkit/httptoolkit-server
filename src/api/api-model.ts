@@ -1,11 +1,11 @@
 import * as _ from 'lodash';
 import * as os from 'os';
 
+import { delay } from '@httptoolkit/util';
 import { generateSPKIFingerprint } from 'mockttp';
 import { getSystemProxy } from 'os-proxy-config';
 
 import { SERVER_VERSION } from "../constants";
-import { delay } from '../util/promise';
 import { logError, addBreadcrumb } from '../error-tracking';
 
 import { HtkConfig } from "../config";

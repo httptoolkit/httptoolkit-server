@@ -1,9 +1,12 @@
 import * as stream from 'stream';
 import * as path from 'path';
+
 import adb, * as Adb from '@devicefarmer/adbkit';
+import { delay } from '@httptoolkit/util';
+
 import { logError } from '../../error-tracking';
 import { isErrorLike } from '../../util/error';
-import { delay, waitUntil } from '../../util/promise';
+import { waitUntil } from '../../util/promise';
 import { getCertificateFingerprint, parseCert } from '../../certificates';
 import { streamToBuffer } from '../../util/stream';
 
