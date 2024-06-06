@@ -14,7 +14,7 @@ function buildFridaConfig(
     return configScriptTemplate
         .replace(/(?<=const CERT_PEM = `)[^`]+(?=`)/s, caCertContent.trim())
         .replace(/(?<=const PROXY_HOST = ')[^']+(?=')/, proxyHost)
-        .replace(/(?<=const PROXY_PORT = ')\d+(?=;)/, proxyPort.toString());
+        .replace(/(?<=const PROXY_PORT = )\d+(?=;)/, proxyPort.toString());
 }
 
 export async function buildAndroidFridaScript(
