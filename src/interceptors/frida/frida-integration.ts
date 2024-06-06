@@ -89,7 +89,7 @@ export async function testAndSelectProxyAddress(
             reject(e);
         }
     })).catch((e) => {
-        throw new FridaProxyError("No proxy IPs were reachable from the target", e);
+        throw new FridaProxyError("No proxy IPs were reachable from the target", { cause: e });
     });
 }
 
