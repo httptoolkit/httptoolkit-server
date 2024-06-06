@@ -175,7 +175,7 @@ export class ApiModel {
 
         // After 30s, don't stop activating, but report an error if we're not done yet
         let activationDone = false;
-        delay(30000).then(() => {
+        delay(30000, { unref: true }).then(() => {
             if (!activationDone) logError(`Timeout activating ${id}`)
         });
 

@@ -119,7 +119,7 @@ function testJavaBin(possibleJavaBin: string) {
             ]
         ),
         // Time out permanently after 30 seconds - this only runs once max anyway
-        delay(30000).then(() => {
+        delay(30000, { unref: true }).then(() => {
             throw new Error(`Java bin test for ${possibleJavaBin} timed out`);
         })
     ]);
