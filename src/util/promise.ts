@@ -1,4 +1,4 @@
-import { delay } from '@httptoolkit/util';
+import { CustomError, delay } from '@httptoolkit/util';
 
 export async function waitUntil<T extends unknown>(
     delayMs: number,
@@ -15,4 +15,21 @@ export async function waitUntil<T extends unknown>(
 
     if (!result) throw new Error(`Wait loop failed`);
     else return result as Exclude<T, false>;
+}
+
+export class TimeoutError extends CustomError {
+    constructor() {
+        super('Timeout', { code: 'timeout' });
+    }
+}
+
+export async function withTimeout<T>(
+    timeoutMs: number,
+    promise: Promise<T>
+) {
+    return Promise.race([
+        promise,
+        delay(timeoutMs, { unref: true })
+            .then(() => { throw new TimeoutError(); })
+    ]);
 }

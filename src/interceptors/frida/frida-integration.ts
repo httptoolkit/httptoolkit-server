@@ -3,6 +3,7 @@ import { CustomError } from '@httptoolkit/util';
 
 import { getReachableInterfaces } from '../../util/network';
 import { buildIpTestScript } from './frida-scripts';
+import { withTimeout } from '../../util/promise';
 
 /**
  * Terminology:
@@ -34,6 +35,15 @@ export const FRIDA_ALTERNATE_PORT = 24072; // Reversed to mildly inconvenience d
 
 export const FRIDA_BINARY_NAME = `adirf-server`; // Reversed to mildly inconvenience detection
 
+class FridaProxyError extends CustomError {
+    constructor(message: string, options: { cause?: Error } = {}) {
+        super(message, {
+            cause: options.cause,
+            code: 'unreachable-proxy'
+        });
+    }
+}
+
 export async function testAndSelectProxyAddress(
     session: FridaJs.FridaAgentSession,
     proxyPort: number,
@@ -47,25 +57,23 @@ export async function testAndSelectProxyAddress(
     }
 
     if (ips.length === 0) {
-        throw new CustomError("Couldn't detect proxy external IP", {
-            code: 'unreachable-proxy'
-        });
+        throw new FridaProxyError("No local IPs detected for proxy connection");
     }
 
     const ipTestScript = await buildIpTestScript(ips, proxyPort);
 
-    return await new Promise<string>(async (resolve, reject) => {
+    return await withTimeout(2000, new Promise<string>(async (resolve, reject) => {
         try {
             session.onMessage((message) => {
                 if (message.type === 'send') {
                     if (message.payload.type === 'connected') {
                         resolve(message.payload.ip as string);
                     } else if (message.payload.type === 'connection-failed') {
-                        reject(new CustomError(`Could not connect to proxy on port ${proxyPort} at ${
+                        reject(new Error(`Could not connect to proxy on port ${proxyPort} at ${
                             ips.length > 1
                             ? `any of: ${ips.join(', ')}`
                             : ips[0]
-                        }`, { code: 'unreachable-proxy' }));
+                        }`));
                     } else {
                         reject(new Error(`Unexpected message type: ${message.payload.type}`));
                     }
@@ -80,5 +88,7 @@ export async function testAndSelectProxyAddress(
         } catch (e) {
             reject(e);
         }
+    })).catch((e) => {
+        throw new FridaProxyError("No proxy IPs were reachable from the target", e);
     });
 }
