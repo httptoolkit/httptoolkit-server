@@ -16,6 +16,7 @@ import {
     FRIDA_DEFAULT_PORT,
     FRIDA_VERSION,
     FridaHost,
+    killProcess,
     launchScript,
     testAndSelectProxyAddress
 } from './frida-integration';
@@ -210,7 +211,7 @@ export async function interceptAndroidFridaTarget(
         console.log(`Frida Android interception started: ${appId} on ${hostId} forwarding to ${proxyIp}:${proxyPort}`);
     } catch (e) {
         // If anything goes wrong, just make sure we shut down the app again
-        await session.kill();
+        await killProcess(session).catch(console.log)
         throw e;
     }
 }

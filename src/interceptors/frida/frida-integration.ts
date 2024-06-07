@@ -1,5 +1,5 @@
 import * as FridaJs from 'frida-js';
-import { CustomError } from '@httptoolkit/util';
+import { CustomError, delay } from '@httptoolkit/util';
 
 import { getReachableInterfaces } from '../../util/network';
 import { buildIpTestScript } from './frida-scripts';
@@ -53,6 +53,15 @@ class FridaProxyError extends CustomError {
             code: 'unreachable-proxy'
         });
     }
+}
+
+export async function killProcess(session: FridaJs.FridaAgentSession) {
+    // We have to resume and then wait briefly before we can kill:
+    await session.resume()
+        .then(() => delay(100)) // Even 0 seems to work - but let's be safe
+        .catch(() => {});
+
+    await session.kill();
 }
 
 export async function testAndSelectProxyAddress(
