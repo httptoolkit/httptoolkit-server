@@ -14,6 +14,7 @@ import {
     FRIDA_ALTERNATE_PORT,
     FRIDA_BINARY_NAME,
     FRIDA_DEFAULT_PORT,
+    FRIDA_SRIS,
     FRIDA_VERSION,
     FridaHost,
     killProcess,
@@ -114,7 +115,8 @@ export async function setupAndroidHost(adbClient: AdbClient, hostId: string) {
     const serverStream = await FridaJs.downloadFridaServer({
         version: FRIDA_VERSION,
         platform: 'android',
-        arch: deviceArch
+        arch: deviceArch,
+        sri: FRIDA_SRIS.android[deviceArch]
     });
 
     await deviceClient.push(serverStream, ANDROID_FRIDA_BINARY_PATH, 0o555);
