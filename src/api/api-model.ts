@@ -1,7 +1,7 @@
 import * as _ from 'lodash';
 import * as os from 'os';
 
-import { delay } from '@httptoolkit/util';
+import { ErrorLike, delay } from '@httptoolkit/util';
 import { generateSPKIFingerprint } from 'mockttp';
 import { getSystemProxy } from 'os-proxy-config';
 
@@ -197,10 +197,7 @@ export class ApiModel {
                 success: false,
                 metadata: activationError.metadata,
                 error: activationError.reportable !== false
-                    ? {
-                        code: activationError.code,
-                        message: activationError.message
-                    }
+                    ? serializeError(activationError)
                     : false
             };
         }
@@ -222,6 +219,12 @@ export class ApiModel {
     }
 
 }
+
+const serializeError = (error: ErrorLike): {} => ({
+    message: error.message,
+    code: error.code,
+    cause: error.cause ? serializeError(error.cause) : undefined
+});
 
 // Wait for a promise, falling back to defaultValue on error or timeout
 const withFallback = <R>(p: () => Promise<R>, timeoutMs: number, defaultValue: R) =>
