@@ -1,10 +1,12 @@
 import _ from 'lodash';
+import * as stream from 'stream';
+import * as FridaJs from 'frida-js';
 
 import { Interceptor } from "..";
 import { HtkConfig } from '../../config';
 
 import { createAdbClient } from '../android/adb-commands';
-import { FridaHost, FridaTarget } from './frida-integration';
+import { FridaHost, FridaTarget, killProcess } from './frida-integration';
 import {
     getAndroidFridaHosts,
     getAndroidFridaTargets,
@@ -58,6 +60,9 @@ export class FridaAndroidInterceptor implements Interceptor {
         }
     }
 
+    private fridaServers: { [proxyPort: number]: Array<stream.Readable> } = {};
+    private interceptedApps: { [proxyPort: number]: Array<FridaJs.FridaAgentSession> } = {};
+
     async activate(
         proxyPort: number,
         options:
@@ -68,24 +73,51 @@ export class FridaAndroidInterceptor implements Interceptor {
         if (options.action === 'setup') {
             await setupAndroidHost(this.adbClient, options.hostId);
         } else if (options.action === 'launch') {
-            await launchAndroidHost(this.adbClient, options.hostId);
+            const fridaServer = await launchAndroidHost(this.adbClient, options.hostId);
+
+            // Track this server stream, so we can close it to stop the server later
+            this.fridaServers[proxyPort] = this.fridaServers[proxyPort] ?? [];
+            this.fridaServers[proxyPort].push(fridaServer);
+            fridaServer.on('close', () => {
+                _.remove(this.fridaServers[proxyPort], fridaServer);
+            });
         } else if (options.action === 'intercept') {
-            await interceptAndroidFridaTarget(
+            const fridaSession = await interceptAndroidFridaTarget(
                 this.adbClient,
                 options.hostId,
                 options.targetId,
                 this.config.https.certContent,
                 proxyPort
             );
+
+            // Track this session, so we can close it to stop the interception later
+            this.interceptedApps[proxyPort] = this.interceptedApps[proxyPort] ?? [];
+            this.interceptedApps[proxyPort].push(fridaSession);
         } else {
             throw new Error(`Unknown Frida interception command: ${(options as any).action ?? '(none)'}`)
         }
     }
 
     async deactivate(proxyPort: number): Promise<void | {}> {
+        this.fridaServers[proxyPort]?.forEach(serverStream => {
+            serverStream.destroy();
+        });
+
+        await Promise.all(this.interceptedApps[proxyPort]?.map(async fridaSession => {
+            await killProcess(fridaSession).catch(() => {});
+        }));
     }
 
     async deactivateAll(): Promise<void | {}> {
+        const allPorts = new Set([
+            ...Object.keys(this.fridaServers),
+            ...Object.keys(this.interceptedApps)
+        ]);
+
+        await Promise.all(
+            [...allPorts]
+            .map(port => this.deactivate(Number(port)))
+        );
     }
 
 }

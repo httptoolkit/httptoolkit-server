@@ -126,6 +126,8 @@ export async function interceptIosFridaTarget(
         await launchScript(`iOS (${appId})`, session, interceptionScript);
         await session.resume();
         console.log(`Frida iOS interception started: ${appId} on ${hostId} forwarding to ${proxyIp}:${proxyPort}`);
+
+        return session;
     } catch (e) {
         // If anything goes wrong, just make sure we shut down the app again
         await killProcess(session).catch(console.log);

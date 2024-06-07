@@ -1,10 +1,11 @@
 import _ from 'lodash';
 import { UsbmuxClient } from 'usbmux-client';
+import * as FridaJs from 'frida-js';
 
 import { Interceptor } from "..";
 import { HtkConfig } from '../../config';
 
-import { FridaHost, FridaTarget } from './frida-integration';
+import { FridaHost, FridaTarget, killProcess } from './frida-integration';
 import {
     getIosFridaHosts,
     getIosFridaTargets,
@@ -56,28 +57,41 @@ export class FridaIosInterceptor implements Interceptor {
         }
     }
 
+    private interceptedApps: { [proxyPort: number]: Array<FridaJs.FridaAgentSession> } = {};
+
     async activate(
         proxyPort: number,
         options:
             | { action: 'intercept', hostId: string, targetId: string }
     ): Promise<void> {
         if (options.action === 'intercept') {
-            await interceptIosFridaTarget(
+            const fridaSession = await interceptIosFridaTarget(
                 this.usbmuxClient,
                 options.hostId,
                 options.targetId,
                 this.config.https.certContent,
                 proxyPort
             );
+
+            // Track this session, so we can close it to stop the interception later
+            this.interceptedApps[proxyPort] = this.interceptedApps[proxyPort] ?? [];
+            this.interceptedApps[proxyPort].push(fridaSession);
         } else {
             throw new Error(`Unknown Frida interception command: ${(options as any).action ?? '(none)'}`)
         }
     }
 
     async deactivate(proxyPort: number): Promise<void | {}> {
+        await Promise.all(this.interceptedApps[proxyPort]?.map(async fridaSession => {
+            await killProcess(fridaSession).catch(() => {});
+        }));
     }
 
     async deactivateAll(): Promise<void | {}> {
+        await Promise.all(
+            Object.keys(this.interceptedApps)
+            .map(port => this.deactivate(Number(port)))
+        );
     }
 
 }

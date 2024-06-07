@@ -146,8 +146,9 @@ export async function launchAndroidHost(adbClient: AdbClient, hostId: string) {
                 console.log(e.message ?? e);
                 return false;
             }
-
         });
+
+        return fridaServerStream;
     } catch (e: any) {
         console.log(e.message ?? e);
         throw new Error(`Failed to launch Frida server for ${hostId}`);
@@ -211,6 +212,8 @@ export async function interceptAndroidFridaTarget(
         await launchScript(`Android (${appId})`, session, interceptionScript);
         await session.resume();
         console.log(`Frida Android interception started: ${appId} on ${hostId} forwarding to ${proxyIp}:${proxyPort}`);
+
+        return session;
     } catch (e) {
         // If anything goes wrong, just make sure we shut down the app again
         await killProcess(session).catch(console.log)
