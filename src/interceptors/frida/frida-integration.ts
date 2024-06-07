@@ -35,6 +35,17 @@ export const FRIDA_ALTERNATE_PORT = 24072; // Reversed to mildly inconvenience d
 
 export const FRIDA_BINARY_NAME = `adirf-server`; // Reversed to mildly inconvenience detection
 
+class FridaScriptError extends CustomError {
+    constructor(
+        message: FridaJs.ScriptAgentErrorMessage
+    ) {
+        super(message.description);
+        if (message.stack) {
+            this.stack = message.stack;
+        }
+    }
+}
+
 class FridaProxyError extends CustomError {
     constructor(message: string, options: { cause?: Error } = {}) {
         super(message, {
@@ -78,9 +89,11 @@ export async function testAndSelectProxyAddress(
                         reject(new Error(`Unexpected message type: ${message.payload.type}`));
                     }
                 } else if (message.type === 'error') {
-                    const error = new Error(message.description);
-                    error.stack = message.stack;
-                    reject(error);
+                    const fridaError = new FridaScriptError(message);
+                    reject(new CustomError(
+                        `Error in Frida IP test script: ${message.description}`,
+                        { cause: fridaError, code: 'frida-ip-test-script-error' }
+                    ));
                 }
             });
 
@@ -107,13 +120,15 @@ export async function launchScript(targetName: string, session: FridaJs.FridaAge
     await new Promise((resolve, reject) => {
         session.onMessage((message) => {
             if (message.type === 'error') {
-                const error = new Error(message.description);
-                error.stack = message.stack;
+                const fridaError = new FridaScriptError(message);
 
                 if (!scriptLoaded) {
-                    reject(error);
+                    reject(new CustomError(
+                        `Failed to run Frida script on ${targetName}: ${message.description}`,
+                        { cause: fridaError, code: 'frida-script-error' }
+                    ));
                 } else {
-                    console.warn(`Frida ${targetName} injection error:`, error);
+                    console.warn(`Frida ${targetName} injection error:`, fridaError);
                 }
             } else if (message.type === 'log') {
                 if (message.payload.trim() === '') return;
