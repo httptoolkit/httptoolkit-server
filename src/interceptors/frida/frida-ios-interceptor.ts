@@ -1,6 +1,7 @@
 import _ from 'lodash';
 import { UsbmuxClient } from 'usbmux-client';
 import * as FridaJs from 'frida-js';
+import { combineParallelCalls } from '@httptoolkit/util';
 
 import { Interceptor } from "..";
 import { HtkConfig } from '../../config';
@@ -23,16 +24,7 @@ export class FridaIosInterceptor implements Interceptor {
         private config: HtkConfig
     ) {}
 
-    private _fridaTargetsPromise: Promise<Array<FridaHost>> | undefined;
-    async getFridaHosts(): Promise<Array<FridaHost>> {
-        if (!this._fridaTargetsPromise) {
-            // We cache the targets lookup whilst it's active, so that concurrent calls
-            // all just run one lookup and return the same result.
-            this._fridaTargetsPromise = getIosFridaHosts(this.usbmuxClient)
-                .finally(() => { this._fridaTargetsPromise = undefined; });
-        }
-        return await this._fridaTargetsPromise;
-    }
+    getFridaHosts = combineParallelCalls(() => getIosFridaHosts(this.usbmuxClient));
 
     async isActivable(): Promise<boolean> {
         return (await this.getFridaHosts()).length > 0;
