@@ -31,7 +31,8 @@ const isFridaInstalled = (deviceClient: DeviceClient) =>
     deviceClient.readdir(ANDROID_DEVICE_HTK_PATH)
     .then((entries) => entries.some((entry) =>
         entry.name === FRIDA_BINARY_NAME &&
-        (entry.mode & ALL_X_PERMS) !== 0
+        (entry.mode & ALL_X_PERMS) !== 0 &&
+        entry.size > 0
     ))
     .catch(() => false);
 
@@ -144,8 +145,21 @@ export async function launchAndroidHost(adbClient: AdbClient, hostId: string) {
 
         return fridaServerStream;
     } catch (e: any) {
-        console.log(e.message ?? e);
-        throw new Error(`Failed to launch Frida server for ${hostId}`);
+        const errorMessage = e?.message === 'Wait loop failed'
+            ? 'Frida server did not startup before timeout'
+            : e.message ?? e;
+        console.log('Fride launch failed:', errorMessage);
+
+        // Try cleaning up the Frida server (async) just in case it's corrupted somehow:
+        deviceClient.shell(runAsRoot('rm', '-f', ANDROID_FRIDA_BINARY_PATH)).catch((e) => {
+            console.warn(
+                `Failed to clean up broken Frida server on ${hostId} at ${ANDROID_FRIDA_BINARY_PATH}: ${
+                    e.message ?? e
+                }`
+            );
+        });
+
+        throw new Error(`Failed to launch Frida server for ${hostId}: ${e.message ?? e}`);
     }
 }
 
