@@ -1,6 +1,8 @@
 import { Client as AdbClient, DeviceClient } from '@devicefarmer/adbkit';
 import * as FridaJs from 'frida-js';
 
+import { waitUntil } from '../../util/promise';
+import { HtkConfig } from '../../config';
 import {
     EMULATOR_HOST_IPS,
     createPersistentReverseTunnel,
@@ -8,15 +10,13 @@ import {
     getRootCommand,
     isProbablyRooted
 } from '../android/adb-commands';
-import { waitUntil } from '../../util/promise';
 import { buildAndroidFridaScript } from './frida-scripts';
 import {
     FRIDA_ALTERNATE_PORT,
     FRIDA_BINARY_NAME,
     FRIDA_DEFAULT_PORT,
-    FRIDA_SRIS,
-    FRIDA_VERSION,
     FridaHost,
+    getFridaServer,
     killProcess,
     launchScript,
     testAndSelectProxyAddress
@@ -96,7 +96,7 @@ const ANDROID_ABI_FRIDA_ARCH_MAP = {
     'x86_64': 'x86_64'
 } as const;
 
-export async function setupAndroidHost(adbClient: AdbClient, hostId: string) {
+export async function setupAndroidHost(config: HtkConfig, adbClient: AdbClient, hostId: string) {
     const deviceClient = adbClient.getDevice(hostId);
 
     const deviceProperties = await deviceClient.getProperties();
@@ -111,13 +111,7 @@ export async function setupAndroidHost(adbClient: AdbClient, hostId: string) {
     if (!firstKnownAbi) throw new Error(`Did not recognize any device ABIs from ${supportedAbis.join(',')}`);
 
     const deviceArch = ANDROID_ABI_FRIDA_ARCH_MAP[firstKnownAbi];
-
-    const serverStream = await FridaJs.downloadFridaServer({
-        version: FRIDA_VERSION,
-        platform: 'android',
-        arch: deviceArch,
-        sri: FRIDA_SRIS.android[deviceArch]
-    });
+    const serverStream = await getFridaServer(config, 'android', deviceArch);
 
     await deviceClient.push(serverStream, ANDROID_FRIDA_BINARY_PATH, 0o555);
 }

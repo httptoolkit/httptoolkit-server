@@ -6,7 +6,7 @@ import { Interceptor } from "..";
 import { HtkConfig } from '../../config';
 
 import { createAdbClient } from '../android/adb-commands';
-import { FridaHost, FridaTarget, killProcess } from './frida-integration';
+import { FridaTarget, killProcess } from './frida-integration';
 import {
     getAndroidFridaHosts,
     getAndroidFridaTargets,
@@ -61,7 +61,7 @@ export class FridaAndroidInterceptor implements Interceptor {
             | { action: 'intercept', hostId: string, targetId: string }
     ): Promise<void> {
         if (options.action === 'setup') {
-            await setupAndroidHost(this.adbClient, options.hostId);
+            await setupAndroidHost(this.config, this.adbClient, options.hostId);
         } else if (options.action === 'launch') {
             const fridaServer = await launchAndroidHost(this.adbClient, options.hostId);
 

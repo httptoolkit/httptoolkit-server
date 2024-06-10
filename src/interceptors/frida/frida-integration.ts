@@ -1,9 +1,12 @@
 import * as FridaJs from 'frida-js';
 import { CustomError, delay } from '@httptoolkit/util';
 
-import { getReachableInterfaces } from '../../util/network';
-import { buildIpTestScript } from './frida-scripts';
 import { withTimeout } from '../../util/promise';
+import { getReachableInterfaces } from '../../util/network';
+import { HtkConfig } from '../../config';
+import * as dynamicDeps from '../../dynamic-dep-store';
+
+import { buildIpTestScript } from './frida-scripts';
 
 /**
  * Terminology:
@@ -43,6 +46,26 @@ export const FRIDA_SRIS = {
         'x86_64': 'sha512-Fy4jHMagt2sxAF5FY/ogCAy+s96VDTMwL1UtEazoVyvmohgkr/8tTHx4mQoV5mLInGbxRtpb3F0mPYVzMHtPrg=='
     }
 } as const;
+
+export const getFridaServer = (
+    config: HtkConfig,
+    platform: 'android',
+    arch: 'arm' | 'arm64' | 'x86' | 'x86_64'
+) => {
+    return dynamicDeps.getDependencyStream({
+        config,
+        key: ['frida-server', platform, arch, FRIDA_VERSION] as const,
+        ext: '.bin',
+        fetch: ([, platform, arch, version]) => {
+            return FridaJs.downloadFridaServer({
+                version: version,
+                platform: platform,
+                arch: arch,
+                sri: FRIDA_SRIS.android[arch]
+            });
+        }
+    });
+}
 
 class FridaScriptError extends CustomError {
     constructor(
