@@ -12,10 +12,10 @@ import { HtkConfig } from './config';
 export async function getDependencyStream<K extends readonly string[]>(options: {
     config: HtkConfig,
     key: K,
-    ext: string,
+    ext: `.${string}`,
     fetch: (key: K) => Promise<stream.Readable>
 }) {
-    const depPath = path.join(options.config.configPath, `${options.key.join('-')}.${options.ext}`);
+    const depPath = path.join(options.config.configPath, `${options.key.join('-')}${options.ext}`);
 
     if (await fs.canAccess(depPath)) {
         return fs.createReadStream(depPath);

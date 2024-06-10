@@ -36,7 +36,7 @@ export const FRIDA_VERSION = '16.1.7';
 export const FRIDA_DEFAULT_PORT = 27042;
 export const FRIDA_ALTERNATE_PORT = 24072; // Reversed to mildly inconvenience detection
 
-export const FRIDA_BINARY_NAME = 'adirf-server'; // Reversed to mildly inconvenience detection
+export const FRIDA_BINARY_NAME = `adirf-server-${FRIDA_VERSION}`; // Reversed to mildly inconvenience detection
 
 export const FRIDA_SRIS = {
     'android': {
