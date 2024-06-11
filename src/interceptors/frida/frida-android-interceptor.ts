@@ -93,9 +93,11 @@ export class FridaAndroidInterceptor implements Interceptor {
             serverStream.destroy();
         });
 
-        await Promise.all(this.interceptedApps[proxyPort]?.map(async fridaSession => {
-            await killProcess(fridaSession).catch(() => {});
-        }));
+        const fridaSessions = this.interceptedApps[proxyPort] ?? [];
+
+        await Promise.all(fridaSessions.map((session) =>
+            killProcess(session).catch(() => {})
+        ));
     }
 
     async deactivateAll(): Promise<void | {}> {
