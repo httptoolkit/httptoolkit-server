@@ -1,3 +1,4 @@
+import { CustomError } from '@httptoolkit/util';
 import { Client as AdbClient, DeviceClient } from '@devicefarmer/adbkit';
 import * as FridaJs from 'frida-js';
 
@@ -163,12 +164,20 @@ export async function launchAndroidHost(adbClient: AdbClient, hostId: string) {
     }
 }
 
+const getFridaStream = (hostId: string, deviceClient: DeviceClient) =>
+    // Try alt port first (preferred and more likely to work - it's ours)
+    deviceClient.openTcp(FRIDA_ALTERNATE_PORT)
+    .catch(() => deviceClient.openTcp(FRIDA_DEFAULT_PORT))
+    .catch(() => {
+        throw new CustomError(`Couldn't connect to Frida for ${hostId}`, {
+            statusCode: 502
+        });
+    });
+
 export async function getAndroidFridaTargets(adbClient: AdbClient, hostId: string) {
     const deviceClient = adbClient.getDevice(hostId);
 
-     // Try alt port first (preferred and more likely to work - it's ours)
-     const fridaStream = await deviceClient.openTcp(FRIDA_ALTERNATE_PORT)
-     .catch(() => deviceClient.openTcp(FRIDA_DEFAULT_PORT));
+    const fridaStream = await getFridaStream(hostId, deviceClient);
 
     const fridaSession = await FridaJs.connect({
         stream: fridaStream
@@ -191,9 +200,7 @@ export async function interceptAndroidFridaTarget(
     await createPersistentReverseTunnel(deviceClient, proxyPort, proxyPort)
         .catch(() => {}); // If we can't tunnel that's OK - we'll use wifi/etc instead
 
-    // Try alt port first (preferred and more likely to work - it's ours)
-    const fridaStream = await deviceClient.openTcp(FRIDA_ALTERNATE_PORT)
-        .catch(() => deviceClient.openTcp(FRIDA_DEFAULT_PORT));
+    const fridaStream = await getFridaStream(hostId, deviceClient);
 
     const fridaSession = await FridaJs.connect({
         stream: fridaStream
