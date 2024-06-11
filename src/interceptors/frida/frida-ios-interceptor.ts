@@ -6,7 +6,7 @@ import { combineParallelCalls } from '@httptoolkit/util';
 import { Interceptor } from "..";
 import { HtkConfig } from '../../config';
 
-import { FridaHost, FridaTarget, killProcess } from './frida-integration';
+import { FridaTarget, killProcess } from './frida-integration';
 import {
     getIosFridaHosts,
     getIosFridaTargets,

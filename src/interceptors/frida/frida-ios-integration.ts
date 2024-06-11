@@ -105,6 +105,7 @@ export async function interceptIosFridaTarget(
     caCertContent: string,
     proxyPort: number
 ) {
+    console.log(`Intercepting ${appId} via iOS Frida on ${hostId}...`);
     const deviceId = await getDeviceId(usbmuxClient, hostId);
     const fridaStream = await usbmuxClient.createDeviceTunnel(deviceId, FRIDA_DEFAULT_PORT);
 

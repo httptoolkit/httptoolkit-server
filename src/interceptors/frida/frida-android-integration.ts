@@ -99,6 +99,7 @@ const ANDROID_ABI_FRIDA_ARCH_MAP = {
 } as const;
 
 export async function setupAndroidHost(config: HtkConfig, adbClient: AdbClient, hostId: string) {
+    console.log(`Installing Android Frida server on ${hostId}...`);
     const deviceClient = adbClient.getDevice(hostId);
 
     const deviceProperties = await deviceClient.getProperties();
@@ -119,6 +120,7 @@ export async function setupAndroidHost(config: HtkConfig, adbClient: AdbClient, 
 }
 
 export async function launchAndroidHost(adbClient: AdbClient, hostId: string) {
+    console.log(`Launching Android Frida server on ${hostId}...`);
     const deviceClient = adbClient.getDevice(hostId);
 
     const runAsRoot = await getRootCommand(deviceClient);
@@ -195,6 +197,7 @@ export async function interceptAndroidFridaTarget(
     caCertContent: string,
     proxyPort: number
 ) {
+    console.log(`Intercepting ${appId} via Android Frida on ${hostId}...`);
     const deviceClient = adbClient.getDevice(hostId);
 
     await createPersistentReverseTunnel(deviceClient, proxyPort, proxyPort)
