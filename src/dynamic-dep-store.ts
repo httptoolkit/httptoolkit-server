@@ -1,8 +1,9 @@
 import * as path from 'path';
-import * as fs from './util/fs';
 import * as stream from 'stream';
+import { CustomError } from '@httptoolkit/util';
 
 import { HtkConfig } from './config';
+import * as fs from './util/fs';
 
 /**
  * This retrieves a stream for a dependency file, either from disk if it's already available
@@ -24,12 +25,24 @@ export async function getDependencyStream<K extends readonly string[]>(options: 
     const tmpDownloadPath = depPath + `.tmp-${Math.random().toString(36).slice(2)}`;
     const downloadStream = await options.fetch(options.key);
     const diskStream = fs.createWriteStream(tmpDownloadPath);
+    const resultStream = new stream.PassThrough();
+
     downloadStream.pipe(diskStream);
+    downloadStream.pipe(resultStream);
 
     downloadStream.on('error', (e) => {
         console.warn(`Failed to download dependency to ${depPath}:`, e);
+
+        // Clean up the temp download file:
         diskStream.destroy();
         fs.deleteFile(tmpDownloadPath).catch(() => {});
+
+        // Pass the error on to the client:
+        resultStream.destroy(
+            new CustomError(`${options.key.join('-')} dependency fetch failed: ${e.message ?? e}`, {
+                cause: e
+            })
+        );
     });
 
     diskStream.on('finish', () => {
@@ -37,5 +50,5 @@ export async function getDependencyStream<K extends readonly string[]>(options: 
             .catch(console.warn);
     });
 
-    return downloadStream;
+    return resultStream;
 }

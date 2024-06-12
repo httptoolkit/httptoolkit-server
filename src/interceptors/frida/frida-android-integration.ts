@@ -116,7 +116,11 @@ export async function setupAndroidHost(config: HtkConfig, adbClient: AdbClient, 
     const deviceArch = ANDROID_ABI_FRIDA_ARCH_MAP[firstKnownAbi];
     const serverStream = await getFridaServer(config, 'android', deviceArch);
 
-    await deviceClient.push(serverStream, ANDROID_FRIDA_BINARY_PATH, 0o555);
+    const transfer = await deviceClient.push(serverStream, ANDROID_FRIDA_BINARY_PATH, 0o555);
+    await new Promise<void>((resolve, reject) => {
+        transfer.on('end', resolve);
+        transfer.on('error', reject);
+    });
 }
 
 export async function launchAndroidHost(adbClient: AdbClient, hostId: string) {
