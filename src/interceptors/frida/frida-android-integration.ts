@@ -2,7 +2,7 @@ import { CustomError } from '@httptoolkit/util';
 import { Client as AdbClient, DeviceClient } from '@devicefarmer/adbkit';
 import * as FridaJs from 'frida-js';
 
-import { waitUntil } from '../../util/promise';
+import { waitUntil, withTimeout } from '../../util/promise';
 import { HtkConfig } from '../../config';
 import {
     EMULATOR_HOST_IPS,
@@ -38,7 +38,8 @@ const isFridaInstalled = (deviceClient: DeviceClient) =>
     .catch(() => false);
 
 const isDevicePortOpen = (deviceClient: DeviceClient, port: number) =>
-    deviceClient.openTcp(port).then((conn) => {
+    withTimeout(1000, deviceClient.openTcp(port))
+    .then((conn) => {
         // If the connection opened at all, then something is listening...
         conn.on('error', () => {});
         conn.end();
