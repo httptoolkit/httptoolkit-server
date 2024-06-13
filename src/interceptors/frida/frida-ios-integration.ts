@@ -26,7 +26,7 @@ const isDevicePortOpen = (usbmuxClient: UsbmuxClient, deviceId: number, port: nu
 // time that we fail to reach Usbmux (just for general reference of any issues).
 let loggedUsbmuxFailure = false;
 
-export async function getIosFridaHosts(usbmuxClient: UsbmuxClient): Promise<FridaHost[]> {
+export async function getIosFridaHosts(usbmuxClient: UsbmuxClient): Promise<Record<string, FridaHost>> {
     const devices = await usbmuxClient.getDevices().catch((e) => {
         if (!loggedUsbmuxFailure) {
             console.log('Usbmux iOS scanning failed:', e.message);
@@ -35,14 +35,24 @@ export async function getIosFridaHosts(usbmuxClient: UsbmuxClient): Promise<Frid
         return [];
     });
 
-    const result = await Promise.all(
-        Object.values(devices).map(({ DeviceID }) => getHostStatus(usbmuxClient, DeviceID as number)
+    return Object.fromEntries(await Promise.all(
+        Object.values(devices) // N.b. we drop the key, which is just an index (not a useful consistent id)
+        .map(async (device): Promise<[string, FridaHost]> => {
+            const details = await getHostDetails(usbmuxClient, device.DeviceID);
+            return [
+                details.id, {
+                    ...device,
+                    type: 'ios',
+                    id: details.id, // iOS HostId !== DeviceId
+                    name: details.name,
+                    state: details.state
+                }
+            ];
+        })
     ));
-
-    return result;
 }
 
-const getHostStatus = async (usbmuxClient: UsbmuxClient, deviceId: number) => {
+const getHostDetails = async (usbmuxClient: UsbmuxClient, deviceId: number) => {
     const deviceMetadataPromise = usbmuxClient.queryAllDeviceValues(deviceId);
 
     let state: FridaHost['state'] = 'unavailable';

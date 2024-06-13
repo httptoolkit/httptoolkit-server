@@ -48,7 +48,7 @@ export class AndroidAdbInterceptor implements Interceptor {
     ) { }
 
     async isActivable(): Promise<boolean> {
-        return (await getConnectedDevices(this.adbClient)).length > 0;
+        return Object.keys(await getConnectedDevices(this.adbClient)).length > 0;
     }
 
     activableTimeout = 3000; // Increase timeout for device detection slightly
@@ -57,9 +57,12 @@ export class AndroidAdbInterceptor implements Interceptor {
         return false;
     }
 
-    async getMetadata(): Promise<{ deviceIds: string[] }> {
+    async getMetadata(): Promise<{ deviceIds: string[], devices: Record<string, Record<string, string>> }> {
+        const devices = await getConnectedDevices(this.adbClient);
+
         return {
-            deviceIds: await getConnectedDevices(this.adbClient)
+            deviceIds: Object.keys(devices),
+            devices: devices
         };
     }
 

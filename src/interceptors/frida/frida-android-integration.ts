@@ -49,17 +49,21 @@ const isDevicePortOpen = (deviceClient: DeviceClient, port: number) =>
         return false
     });
 
-export async function getAndroidFridaHosts(adbClient: AdbClient): Promise<FridaHost[]> {
+export async function getAndroidFridaHosts(adbClient: AdbClient): Promise<Record<string, FridaHost>> {
     const devices = await getConnectedDevices(adbClient);
 
-    const result = await Promise.all(
-        devices.map((deviceId) => getHostStatus(adbClient, deviceId)
+    return Object.fromEntries(await Promise.all(
+        Object.entries(devices).map(async ([id, device]) => [
+            id, {
+                ...device,
+                type: 'android',
+                state: await getHostState(adbClient, id)
+            }
+        ])
     ));
-
-    return result;
 }
 
-const getHostStatus = async (adbClient: AdbClient, deviceId: string) => {
+const getHostState = async (adbClient: AdbClient, deviceId: string) => {
     const deviceClient = adbClient.getDevice(deviceId);
 
     let state: FridaHost['state'] = 'unavailable';
@@ -83,12 +87,7 @@ const getHostStatus = async (adbClient: AdbClient, deviceId: string) => {
         state = 'unavailable';
     }
 
-    return {
-        id: deviceId,
-        name: deviceId,
-        type: 'android',
-        state
-    } as const;
+    return state;
 };
 
 const ANDROID_ABI_FRIDA_ARCH_MAP = {
@@ -143,8 +142,7 @@ export async function launchAndroidHost(adbClient: AdbClient, hostId: string) {
     try {
         await waitUntil(500, 10, async () => {
             try {
-                const status = await getHostStatus(adbClient, hostId);
-                return status.state === 'available';
+                return await getHostState(adbClient, hostId) === 'available';
             } catch (e: any) {
                 console.log(e.message ?? e);
                 return false;

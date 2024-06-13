@@ -6,7 +6,7 @@ import { combineParallelCalls } from '@httptoolkit/util';
 import { Interceptor } from "..";
 import { HtkConfig } from '../../config';
 
-import { FridaTarget, killProcess } from './frida-integration';
+import { FridaHost, FridaTarget, killProcess } from './frida-integration';
 import {
     getIosFridaHosts,
     getIosFridaTargets,
@@ -27,14 +27,14 @@ export class FridaIosInterceptor implements Interceptor {
     getFridaHosts = combineParallelCalls(() => getIosFridaHosts(this.usbmuxClient));
 
     async isActivable(): Promise<boolean> {
-        return (await this.getFridaHosts()).length > 0;
+        return Object.keys(await this.getFridaHosts()).length > 0;
     }
 
     isActive(): boolean {
         return false;
     }
 
-    async getMetadata() {
+    async getMetadata(): Promise<{ hosts: Record<string, FridaHost> }> {
         const fridaHosts = await this.getFridaHosts();
         return {
             hosts: fridaHosts

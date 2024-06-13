@@ -6,7 +6,7 @@ import { Interceptor } from "..";
 import { HtkConfig } from '../../config';
 
 import { createAdbClient } from '../android/adb-commands';
-import { FridaTarget, killProcess } from './frida-integration';
+import { FridaHost, FridaTarget, killProcess } from './frida-integration';
 import {
     getAndroidFridaHosts,
     getAndroidFridaTargets,
@@ -30,14 +30,14 @@ export class FridaAndroidInterceptor implements Interceptor {
     getFridaHosts = combineParallelCalls(() => getAndroidFridaHosts(this.adbClient));
 
     async isActivable(): Promise<boolean> {
-        return (await this.getFridaHosts()).length > 0;
+        return Object.keys(await this.getFridaHosts()).length > 0;
     }
 
     isActive(): boolean {
         return false;
     }
 
-    async getMetadata() {
+    async getMetadata(): Promise<{ hosts: Record<string, FridaHost> }> {
         const fridaHosts = await this.getFridaHosts();
         return {
             hosts: fridaHosts

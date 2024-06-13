@@ -71,39 +71,111 @@ const batchCalls = <A extends any[], R>(
     };
 }
 
-export const getConnectedDevices = batchCalls(async (adbClient: Adb.Client) => {
-    try {
-        const devices = await (adbClient.listDevices() as Promise<Adb.Device[]>);
-        return devices
-            .filter((d) =>
-                d.type !== 'offline' &&
-                d.type !== 'unauthorized' &&
-                !d.type.startsWith("no permissions")
-            ).map(d => d.id);
-    } catch (e) {
-        if (isErrorLike(e) && (
-                e.code === 'ENOENT' || // No ADB available
-                e.code === 'EACCES' || // ADB available, but we aren't allowed to run it
-                e.code === 'EPERM' || // Permissions error launching ADB
-                e.code === 'ECONNREFUSED' || // Tried to start ADB, but still couldn't connect
-                e.code === 'ENOTDIR' || // ADB path contains something that's not a directory
-                e.signal === 'SIGKILL' || // In some envs 'adb start-server' is always killed (why?)
-                (e.cmd && e.code)      // ADB available, but "adb start-server" failed
-            )
-        ) {
-            if (e.code !== 'ENOENT') {
-                console.log(`ADB unavailable, ${e.cmd
-                    ? `${e.cmd} exited with ${e.code}`
-                    : `due to ${e.code}`
-                }`);
+export const getConnectedDevices = batchCalls(
+    async (adbClient: Adb.Client): Promise<Record<string, Record<string, string>>> => {
+        try {
+            const devices = await (adbClient.listDevices() as Promise<Adb.Device[]>);
+            const deviceIds = devices
+                .filter((d) =>
+                    d.type !== 'offline' &&
+                    d.type !== 'unauthorized' &&
+                    !d.type.startsWith("no permissions")
+                ).map(d => d.id);
+
+            const deviceDetails = Object.fromEntries(await Promise.all(
+                deviceIds.map(async (id): Promise<[string, Record<string, string>]> => {
+                    const name = await getDeviceName(adbClient, id);
+                    return [id, { id, name }];
+                })
+            ));
+
+            // Clear any non-present device names from the cache
+            filterDeviceNameCache(deviceIds);
+            return deviceDetails;
+        } catch (e) {
+            if (isErrorLike(e) && (
+                    e.code === 'ENOENT' || // No ADB available
+                    e.code === 'EACCES' || // ADB available, but we aren't allowed to run it
+                    e.code === 'EPERM' || // Permissions error launching ADB
+                    e.code === 'ECONNREFUSED' || // Tried to start ADB, but still couldn't connect
+                    e.code === 'ENOTDIR' || // ADB path contains something that's not a directory
+                    e.signal === 'SIGKILL' || // In some envs 'adb start-server' is always killed (why?)
+                    (e.cmd && e.code)      // ADB available, but "adb start-server" failed
+                )
+            ) {
+                if (e.code !== 'ENOENT') {
+                    console.log(`ADB unavailable, ${e.cmd
+                        ? `${e.cmd} exited with ${e.code}`
+                        : `due to ${e.code}`
+                    }`);
+                }
+                return {};
+            } else {
+                logError(e);
+                throw e;
             }
-            return [];
-        } else {
-            logError(e);
-            throw e;
         }
     }
-})
+);
+
+
+const cachedDeviceNames: { [deviceId: string]: string | undefined } = {};
+
+const getDeviceName = async (adbClient: Adb.Client, deviceId: string) => {
+    if (cachedDeviceNames[deviceId]) {
+        return cachedDeviceNames[deviceId]!;
+    }
+
+    let deviceName: string;
+    try {
+        const device = adbClient.getDevice(deviceId);
+
+        if (deviceId.startsWith('emulator-')) {
+            const props = await device.getProperties();
+
+            const avdName = (
+                props['ro.boot.qemu.avd_name'] || // New emulators
+                props['ro.kernel.qemu.avd_name']  // Old emulators
+            )?.replace(/_/g, ' ');
+
+            const osVersion = props['ro.build.version.release'];
+
+            deviceName = avdName || `Android ${osVersion} emulator`;
+        } else {
+            const name = (
+                await run(device, ['settings', 'get', 'global', 'device_name'])
+                    .catch(() => {})
+            )?.trim();
+
+            if (name) {
+                deviceName = name;
+            } else {
+                const props = await device.getProperties();
+
+                deviceName = props['ro.product.model'] ||
+                    deviceId;
+            }
+        }
+    } catch (e: any) {
+        console.log(`Error getting device name for ${deviceId}`, e.message);
+        deviceName = deviceId;
+        // N.b. we do cache despite the error - many errors could be persistent, and it's
+        // no huge problem (and more consistent) to stick with the raw id instead.
+    }
+
+    cachedDeviceNames[deviceId] = deviceName;
+    return deviceName;
+};
+
+// Clear any non-connected device names from the cache (to avoid leaks, and
+// so that we do update the name if they reconnect later.)
+const filterDeviceNameCache = (connectedIds: string[]) => {
+    Object.keys(cachedDeviceNames).forEach((id) => {
+        if (!connectedIds.includes(id)) {
+            delete cachedDeviceNames[id];
+        }
+    });
+};
 
 export function stringAsStream(input: string) {
     const contentStream = new stream.Readable();
