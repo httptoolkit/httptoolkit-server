@@ -54,7 +54,8 @@ export async function buildIosFridaScript(
             ),
         ...[
             ['ios', 'ios-connect-hook.js'],
-            ['native-tls-hook.js']
+            ['native-tls-hook.js'],
+            ['native-connect-hook.js'],
         ].map((hookRelPath) =>
             fs.readFile(path.join(FRIDA_SCRIPTS_ROOT, ...hookRelPath), { encoding: 'utf8' })
         )
