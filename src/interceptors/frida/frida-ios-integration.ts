@@ -22,15 +22,22 @@ const isDevicePortOpen = (usbmuxClient: UsbmuxClient, deviceId: number, port: nu
         return false;
     });
 
-// We scan frequently, but we don't want to spam the logs, so we just log the first
-// time that we fail to reach Usbmux (just for general reference of any issues).
-let loggedUsbmuxFailure = false;
+// We scan frequently, but we don't want to spam the logs, so we just log each time
+// Usbmux changes state (just for general reference of any issues).
+let lastUsbmuxState: boolean | undefined = undefined;
 
 export async function getIosFridaHosts(usbmuxClient: UsbmuxClient): Promise<Record<string, FridaHost>> {
-    const devices = await usbmuxClient.getDevices().catch((e) => {
-        if (!loggedUsbmuxFailure) {
+    const devices = await usbmuxClient.getDevices()
+    .then((devices) => {
+        if (!lastUsbmuxState) {
+            console.log('Usbmux iOS scanning connected');
+            lastUsbmuxState = true;
+        }
+        return devices;
+    }).catch((e) => {
+        if (lastUsbmuxState !== false) {
             console.log('Usbmux iOS scanning failed:', e.message);
-            loggedUsbmuxFailure = true;
+            lastUsbmuxState = false;
         }
         return [];
     });
