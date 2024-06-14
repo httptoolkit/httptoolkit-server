@@ -189,16 +189,17 @@ export class ApiModel {
         } catch (err: any) {
             const activationError = err as ActivationError;
             activationDone = true;
+
             if (activationError.reportable !== false) {
                 addBreadcrumb(`Failed to activate ${id}`, { category: 'interceptor' });
-                logError(err);
+                throw err;
             }
+
+            // Non-reportable errors are friendly ones (like Global Chrome quit confirmation)
+            // that need to be returned nicely to the UI for further processing.
             return {
                 success: false,
-                metadata: activationError.metadata,
-                error: activationError.reportable !== false
-                    ? serializeError(activationError)
-                    : false
+                metadata: activationError.metadata
             };
         }
     }

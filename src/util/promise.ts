@@ -13,7 +13,11 @@ export async function waitUntil<T extends unknown>(
         result = await test();
     }
 
-    if (!result) throw new Error(`Wait loop failed`);
+    if (!result) {
+        throw new CustomError(`Wait loop failed after ${tries} retries`, {
+            code: 'wait-loop-failed'
+        });
+    }
     else return result as Exclude<T, false>;
 }
 

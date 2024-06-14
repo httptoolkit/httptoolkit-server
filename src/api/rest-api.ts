@@ -89,12 +89,10 @@ export function exposeRestAPI(
         const interceptorOptions = req.body;
         const result = await apiModel.activateInterceptor(interceptorId, proxyPort, interceptorOptions);
 
-        if (result.success === true || result.error === false) {
-            // Some non-success is just temporary, e.g. global Chrome "exit running app please" confirmation.
-            res.json({ result });
-        } else {
-            res.status(500).json({ result });
-        }
+        // No thrown error here doesn't mean success: we have non-reportable failures for cases like
+        // Global Chrome "prompt to confirm quit" errors. We return those as 200 { success: false, metadata: ... }
+
+        res.json({ result });
     }));
 
     server.post('/client/send', handleErrors(async (req, res) => {

@@ -130,7 +130,9 @@ export async function launchAndroidHost(adbClient: AdbClient, hostId: string) {
     const runAsRoot = await getRootCommand(deviceClient);
 
     if (!runAsRoot) {
-        throw new Error("Couldn't get root access to launch Frida Server");
+        throw new CustomError("Couldn't get root access to launch Frida Server", {
+            code: 'no-root'
+        });
     }
 
     const fridaServerStream = await deviceClient.shell(
@@ -151,7 +153,7 @@ export async function launchAndroidHost(adbClient: AdbClient, hostId: string) {
 
         return fridaServerStream;
     } catch (e: any) {
-        const errorMessage = e?.message === 'Wait loop failed'
+        const errorMessage = e?.code === 'wait-loop-failed'
             ? 'Frida server did not startup before timeout'
             : e.message ?? e;
         console.log('Fride launch failed:', errorMessage);
@@ -165,7 +167,7 @@ export async function launchAndroidHost(adbClient: AdbClient, hostId: string) {
             );
         });
 
-        throw new Error(`Failed to launch Frida server for ${hostId}: ${e.message ?? e}`);
+        throw new CustomError(errorMessage, { code: e?.code, cause: e });
     }
 }
 

@@ -71,7 +71,9 @@ class FridaScriptError extends CustomError {
     constructor(
         message: FridaJs.ScriptAgentErrorMessage
     ) {
-        super(message.description);
+        super(message.description, {
+            code: 'frida-script-error'
+        });
         if (message.stack) {
             this.stack = message.stack;
         }
@@ -121,7 +123,7 @@ export async function testAndSelectProxyAddress(
                     if (message.payload.type === 'connected') {
                         resolve(message.payload.ip as string);
                     } else if (message.payload.type === 'connection-failed') {
-                        reject(new Error(`Could not connect to proxy on port ${proxyPort} at ${
+                        reject(new FridaProxyError(`Could not connect to proxy on port ${proxyPort} at ${
                             ips.length > 1
                             ? `any of: ${ips.join(', ')}`
                             : ips[0]
@@ -143,7 +145,12 @@ export async function testAndSelectProxyAddress(
             reject(e);
         }
     })).catch((e) => {
-        throw new FridaProxyError("No proxy IPs were reachable from the target", { cause: e });
+        if (e instanceof FridaProxyError) throw e;
+        else {
+            throw new FridaProxyError(`Proxy IP detection on target device failed for port ${proxyPort} and IPs ${
+                JSON.stringify(ips)
+            }`, { cause: e });
+        }
     });
 }
 
