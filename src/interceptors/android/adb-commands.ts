@@ -235,7 +235,10 @@ export async function pushFile(
 }
 
 export async function isProbablyRooted(deviceClient: Adb.DeviceClient) {
-    return run(deviceClient, ['command', '-v', 'su'], { timeout: 500 })
+    return run(deviceClient, ['command', '-v', 'su'], {
+            timeout: 500,
+            skipLogging: true
+        })
         .then((result) => result.includes('/su'))
         .catch(() => false);
 }
