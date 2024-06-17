@@ -1,10 +1,10 @@
 import * as _ from 'lodash';
 import { expect } from 'chai';
 import * as mockttp from 'mockttp';
+import { delay } from '@httptoolkit/util';
 
 import { HttpClient } from '../../src/client/http-client';
 import { streamToArray } from '../../src/util/stream';
-import { delay } from '../../src/util/promise';
 
 describe("The HTTP client API", () => {
 

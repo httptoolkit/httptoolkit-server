@@ -2,7 +2,7 @@ import _ from 'lodash';
 import * as path from 'path';
 import { spawn } from 'child_process';
 
-import { delay } from './promise';
+import { delay } from '@httptoolkit/util';
 
 // Spawn a command, and resolve with all output as strings when it terminates
 export function spawnToResult(command: string, args: string[] = [], options = {}, inheritOutput = false): Promise<{

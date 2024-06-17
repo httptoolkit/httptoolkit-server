@@ -2,12 +2,12 @@ import _ from 'lodash';
 import * as path from 'path';
 import { SpawnOptions } from 'child_process';
 
+import { delay, isErrorLike } from '@httptoolkit/util';
+
 import { APP_ROOT } from '../constants';
 import { HtkConfig } from '../config';
 import { logError } from '../error-tracking';
 
-import { delay } from '../util/promise';
-import { isErrorLike } from '../util/error';
 import { isSnap, getSnapConfigPath } from '../util/snap';
 
 import { launchBrowser, BrowserInstance, getBrowserDetails } from '../browsers';

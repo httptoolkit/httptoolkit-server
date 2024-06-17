@@ -65,7 +65,7 @@ const packageApp = async () => {
     // unbundleable dependencies, pulling the versions from our package lock.
     pJson.dependencies = _(pJson.oclif.dependenciesToPackage)
         .keyBy(_.identity)
-        .mapValues((pkg: string) => pLockJson.dependencies[pkg].version);
+        .mapValues((pkg: string) => pLockJson.packages[`node_modules/${pkg}`].version);
 
     // Oclif is going to re-run install, and there's a couple of extra files that will be required to make
     // that work, which aren't normally included by the "npm pack"/"npm unpack" flow, so we manually pull

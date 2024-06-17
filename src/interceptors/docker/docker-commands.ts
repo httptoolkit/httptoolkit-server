@@ -2,7 +2,7 @@ import _ from 'lodash';
 import Docker from 'dockerode';
 import * as path from 'path';
 
-import { delay } from '../../util/promise';
+import { delay } from '@httptoolkit/util';
 
 import { getTerminalEnvVars } from '../terminal/terminal-env-overrides';
 import { transformComposeCreationLabels } from './docker-compose';

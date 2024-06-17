@@ -4,8 +4,7 @@ import * as path from 'path';
 import * as tmp from 'tmp';
 import rimraf from 'rimraf';
 import { lookpath } from 'lookpath';
-
-import { isErrorLike } from './error';
+import { isErrorLike } from '@httptoolkit/util';
 
 export const statFile = fs.promises.stat;
 export const readFile = fs.promises.readFile;

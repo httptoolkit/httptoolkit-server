@@ -2,6 +2,7 @@ import _ from 'lodash';
 import { spawn } from 'child_process';
 import * as path from 'path';
 
+import { delay, ErrorLike, isErrorLike } from '@httptoolkit/util';
 import { getPortPromise as getPort } from 'portfinder';
 import { generateSPKIFingerprint } from 'mockttp';
 import ChromeRemoteInterface = require('chrome-remote-interface');
@@ -9,8 +10,6 @@ import ChromeRemoteInterface = require('chrome-remote-interface');
 import { Interceptor } from '.';
 
 import { HtkConfig } from '../config';
-import { delay } from '../util/promise';
-import { ErrorLike, isErrorLike } from '../util/error';
 import { canAccess, readFile } from '../util/fs';
 import { windowsClose } from '../util/process-management';
 import { getInheritableCurrentEnv, getTerminalEnvVars, OVERRIDES_DIR } from './terminal/terminal-env-overrides';

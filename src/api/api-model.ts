@@ -1,11 +1,11 @@
 import * as _ from 'lodash';
 import * as os from 'os';
 
+import { ErrorLike, delay } from '@httptoolkit/util';
 import { generateSPKIFingerprint } from 'mockttp';
 import { getSystemProxy } from 'os-proxy-config';
 
 import { SERVER_VERSION } from "../constants";
-import { delay } from '../util/promise';
 import { logError, addBreadcrumb } from '../error-tracking';
 
 import { HtkConfig } from "../config";
@@ -153,15 +153,17 @@ export class ApiModel {
         );
     }
 
-    // Seperate purely to support the GQL API resolver structure
-    async getInterceptorMetadata(id: string, metadataType: 'summary' | 'detailed') {
+    async getInterceptorMetadata(id: string, metadataType: 'summary' | 'detailed', subId?: string) {
         const interceptor = this.interceptors[id];
+
         const metadataTimeout = metadataType === 'summary'
             ? INTERCEPTOR_TIMEOUT
             : INTERCEPTOR_TIMEOUT * 10; // Longer timeout for detailed metadata
 
         return withFallback(
-            async () => interceptor.getMetadata?.(metadataType),
+            async () => subId
+                ? interceptor.getSubMetadata?.(subId)
+                : interceptor.getMetadata?.(metadataType),
             metadataTimeout,
             undefined
         )
@@ -187,19 +189,17 @@ export class ApiModel {
         } catch (err: any) {
             const activationError = err as ActivationError;
             activationDone = true;
+
             if (activationError.reportable !== false) {
                 addBreadcrumb(`Failed to activate ${id}`, { category: 'interceptor' });
-                logError(err);
+                throw err;
             }
+
+            // Non-reportable errors are friendly ones (like Global Chrome quit confirmation)
+            // that need to be returned nicely to the UI for further processing.
             return {
                 success: false,
-                metadata: activationError.metadata,
-                error: activationError.reportable !== false
-                    ? {
-                        code: activationError.code,
-                        message: activationError.message
-                    }
-                    : false
+                metadata: activationError.metadata
             };
         }
     }
@@ -220,6 +220,12 @@ export class ApiModel {
     }
 
 }
+
+const serializeError = (error: ErrorLike): {} => ({
+    message: error.message,
+    code: error.code,
+    cause: error.cause ? serializeError(error.cause) : undefined
+});
 
 // Wait for a promise, falling back to defaultValue on error or timeout
 const withFallback = <R>(p: () => Promise<R>, timeoutMs: number, defaultValue: R) =>

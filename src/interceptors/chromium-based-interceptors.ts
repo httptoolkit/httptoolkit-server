@@ -1,10 +1,10 @@
 import _ from 'lodash';
 import * as path from 'path';
+import { delay } from '@httptoolkit/util';
 import { generateSPKIFingerprint } from 'mockttp';
 
 import { HtkConfig } from '../config';
 
-import { delay } from '../util/promise';
 import { readFile, deleteFolder } from '../util/fs';
 import { listRunningProcesses, windowsClose, waitForExit } from '../util/process-management';
 import { getSnapConfigPath, isSnap } from '../util/snap';

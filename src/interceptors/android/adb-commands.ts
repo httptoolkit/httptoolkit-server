@@ -1,14 +1,21 @@
 import * as stream from 'stream';
 import * as path from 'path';
+
 import adb, * as Adb from '@devicefarmer/adbkit';
+import { delay, isErrorLike } from '@httptoolkit/util';
+
 import { logError } from '../../error-tracking';
-import { isErrorLike } from '../../util/error';
-import { delay, waitUntil } from '../../util/promise';
+import { waitUntil } from '../../util/promise';
 import { getCertificateFingerprint, parseCert } from '../../certificates';
 import { streamToBuffer } from '../../util/stream';
 
 export const ANDROID_TEMP = '/data/local/tmp';
 export const SYSTEM_CA_PATH = '/system/etc/security/cacerts';
+
+export const EMULATOR_HOST_IPS = [
+    '10.0.2.2', // Standard emulator localhost ip
+    '10.0.3.2', // Genymotion localhost ip
+];
 
 export function createAdbClient() {
     const client = adb.createClient({
@@ -64,39 +71,111 @@ const batchCalls = <A extends any[], R>(
     };
 }
 
-export const getConnectedDevices = batchCalls(async (adbClient: Adb.Client) => {
-    try {
-        const devices = await (adbClient.listDevices() as Promise<Adb.Device[]>);
-        return devices
-            .filter((d) =>
-                d.type !== 'offline' &&
-                d.type !== 'unauthorized' &&
-                !d.type.startsWith("no permissions")
-            ).map(d => d.id);
-    } catch (e) {
-        if (isErrorLike(e) && (
-                e.code === 'ENOENT' || // No ADB available
-                e.code === 'EACCES' || // ADB available, but we aren't allowed to run it
-                e.code === 'EPERM' || // Permissions error launching ADB
-                e.code === 'ECONNREFUSED' || // Tried to start ADB, but still couldn't connect
-                e.code === 'ENOTDIR' || // ADB path contains something that's not a directory
-                e.signal === 'SIGKILL' || // In some envs 'adb start-server' is always killed (why?)
-                (e.cmd && e.code)      // ADB available, but "adb start-server" failed
-            )
-        ) {
-            if (e.code !== 'ENOENT') {
-                console.log(`ADB unavailable, ${e.cmd
-                    ? `${e.cmd} exited with ${e.code}`
-                    : `due to ${e.code}`
-                }`);
+export const getConnectedDevices = batchCalls(
+    async (adbClient: Adb.Client): Promise<Record<string, Record<string, string>>> => {
+        try {
+            const devices = await (adbClient.listDevices() as Promise<Adb.Device[]>);
+            const deviceIds = devices
+                .filter((d) =>
+                    d.type !== 'offline' &&
+                    d.type !== 'unauthorized' &&
+                    !d.type.startsWith("no permissions")
+                ).map(d => d.id);
+
+            const deviceDetails = Object.fromEntries(await Promise.all(
+                deviceIds.map(async (id): Promise<[string, Record<string, string>]> => {
+                    const name = await getDeviceName(adbClient, id);
+                    return [id, { id, name }];
+                })
+            ));
+
+            // Clear any non-present device names from the cache
+            filterDeviceNameCache(deviceIds);
+            return deviceDetails;
+        } catch (e) {
+            if (isErrorLike(e) && (
+                    e.code === 'ENOENT' || // No ADB available
+                    e.code === 'EACCES' || // ADB available, but we aren't allowed to run it
+                    e.code === 'EPERM' || // Permissions error launching ADB
+                    e.code === 'ECONNREFUSED' || // Tried to start ADB, but still couldn't connect
+                    e.code === 'ENOTDIR' || // ADB path contains something that's not a directory
+                    e.signal === 'SIGKILL' || // In some envs 'adb start-server' is always killed (why?)
+                    (e.cmd && e.code)      // ADB available, but "adb start-server" failed
+                )
+            ) {
+                if (e.code !== 'ENOENT') {
+                    console.log(`ADB unavailable, ${e.cmd
+                        ? `${e.cmd} exited with ${e.code}`
+                        : `due to ${e.code}`
+                    }`);
+                }
+                return {};
+            } else {
+                logError(e);
+                throw e;
             }
-            return [];
-        } else {
-            logError(e);
-            throw e;
         }
     }
-})
+);
+
+
+const cachedDeviceNames: { [deviceId: string]: string | undefined } = {};
+
+const getDeviceName = async (adbClient: Adb.Client, deviceId: string) => {
+    if (cachedDeviceNames[deviceId]) {
+        return cachedDeviceNames[deviceId]!;
+    }
+
+    let deviceName: string;
+    try {
+        const device = adbClient.getDevice(deviceId);
+
+        if (deviceId.startsWith('emulator-')) {
+            const props = await device.getProperties();
+
+            const avdName = (
+                props['ro.boot.qemu.avd_name'] || // New emulators
+                props['ro.kernel.qemu.avd_name']  // Old emulators
+            )?.replace(/_/g, ' ');
+
+            const osVersion = props['ro.build.version.release'];
+
+            deviceName = avdName || `Android ${osVersion} emulator`;
+        } else {
+            const name = (
+                await run(device, ['settings', 'get', 'global', 'device_name'])
+                    .catch(() => {})
+            )?.trim();
+
+            if (name) {
+                deviceName = name;
+            } else {
+                const props = await device.getProperties();
+
+                deviceName = props['ro.product.model'] ||
+                    deviceId;
+            }
+        }
+    } catch (e: any) {
+        console.log(`Error getting device name for ${deviceId}`, e.message);
+        deviceName = deviceId;
+        // N.b. we do cache despite the error - many errors could be persistent, and it's
+        // no huge problem (and more consistent) to stick with the raw id instead.
+    }
+
+    cachedDeviceNames[deviceId] = deviceName;
+    return deviceName;
+};
+
+// Clear any non-connected device names from the cache (to avoid leaks, and
+// so that we do update the name if they reconnect later.)
+const filterDeviceNameCache = (connectedIds: string[]) => {
+    Object.keys(cachedDeviceNames).forEach((id) => {
+        if (!connectedIds.includes(id)) {
+            delete cachedDeviceNames[id];
+        }
+    });
+};
 
 export function stringAsStream(input: string) {
     const contentStream = new stream.Readable();
@@ -110,7 +189,8 @@ async function run(
     adbClient: Adb.DeviceClient,
     command: string[],
     options: {
-        timeout?: number
+        timeout?: number,
+        skipLogging?: boolean
     } = {
         timeout: 10000
     }
@@ -120,7 +200,9 @@ async function run(
             .then(adb.util.readAll)
             .then((buffer: Buffer) => buffer.toString('utf8'))
             .then((result) => {
-                console.debug("Android command", command, "returned", `\`${result.trimEnd()}\``);
+                if (!options.skipLogging) {
+                    console.debug("Android command", command, "returned", `\`${result.trimEnd()}\``);
+                }
                 return result;
             }),
         ...(options.timeout
@@ -131,7 +213,9 @@ async function run(
             : []
         )
     ]).catch((e) => {
-        console.debug("Android command", command, "threw", e.message);
+        if (!options.skipLogging) {
+            console.debug("Android command", command, "threw", e.message);
+        }
         throw e;
     });
 }
@@ -148,6 +232,15 @@ export async function pushFile(
         transfer.on('end', resolve);
         transfer.on('error', reject);
     });
+}
+
+export async function isProbablyRooted(deviceClient: Adb.DeviceClient) {
+    return run(deviceClient, ['command', '-v', 'su'], {
+            timeout: 500,
+            skipLogging: true
+        })
+        .then((result) => result.includes('/su'))
+        .catch(() => false);
 }
 
 const runAsRootCommands = [
@@ -511,4 +604,72 @@ export async function startActivity(
             });
         }
     }
+}
+
+const adbTunnelIds: { [id: string]: NodeJS.Timeout } = {};
+
+export function closeReverseTunnel(
+    adbClient: Adb.DeviceClient,
+    localPort: number | string,
+    remotePort: number | string,
+) {
+    const id = `${adbClient.serial}:${localPort}->${remotePort}`;
+    const tunnelInterval = adbTunnelIds[id];
+    if (!tunnelInterval) return;
+
+    // This ensures the interval maintaining the tunnel stops:
+    clearInterval(tunnelInterval);
+    delete adbTunnelIds[id];
+}
+
+export async function createPersistentReverseTunnel(
+    adbClient: Adb.DeviceClient,
+    localPort: number,
+    remotePort: number,
+    options: {
+        maxFailures: number,
+        delay: number
+    } = { maxFailures: 5, delay: 2000 } // 10 seconds total
+) {
+    const id = `${adbClient.serial}:${localPort}->${remotePort}`;
+
+    await adbClient.reverse('tcp:' + localPort, 'tcp:' + remotePort);
+
+    // This tunnel can break in quite a few days, notably when connecting/disconnecting
+    // from the VPN app with a wifi connection, or when ADB is restarted, when using flaky
+    // cables, or switching ADB into root mode, etc etc. This is a problem!
+
+    // To handle this, we constantly reinforce the tunnel while HTTP Toolkit is running &
+    // the device is connected, until it actually persistently fails.
+
+    // If tunnel is already being maintained elsewhere, no need to repeat (although we
+    // do re-create it above, just in case there's any flakiness at this exact moment)
+    if (adbTunnelIds[id]) return;
+
+    let tunnelConnectFailures = 0;
+
+    const tunnelCheckInterval = adbTunnelIds[id] = setInterval(async () => {
+        if (adbTunnelIds[id] !== tunnelCheckInterval) {
+            clearInterval(tunnelCheckInterval);
+            return;
+        }
+
+        try {
+            // Repeated calls to do this do nothing if the tunnel is already in place
+            await adbClient.reverse('tcp:' + remotePort, 'tcp:' + localPort);
+            tunnelConnectFailures = 0;
+        } catch (e) {
+            tunnelConnectFailures += 1;
+            console.log(`${id} ADB tunnel failed`, isErrorLike(e) ? e.message : e);
+
+            if (tunnelConnectFailures >= options.maxFailures) {
+                // After 10 seconds disconnected, give up
+                console.warn(`${id} tunnel disconnected`);
+
+                delete adbTunnelIds[id];
+                clearInterval(tunnelCheckInterval);
+            }
+        }
+    }, options.delay);
+    tunnelCheckInterval.unref(); // Don't let this block shutdown
 }

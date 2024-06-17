@@ -1,9 +1,4 @@
-export function delay(durationMs: number, options: { unref?: boolean } = {}): Promise<void> {
-    return new Promise((resolve) => {
-        const timer = setTimeout(resolve, durationMs);
-        if (options.unref) timer.unref();
-    });
-}
+import { CustomError, delay } from '@httptoolkit/util';
 
 export async function waitUntil<T extends unknown>(
     delayMs: number,
@@ -18,26 +13,27 @@ export async function waitUntil<T extends unknown>(
         result = await test();
     }
 
-    if (!result) throw new Error(`Wait loop failed`);
+    if (!result) {
+        throw new CustomError(`Wait loop failed after ${tries} retries`, {
+            code: 'wait-loop-failed'
+        });
+    }
     else return result as Exclude<T, false>;
 }
 
-export interface Deferred<T> {
-    resolve: (arg: T) => void,
-    reject: (e?: Error) => void,
-    promise: Promise<T>
+export class TimeoutError extends CustomError {
+    constructor() {
+        super('Timeout', { code: 'timeout' });
+    }
 }
 
-export function getDeferred<T = void>(): Deferred<T> {
-    let resolve: undefined | ((arg: T) => void) = undefined;
-    let reject: undefined | ((e?: Error) => void) = undefined;
-
-    let promise = new Promise<T>((resolveCb, rejectCb) => {
-        resolve = resolveCb;
-        reject = rejectCb;
-    });
-
-    // TS thinks we're using these before they're assigned, which is why
-    // we need the undefined types, and the any here.
-    return { resolve, reject, promise } as any;
+export async function withTimeout<T>(
+    timeoutMs: number,
+    promise: Promise<T>
+) {
+    return Promise.race([
+        promise,
+        delay(timeoutMs, { unref: true })
+            .then(() => { throw new TimeoutError(); })
+    ]);
 }

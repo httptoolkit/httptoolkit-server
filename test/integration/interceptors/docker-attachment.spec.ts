@@ -4,10 +4,10 @@ import * as fs from 'fs';
 
 import { expect } from 'chai';
 
+import { delay } from '@httptoolkit/util';
 import Docker from 'dockerode';
 import fetch from 'node-fetch';
 
-import { delay } from '../../../src/util/promise';
 import { FIXTURES_DIR } from '../../test-util';
 import { setupInterceptor, itIsAvailable } from './interceptor-test-utils';
 import { waitForDockerStream } from '../../../src/interceptors/docker/docker-utils';

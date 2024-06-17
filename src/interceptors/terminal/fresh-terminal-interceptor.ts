@@ -2,12 +2,12 @@ import _ from 'lodash';
 import { spawn, ChildProcess, SpawnOptions } from 'child_process';
 import * as GSettings from 'node-gsettings-wrapper';
 
+import { isErrorLike } from '@httptoolkit/util';
 import { findExecutableById } from '@httptoolkit/osx-find-executable';
 
 import { Interceptor } from '..';
 import { HtkConfig } from '../../config';
 import { logError, addBreadcrumb } from '../../error-tracking';
-import { isErrorLike } from '../../util/error';
 import { canAccess, commandExists, getRealPath, resolveCommandPath } from '../../util/fs';
 import { spawnToResult } from '../../util/process-management';
 
