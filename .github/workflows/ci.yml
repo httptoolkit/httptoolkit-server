@@ -105,9 +105,6 @@ jobs:
           - platform: MacOS 12
             os: "macos-12"
             test-script: "./unix.sh darwin"
-          - platform: MacOS 11
-            os: "macos-11"
-            test-script: "./unix.sh darwin"
           - platform: Windows 2022
             os: "windows-2022"
             test-script: ".\\windows.bat"
