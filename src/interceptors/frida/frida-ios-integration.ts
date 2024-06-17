@@ -115,6 +115,12 @@ export async function getIosFridaTargets(usbmuxClient: UsbmuxClient, hostId: str
     return apps;
 }
 
+// Various ports which we know that certain apps use for non-HTTP traffic that we
+// can't currently intercept, so we avoid capturing for now.
+const KNOWN_APP_PROBLEMATIC_PORTS: Record<string, number[] | undefined> = {
+    'com.spotify.client': [4070]
+};
+
 export async function interceptIosFridaTarget(
     usbmuxClient: UsbmuxClient,
     hostId: string,
@@ -138,7 +144,8 @@ export async function interceptIosFridaTarget(
         const interceptionScript = await buildIosFridaScript(
             caCertContent,
             proxyIp,
-            proxyPort
+            proxyPort,
+            KNOWN_APP_PROBLEMATIC_PORTS[appId] ?? []
         );
 
         await launchScript(`iOS (${appId})`, session, interceptionScript);

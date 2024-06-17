@@ -9,23 +9,26 @@ function buildFridaConfig(
     configScriptTemplate: string,
     caCertContent: string,
     proxyHost: string,
-    proxyPort: number
+    proxyPort: number,
+    portsToIgnore: number[]
 ) {
     return configScriptTemplate
         .replace(/(?<=const CERT_PEM = `)[^`]+(?=`)/s, caCertContent.trim())
         .replace(/(?<=const PROXY_HOST = ')[^']+(?=')/, proxyHost)
-        .replace(/(?<=const PROXY_PORT = )\d+(?=;)/, proxyPort.toString());
+        .replace(/(?<=const PROXY_PORT = )\d+(?=;)/, proxyPort.toString())
+        .replace(/(?<=const IGNORED_NON_HTTP_PORTS = )\[\s*\](?=;)/s, JSON.stringify(portsToIgnore));
 }
 
 export async function buildAndroidFridaScript(
     caCertContent: string,
     proxyHost: string,
-    proxyPort: number
+    proxyPort: number,
+    portsToIgnore: number[]
 ) {
     const scripts = await Promise.all([
         fs.readFile(path.join(FRIDA_SCRIPTS_ROOT, 'config.js'), { encoding: 'utf8' })
             .then((configTemplate) =>
-                buildFridaConfig(configTemplate, caCertContent, proxyHost, proxyPort)
+                buildFridaConfig(configTemplate, caCertContent, proxyHost, proxyPort, portsToIgnore)
             ),
         ...[
             ['native-connect-hook.js'],
@@ -45,12 +48,13 @@ export async function buildAndroidFridaScript(
 export async function buildIosFridaScript(
     caCertContent: string,
     proxyHost: string,
-    proxyPort: number
+    proxyPort: number,
+    portsToIgnore: number[]
 ) {
     const scripts = await Promise.all([
         fs.readFile(path.join(FRIDA_SCRIPTS_ROOT, 'config.js'), { encoding: 'utf8' })
             .then((configTemplate) =>
-                buildFridaConfig(configTemplate, caCertContent, proxyHost, proxyPort)
+                buildFridaConfig(configTemplate, caCertContent, proxyHost, proxyPort, portsToIgnore)
             ),
         ...[
             ['ios', 'ios-connect-hook.js'],

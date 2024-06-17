@@ -195,6 +195,12 @@ export async function getAndroidFridaTargets(adbClient: AdbClient, hostId: strin
     return apps;
 }
 
+// Various ports which we know that certain apps use for non-HTTP traffic that we
+// can't currently intercept, so we avoid capturing for now.
+const KNOWN_APP_PROBLEMATIC_PORTS: Record<string, number[] | undefined> = {
+    'com.spotify.music': [4070]
+};
+
 export async function interceptAndroidFridaTarget(
     adbClient: AdbClient,
     hostId: string,
@@ -229,7 +235,8 @@ export async function interceptAndroidFridaTarget(
         const interceptionScript = await buildAndroidFridaScript(
             caCertContent,
             proxyIp,
-            proxyPort
+            proxyPort,
+            KNOWN_APP_PROBLEMATIC_PORTS[appId] ?? []
         );
 
         await launchScript(`Android (${appId})`, session, interceptionScript);
