@@ -127,6 +127,7 @@ function testJavaBin(possibleJavaBin: string) {
 
 const hasUnsupportedJvmError = (testOutput: string) =>
     testOutput.includes('com/sun/tools/attach/AgentLoadException') || // Old Java missing Attach classes
+    testOutput.includes('com.sun.tools.attach.AgentLoadException') || // Old Java missing Attach classes
     testOutput.includes('java.lang.UnsatisfiedLinkError: no attach in java.library.path') || // Similar
     testOutput.includes('Are we running in a JRE instead of a JDK') || // JREs aren't sufficient
     testOutput.includes('Unsupported major.minor version 52.0'); // Pre Java 8(!)
