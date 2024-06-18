@@ -36,7 +36,7 @@ export async function getIosFridaHosts(usbmuxClient: UsbmuxClient): Promise<Reco
         return devices;
     }).catch((e) => {
         if (lastUsbmuxState !== false) {
-            console.log('Usbmux iOS scanning failed:', e.message);
+            console.log(`Usbmux iOS scanning failed: ${e.message ?? e}`);
             lastUsbmuxState = false;
         }
         return [];
