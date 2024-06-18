@@ -59,6 +59,8 @@ export async function getIosFridaHosts(usbmuxClient: UsbmuxClient): Promise<Reco
     ));
 }
 
+const HOST_ID_SEPARATOR = '---';
+
 const getHostDetails = async (usbmuxClient: UsbmuxClient, deviceId: number) => {
     const deviceMetadataPromise = usbmuxClient.queryAllDeviceValues(deviceId);
 
@@ -81,7 +83,7 @@ const getHostDetails = async (usbmuxClient: UsbmuxClient, deviceId: number) => {
         'Unknown iOS Device';
 
     return {
-        id: `${deviceId}-${deviceMetadata.UniqueDeviceID}`, // Host id = both (to avoid deviceid change races)
+        id: `${deviceId}${HOST_ID_SEPARATOR}${deviceMetadata.UniqueDeviceID}`, // Host id = both (to avoid deviceid change races)
         name: deviceName,
         type: 'ios',
         state
@@ -89,9 +91,9 @@ const getHostDetails = async (usbmuxClient: UsbmuxClient, deviceId: number) => {
 };
 
 async function getDeviceId(usbmuxClient: UsbmuxClient, hostId: string) {
-    const parts = hostId.split('-');
+    const parts = hostId.split(HOST_ID_SEPARATOR);
     const deviceId = parseInt(parts[0]);
-    const udid = parts[1];
+    const udid = parts.slice(1).join(HOST_ID_SEPARATOR);
 
     const realUdid = await usbmuxClient.queryDeviceValue(deviceId, 'UniqueDeviceID');
 
