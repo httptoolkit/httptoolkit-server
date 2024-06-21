@@ -56,7 +56,9 @@ async function generateHTTPSConfig(configPath: string) {
 
         return Promise.all([
             writeFile(certPath, newCertPair.cert).then(() => newCertPair.cert),
-            writeFile(keyPath, newCertPair.key)
+            writeFile(keyPath, newCertPair.key, {
+                mode: 0o600 // Only readable for ourselves, nobody else
+            })
         ]);
     });
 
