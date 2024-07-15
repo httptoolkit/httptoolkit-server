@@ -102,6 +102,7 @@ export async function startDockerInterceptionServices(
             };
         }
     };
+    console.log(`Created docker-tunnel-proxy-${proxyPort}`);
 
     await Promise.all([
         // Proxy all terminal Docker API requests, to rewrite & add injection:
@@ -137,6 +138,7 @@ export async function stopDockerInterceptionServices(
     stopMonitoringDockerNetworkAliases(proxyPort);
     await deleteAllInterceptedDockerData(proxyPort);
     delete ruleParameters[`docker-tunnel-proxy-${proxyPort}`];
+    console.log(`Removed docker-tunnel-proxy-${proxyPort}`);
     // Note that we _don't_ drop the data volume, we're OK with leaving that
     // around since it's invisible, tiny, and mildly expensive (a few seconds)
     // to recreate.
