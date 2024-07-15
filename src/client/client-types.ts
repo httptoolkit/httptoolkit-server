@@ -53,6 +53,13 @@ export interface RequestOptions {
      * Each certificate should be an object with a `cert` key containing the PEM
      * certificate as a string.
      */
+    additionalTrustedCAs: Array<{ cert: string }>;
+
+    /**
+     * Deprecated alias for `additionalTrustedCAs`
+     *
+     * @deprecated
+     */
     trustAdditionalCAs?: Array<{ cert: string }>;
 
     /**

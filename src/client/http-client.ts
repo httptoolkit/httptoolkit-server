@@ -84,7 +84,10 @@ export class HttpClient {
             effectivePort,
             options.ignoreHostHttpsErrors ?? []
         );
-        const caConfig = this.getCaConfig(options.trustAdditionalCAs);
+        const caConfig = this.getCaConfig(
+            options.additionalTrustedCAs ||
+            options.trustAdditionalCAs
+        );
 
         const agent = await getAgent({
             protocol: url.protocol as 'http:' | 'https:',
