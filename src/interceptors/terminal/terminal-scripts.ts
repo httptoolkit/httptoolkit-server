@@ -124,8 +124,31 @@ export const getFishShellScript = (callbackUrl: string, env: { [name: string]: s
     echo 'HTTP Toolkit interception enabled'
 `;
 
-export const getPowerShellScript = (callbackUrl: string, env: { [name: string]: string }) => `${
-        _.map(env, (value, key) => `    $Env:${key} = "${value.replace(/"/g, '`"')}"`).join('\n')
+export const getPowerShellScript = (callbackUrl: string, env: { [name: string]: string }) => `
+    $HTTPTOOLKIT_envVars = Get-ChildItem Env:
+
+${
+    _.map(env, (value, key) => `    $Env:${key} = "${value.replace(/"/g, '`"')}"`).join('\n')
+}
+
+    function Stop-Intercepting {
+
+        #Remove every env
+        $currentEnvVars = Get-ChildItem Env:
+        foreach ($envVar in $currentEnvVars) {
+            [System.Environment]::SetEnvironmentVariable($envVar.Name, $null)
+        }
+
+        #Set the old env variables
+        foreach ($var in $HTTPTOOLKIT_envVars) {
+            [System.Environment]::SetEnvironmentVariable($var.Name, $var.Value)
+        }
+
+        #Revert these two back to the default values
+        $PSDefaultParameterValues.Remove("invoke-webrequest:proxy")
+        $PSDefaultParameterValues.Remove("invoke-webrequest:SkipCertificateCheck")
+
+        Write-Host 'HTTP Toolkit interception disabled'
     }
 
     # We add a few special hooks just for Invoke-WebRequest.
@@ -137,7 +160,8 @@ export const getPowerShellScript = (callbackUrl: string, env: { [name: string]: 
     # Let the HTTP Toolkit app know this ran succesfully
     Start-Job -ScriptBlock { Invoke-WebRequest "${callbackUrl}" -NoProxy -Method 'POST' } | out-null
 
-    Write-Host 'HTTP Toolkit interception enabled'
+    Write-Host "HTTP Toolkit interception enabled\`nTo stop intercepting type " -NoNewline
+    Write-Host "Stop-Intercepting" -ForegroundColor Red
 `;
 
 // Find the relevant user shell config file, add the above line to it, so that
