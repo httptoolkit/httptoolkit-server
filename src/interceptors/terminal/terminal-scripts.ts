@@ -131,7 +131,7 @@ ${
     _.map(env, (value, key) => `    $Env:${key} = "${value.replace(/"/g, '`"')}"`).join('\n')
 }
 
-    function Stop-Toolkit {
+    function Stop-Intercepting {
 
         #Remove every env
         $currentEnvVars = Get-ChildItem Env:
@@ -161,7 +161,7 @@ ${
     Start-Job -ScriptBlock { Invoke-WebRequest "${callbackUrl}" -NoProxy -Method 'POST' } | out-null
 
     Write-Host "HTTP Toolkit interception enabled\`nTo stop intercepting type " -NoNewline
-    Write-Host "Stop-Toolkit" -ForegroundColor Red
+    Write-Host "Stop-Intercepting" -ForegroundColor Red
 `;
 
 // Find the relevant user shell config file, add the above line to it, so that
