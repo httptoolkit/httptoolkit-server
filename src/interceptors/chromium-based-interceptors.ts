@@ -50,8 +50,8 @@ const getChromiumLaunchOptions = async (
         options: [
             // Trust our CA certificate's fingerprint:
             `--ignore-certificate-errors-spki-list=${spkiFingerprint}`,
-            // Disable annoying "What's New" page
-            '--disable-features=ChromeWhatsNewUI',
+            // Disable annoying "What's New" page & side panel (and its annoying bookmarks popup)
+            '--disable-features=ChromeWhatsNewUI,SidePanelPinning',
             // Avoid annoying extra network noise:
             '--disable-background-networking',
             // Disable component update (without disabling components themselves, e.g. widevine)
