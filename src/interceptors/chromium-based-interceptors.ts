@@ -62,7 +62,6 @@ const getChromiumLaunchOptions = async (
                 // Install HTTP Toolkit's extension, for advanced hook setup. Feature
                 // flagged for now as it's still new & largely untested.
                 ? [
-
                     `--load-extension=${WEBEXTENSION_INSTALL.path}`
                 ]
                 : []
@@ -236,8 +235,10 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
                 return proc.bin && (
                     // Find a binary that exactly matches the specific command:
                     proc.bin === browserDetails.command ||
-                    // Or whose binary who's matches the path for this specific variant:
-                    proc.bin.includes(`${browserDetails.name}/${browserDetails.type}`)
+                    // Or who matches the path for this specific variant:
+                    proc.bin.includes(`${browserDetails.name}/${browserDetails.type}`) ||
+                    // Or the snap for this variant:
+                    proc.bin.includes(`/snap/${browserDetails.name}/`)
                 );
             }
         });
