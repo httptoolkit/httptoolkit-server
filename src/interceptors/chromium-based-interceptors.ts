@@ -260,9 +260,6 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
     } = { closeConfirmed: false }) {
         if (!this.isActivable()) return;
 
-        const hideWarningServer = new HideWarningServer(this.config);
-        await hideWarningServer.start('https://amiusing.httptoolkit.tech');
-
         const existingPid = await this.findExistingPid();
         if (existingPid) {
             if (!options.closeConfirmed) {
@@ -288,6 +285,9 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
                 await waitForExit(existingPid);
             }
         }
+
+        const hideWarningServer = new HideWarningServer(this.config);
+        await hideWarningServer.start('https://amiusing.httptoolkit.tech');
 
         const browserDetails = await getBrowserDetails(this.config.configPath, this.variantName);
         const launchOptions = await getChromiumLaunchOptions(
