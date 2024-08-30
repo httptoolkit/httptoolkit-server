@@ -12,6 +12,7 @@ import {
     FreshChromeCanary,
     FreshChromeDev,
     FreshChromium,
+    ExistingChromium,
     FreshChromiumDev,
     FreshEdge,
     FreshEdgeBeta,
@@ -75,6 +76,7 @@ export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> 
         new FreshChromeCanary(config),
 
         new FreshChromium(config),
+        new ExistingChromium(config),
         new FreshChromiumDev(config),
 
         new FreshEdge(config),

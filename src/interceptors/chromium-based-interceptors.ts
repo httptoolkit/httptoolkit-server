@@ -425,6 +425,17 @@ export class FreshChromium extends FreshChromiumBasedInterceptor {
 
 };
 
+export class ExistingChromium extends ExistingChromiumBasedInterceptor {
+
+    id = 'existing-chromium';
+    version = '1.0.0';
+
+    constructor(config: HtkConfig) {
+        super(config, 'chromium');
+    }
+
+};
+
 export class FreshChromiumDev extends FreshChromiumBasedInterceptor {
 
     id = 'fresh-chromium-dev';

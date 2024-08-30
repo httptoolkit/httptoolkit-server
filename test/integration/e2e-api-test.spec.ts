@@ -256,6 +256,7 @@ describe('End-to-end server API test', function () {
             inactivable('fresh-chrome-dev'),
             inactivable('fresh-chrome-canary'),
             inactivable('fresh-chromium'),
+            inactivable('existing-chromium'),
             inactivable('fresh-chromium-dev'),
             inactivable('fresh-edge'),
             inactivable('fresh-edge-beta'),
