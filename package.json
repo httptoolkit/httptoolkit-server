@@ -112,7 +112,7 @@
     "@types/klaw": "^3.0.2",
     "@types/lodash": "^4.14.117",
     "@types/mocha": "^5.2.5",
-    "@types/node": "~20.11.18",
+    "@types/node": "^20.16.2",
     "@types/node-forge": "^0.9.9",
     "@types/request-promise-native": "^1.0.15",
     "@types/rimraf": "^2.0.2",
@@ -155,7 +155,7 @@
     }
   },
   "engines": {
-    "node": "v20.11.1"
+    "node": "v20.17.0"
   },
   "keywords": [
     "http",
@@ -198,7 +198,7 @@
         }
       },
       "node": {
-        "version": "20.11.1",
+        "version": "20.17.0",
         "targets": [
           "win32-x64",
           "linux-x64",
