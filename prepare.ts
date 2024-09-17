@@ -29,7 +29,8 @@ const OVERRIDES_DIR = path.join(__dirname, 'overrides');
 
     await spawn(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['ci', '--production'], {
         cwd: path.join(OVERRIDES_DIR, 'js'),
-        stdio: 'inherit'
+        stdio: 'inherit',
+        shell: process.platform === 'win32', // Required for .cmd files due to CVE-2024-27980
     });
 
     const files: Array<{
