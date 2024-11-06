@@ -14,6 +14,7 @@
     "/overrides"
   ],
   "scripts": {
+    "preinstall": "check-msvc-runtime",
     "start": "node --watch ./bin/run start",
     "build:src": "npm-run-all build:src:clean build:src:ts",
     "build:src:clean": "rimraf lib/",
@@ -120,6 +121,7 @@
     "axios": "^1.7.4",
     "bent": "^1.5.13",
     "chai": "^4.2.0",
+    "check-msvc-runtime": "^0.1.0",
     "copy-webpack-plugin": "^11.0.0",
     "cross-env": "^7.0.3",
     "decompress": "^4.2.1",
