@@ -27,7 +27,7 @@ export function getTerminalEnvVars(
         | 'posix-runtime-inherit'
         | 'powershell-runtime-inherit',
 
-    // All 3 of the below must be overriden together, or not at all, to avoid
+    // All 3 of the below must be overridden together, or not at all, to avoid
     // mixing platforms & default (platform-specific) paths
     targetEnvConfig?: {
         httpToolkitHost: string,

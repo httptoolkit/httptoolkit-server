@@ -19,7 +19,7 @@ const pullTunnelImage = (docker: Docker) =>
     .then(stream => waitForDockerStream(docker, stream));
 
 // Parallel mutation of a single Docker container's state is asking for trouble, so we use
-// a simple lock over all operations (across all proxes, not per-proxy, just for simplicity/safety).
+// a simple lock over all operations (across all proxies, not per-proxy, just for simplicity/safety).
 const containerMutex = new Mutex();
 
 // Starts pulling the docker tunnel image, just to ensure it's available if we need it.

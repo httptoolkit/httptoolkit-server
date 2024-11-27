@@ -119,7 +119,7 @@ export class HttpClient {
 
         // Node supports sending raw headers via [key, value, key, value] array, but if we do
         // so with 'headers' above then we can't removeHeader first (to disable the defaults).
-        // Instead we remove headers and then manunally trigger the 'raw' write behaviour.
+        // Instead we remove headers and then manually trigger the 'raw' write behaviour.
 
         request.removeHeader('connection');
         request.removeHeader('transfer-encoding');

@@ -86,7 +86,7 @@ export const getBashShellScript = (callbackUrl: string, env: { [name: string]: s
     fi
 
     if command -v curl >/dev/null 2>&1; then
-        # Let the HTTP Toolkit app know this ran succesfully
+        # Let the HTTP Toolkit app know this ran successfully
         (curl --noproxy '*' -X POST "${callbackUrl}" >/dev/null 2>&1 &) &> /dev/null
     fi
 
@@ -117,7 +117,7 @@ export const getFishShellScript = (callbackUrl: string, env: { [name: string]: s
     end
 
     if command -v curl >/dev/null 2>&1
-        # Let the HTTP Toolkit app know this ran succesfully
+        # Let the HTTP Toolkit app know this ran successfully
         curl --noproxy '*' -X POST "${callbackUrl}" >/dev/null 2>&1 &
     end
 
@@ -157,7 +157,7 @@ ${
     # Then we disable cert checks completely - all traffic will go to us, we'll handle HTTPS upstream
     $PSDefaultParameterValues["invoke-webrequest:SkipCertificateCheck"] = $True
 
-    # Let the HTTP Toolkit app know this ran succesfully
+    # Let the HTTP Toolkit app know this ran successfully
     Start-Job -ScriptBlock { Invoke-WebRequest "${callbackUrl}" -NoProxy -Method 'POST' } | out-null
 
     Write-Host "HTTP Toolkit interception enabled\`nTo stop intercepting type " -NoNewline

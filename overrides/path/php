@@ -6,7 +6,7 @@ PATH="${PATH//`dirname "$0"`:/}"
 real_php=`command -v php`
 PATH="`dirname "$0"`:$PATH"
 
-# Strip out our PHP_INI_SCAN_DIR - if this file has been run succesfully, then it's not necessary,
+# Strip out our PHP_INI_SCAN_DIR - if this file has been run successfully, then it's not necessary,
 # and it can cause problems (since it overrides any default scan directories configured)
 export INJECTED_PHP_INI_DIR=$HTTP_TOOLKIT_OVERRIDE_PATH/php
 export PHP_INI_SCAN_DIR="${PHP_INI_SCAN_DIR//:$INJECTED_PHP_INI_DIR/}"
