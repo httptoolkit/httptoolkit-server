@@ -84,7 +84,7 @@ export class ApiModel {
         };
     }
 
-    // Seperate purely to support the GQL API resolver structure
+    // Separate purely to support the GQL API resolver structure
     getDnsServers(proxyPort: number) {
         return withFallback(async () => {
             const dnsServer = await getDnsServer(proxyPort);
@@ -140,7 +140,7 @@ export class ApiModel {
         };
     }
 
-    // Seperate purely to support the GQL API resolver structure
+    // Separate purely to support the GQL API resolver structure
     async isInterceptorActive(id: string, proxyPort: number) {
         const interceptor = this.interceptors[id];
 

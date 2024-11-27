@@ -90,7 +90,7 @@ export async function transformContainerCreationConfig(
         baseImageConfig?.ContainerConfig;
 
     // Combine the image config with the container creation options. Most
-    // fields are overriden by container config, a couple are merged:
+    // fields are overridden by container config, a couple are merged:
     const currentConfig: Docker.ContainerCreateOptions = {
         ...imageContainerConfig,
         ...containerConfig,
