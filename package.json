@@ -157,7 +157,7 @@
     }
   },
   "engines": {
-    "node": "v20.11.1"
+    "node": "v20.18.1"
   },
   "keywords": [
     "http",
@@ -200,7 +200,7 @@
         }
       },
       "node": {
-        "version": "20.11.1",
+        "version": "20.18.1",
         "targets": [
           "win32-x64",
           "linux-x64",
