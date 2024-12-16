@@ -11,7 +11,14 @@ echo "\nStarting server..."
 ./httptoolkit-server/bin/httptoolkit-server start &
 SERVER_PID=$!
 
-sleep 10
+echo "Waiting for server..."
+for i in {1..30}; do
+    if curl -s http://127.0.0.1:45456/ >/dev/null 2>&1; then
+        echo "Server is up"
+        break
+    fi
+    sleep 1
+done
 
 echo "\nTesting server..."
 

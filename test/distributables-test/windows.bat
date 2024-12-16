@@ -13,8 +13,19 @@ echo Starting server...
 
 START "server" /b .\httptoolkit-server\bin\httptoolkit-server start
 
-REM The closest we can get to a 10 second delay on Windows in CI, ick:
-ping -n 10 127.0.0.1 >NUL
+echo Waiting for server...
+FOR /L %%i IN (1,1,30) DO (
+    curl -s http://127.0.0.1:45456/ >NUL 2>&1
+    IF NOT ERRORLEVEL 1 (
+        echo Server is up
+        goto :serverup
+    )
+    timeout /t 1 /nobreak >NUL
+)
+echo Server failed to start
+goto :error
+
+:serverup
 
 echo:
 echo:
