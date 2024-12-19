@@ -42,7 +42,15 @@ export function createAdbClient() {
 
     // We listen for errors and report them. This only happens if adbkit completely
     // fails to handle or listen to a connection error. We'd rather report that than crash.
-    client.on('error', logError);
+    client.on('error', (e) => {
+        if (isErrorLike(e) && e.code === 'ENOENT') {
+            // No ADB available - that's fine, not notable at all
+            return;
+        }
+
+        console.log('ADB client error:', e.message ?? e);
+        logError(e);
+    });
 
     return client;
 }
