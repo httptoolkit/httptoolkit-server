@@ -12,7 +12,7 @@ import { isSnap, getSnapConfigPath } from '../util/snap';
 
 import { launchBrowser, BrowserInstance, getBrowserDetails } from '../browsers';
 import { readFile, canAccess, deleteFolder } from '../util/fs';
-import { windowsKill, spawnToResult } from '../util/process-management';
+import { spawnToResult, windowsKillByCliMatch } from '../util/process-management';
 import { MessageServer } from '../message-server';
 import { CertCheckServer } from '../cert-check-server';
 import { Interceptor } from '.';
@@ -180,7 +180,7 @@ abstract class Firefox implements Interceptor {
             if (process.platform === "win32") {
                 // Firefox spawns a child process on Windows, and doesn't let us kill it at all.
                 // To fix this, we kill all firefox instances that were started with this exact same URL.
-                await windowsKill(`CommandLine Like '%\\\\firefox.exe%${initialUrl}'`).catch(console.log);
+                await windowsKillByCliMatch(`*\\firefox.exe*${initialUrl}`).catch(console.log);
             } else {
                 normalStop();
             }

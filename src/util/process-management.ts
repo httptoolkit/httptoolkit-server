@@ -36,11 +36,18 @@ export function spawnToResult(command: string, args: string[] = [], options = {}
     });
 };
 
+export function spawnPowerShellToResult(command: string) {
+    return spawnToResult('powershell.exe', [
+        '-NoProfile', '-NonInteractive',
+        '-Command', command
+    ]);
+}
+
 type Proc = {
     pid: number,
-    command: string,
-    bin: string | undefined,
-    args: string | undefined
+    command: string, // Process name (often short binary name)
+    bin: string | undefined, // Full path to the binary, if available
+    args: string | undefined // Arguments as a single string, if available
 };
 
 const getOutputLines = (stdout: string) =>
@@ -122,36 +129,38 @@ export async function listRunningProcesses(): Promise<Array<Proc>> {
 
         return processes;
     } else {
-        const wmicOutput = await spawnToResult('wmic', [
-            'Process', 'Get', 'processid,commandline'
-        ]);
+        const pshResult = await spawnPowerShellToResult(
+            'Get-CimInstance Win32_Process | ' +
+            'ForEach-Object { "$($_.ProcessId)|$($_.Name)|$($_.CommandLine)|$($_.ExecutablePath)" }'
+        );
 
-        if (wmicOutput.exitCode !== 0) {
-            throw new Error(`WMIC exited with unexpected error code ${wmicOutput.exitCode}`);
+        if (pshResult.exitCode !== 0) {
+            throw new Error(`PowerShell process query exited with unexpected error code ${pshResult.exitCode}`);
         }
 
-        return getOutputLines(wmicOutput.stdout)
-            .slice(1) // Skip the header line
-            .filter((line) => line.includes(' ')) // Skip lines where the command line isn't available (just pids)
-            .map((line) => {
-                const pidIndex = line.lastIndexOf(' ') + 1;
-                const pid = parseInt(line.substring(pidIndex), 10);
+        return getOutputLines(pshResult.stdout)
+        .map(line => {
+            const [pid, command, commandLine, bin] = line.split('|');
 
-                const command = line.substring(0, pidIndex).trim();
-                const bin = command[0] === '"'
-                    ? command.substring(1, command.substring(1).indexOf('"') + 1)
-                    : command.substring(0, command.indexOf(' '));
-                const args = command[0] === '"'
-                    ? command.substring(bin.length + 3)
-                    : command.substring(bin.length + 1);
+            let args: string | undefined;
+            if (commandLine.startsWith('"')) {
+                // Command line might start with full path or bare binary name:
+                if (commandLine.startsWith(`"${bin}"`)) {
+                    args = commandLine.substring(bin.length + 3);
+                } else if (commandLine.startsWith(`"${command}"`)) {
+                    args = commandLine.substring(command.length + 3);
+                }
+                // There's probably other possibilities, but it's not critical enough that we
+                // need to bother trying to be much smarter here.
+            } else {
+                const firstSpace = commandLine.indexOf(' ');
+                if (firstSpace !== -1) {
+                    args = commandLine.substring(firstSpace + 1);
+                }
+            }
 
-                return {
-                    pid,
-                    command,
-                    bin,
-                    args
-                };
-            });
+            return { pid: parseInt(pid, 10), command, bin, args } as Proc;
+        });
     }
 }
 
@@ -183,12 +192,11 @@ export async function windowsClose(pid: number) {
     ]);
 }
 
-// Harshly kill a windows process by some WMIC matching string e.g.
-// "processId=..." or "CommandLine Like '%...%'"
-export async function windowsKill(processMatcher: string) {
-    await spawnToResult('wmic', [
-        'Path', 'win32_process',
-        'Where', processMatcher,
-        'Call', 'Terminate'
-    ], { }, true);
+// Harshly kill a windows process by command-line match:
+export async function windowsKillByCliMatch(globMatcher: string) {
+    await spawnPowerShellToResult(
+        'Get-CimInstance Win32_Process | ' +
+        `Where-Object { $_.CommandLine -like "${globMatcher}" } | ` +
+        'ForEach-Object { $_.Terminate() }'
+    );
 }
