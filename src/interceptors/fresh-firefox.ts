@@ -180,7 +180,7 @@ abstract class Firefox implements Interceptor {
             if (process.platform === "win32") {
                 // Firefox spawns a child process on Windows, and doesn't let us kill it at all.
                 // To fix this, we kill all firefox instances that were started with this exact same URL.
-                await windowsKillByCliMatch(`*\\firefox.exe*${initialUrl}`).catch(console.log);
+                await windowsKillByCliMatch(`*firefox.exe*${initialUrl}`).catch(console.log);
             } else {
                 normalStop();
             }
@@ -325,8 +325,10 @@ abstract class Firefox implements Interceptor {
         if (this.isActive(proxyPort)) {
             const browser = this.activeBrowsers[proxyPort];
             const closePromise = new Promise((resolve) => browser.process.once('close', resolve));
-            browser.stop();
-            await closePromise;
+            await Promise.all([
+                browser.stop(), // Await required, as on Windows this is actually async & slow
+                closePromise
+            ]);
         }
     }
 
@@ -335,7 +337,7 @@ abstract class Firefox implements Interceptor {
             Object.keys(this.activeBrowsers).map((proxyPort) => this.deactivate(proxyPort))
         );
         if (profileSetupBrowser) {
-            profileSetupBrowser.stop();
+            await profileSetupBrowser.stop(); // As above - on Windows this is async
             return new Promise((resolve) => profileSetupBrowser!.process.once('close', resolve));
         }
     }

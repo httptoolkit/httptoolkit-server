@@ -28,7 +28,7 @@ export async function shutdown(code: number, cause: string) {
 
     await Promise.race([
         shutdownPromises,
-        delay(2000) // After 2 seconds, we just close anyway, we're done.
+        delay(3000) // After 3 seconds, we just close anyway, we're done.
     ]);
 
     process.exit(code);
