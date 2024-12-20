@@ -197,6 +197,6 @@ export async function windowsKillByCliMatch(globMatcher: string) {
     await spawnPowerShellToResult(
         'Get-CimInstance Win32_Process | ' +
         `Where-Object { $_.CommandLine -like "${globMatcher}" } | ` +
-        'ForEach-Object { $_.Terminate() }'
+        'Invoke-CimMethod -Name Terminate'
     );
 }
