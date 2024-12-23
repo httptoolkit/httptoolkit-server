@@ -12,7 +12,7 @@ HTTP Toolkit runs everything possible within [the web UI](https://github.com/htt
 * Start a locally running proxy server (here using [Mockttp](https://npmjs.com/package/mockttp))
 * Launch local applications preconfigured for interception
 
-This server exposes an API that is used by the web UI, exposing these actions and some other related information - see [`src/api/rest-api.ts`](src/api/rest-server.ts) for the full API details.
+This server exposes an API that is used by the web UI, exposing these actions and some other related information - see [`src/api/rest-api.ts`](src/api/rest-api.ts) for the full API details.
 
 This server is runnable standalone as a CLI using [oclif](http://oclif.io), or can be imported into other modules to be run programmatically. The available interceptors are defined in [`src/interceptors`](src/interceptors), and some of these also use other services in here, e.g. [`src/cert-check-server.ts`](src/cert-check-server.ts) automatically checks if a certificate is trusted by a browser client, and downloads or installs (depending on the client) the certificate if not.
 
