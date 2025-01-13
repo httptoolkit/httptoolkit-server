@@ -6,7 +6,7 @@ import { Interceptor } from "..";
 import { HtkConfig } from '../../config';
 
 import { createAdbClient } from '../android/adb-commands';
-import { FridaHost, FridaTarget, killProcess } from './frida-integration';
+import { cleanupOldFridaServers, FridaHost, FridaTarget, killProcess } from './frida-integration';
 import {
     getAndroidFridaHosts,
     getAndroidFridaTargets,
@@ -101,6 +101,8 @@ export class FridaAndroidInterceptor implements Interceptor {
     }
 
     async deactivateAll(): Promise<void | {}> {
+        cleanupOldFridaServers(this.config).catch(console.warn);
+
         const allPorts = new Set([
             ...Object.keys(this.fridaServers),
             ...Object.keys(this.interceptedApps)

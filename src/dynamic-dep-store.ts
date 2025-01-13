@@ -52,3 +52,24 @@ export async function getDependencyStream<K extends readonly string[]>(options: 
 
     return resultStream;
 }
+
+export async function cleanupDependencies(options: {
+    config: HtkConfig,
+    keyPrefix: string,
+    versionToKeep: string,
+    ext: `.${string}`
+}) {
+    const depFiles = await fs.readDir(options.config.configPath);
+
+    await Promise.all(depFiles.map(async (depFile) => {
+        if (
+            depFile.startsWith(options.keyPrefix + '-') &&
+            (depFile.endsWith(options.ext) || depFile.includes(`${options.ext}.tmp-`)) &&
+            !depFile.includes(options.versionToKeep)
+        ) {
+            await fs.deleteFile(path.join(options.config.configPath, depFile)).catch((e) => {
+                console.warn(`Failed to delete old dependency file ${depFile}:`, e);
+            });
+        }
+    }));
+}

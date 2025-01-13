@@ -68,6 +68,15 @@ export const getFridaServer = (
     });
 }
 
+export const cleanupOldFridaServers = async (config: HtkConfig) => {
+    await dynamicDeps.cleanupDependencies({
+        config,
+        keyPrefix: 'frida-server',
+        versionToKeep: FRIDA_VERSION,
+        ext: '.bin'
+    } as const);
+};
+
 class FridaScriptError extends CustomError {
     constructor(
         message: FridaJs.ScriptAgentErrorMessage
