@@ -191,8 +191,13 @@ function handleErrors<
             logError(error);
 
             // Use default error handler if response started (kills the connection)
-            if (res.headersSent) return next(error)
-            else {
+            if (res.headersSent) {
+                // We defer because there seems to be some kind of partial response issue in some edge cases,
+                // and calling next() early while a resopnse is pending would trigger exactly that.
+                return setImmediate(() =>
+                    next(error)
+                );
+            } else {
                 const status = (error.statusCode && error.statusCode >= 400 && error.statusCode < 600)
                     ? error.statusCode
                     : 500;
