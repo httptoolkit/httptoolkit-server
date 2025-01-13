@@ -3,6 +3,8 @@ import { randomUUID } from 'crypto';
 import * as child_process from 'child_process';
 import * as Sentry from '@sentry/node';
 import { RewriteFrames } from '@sentry/integrations';
+import { ErrorLike } from '@httptoolkit/util';
+
 import { IS_PROD_BUILD } from './constants';
 
 let sentryInitialized = false;
@@ -129,14 +131,22 @@ export function addBreadcrumb(message: string, data: Sentry.Breadcrumb) {
     Sentry.addBreadcrumb(Object.assign({ message }, data));
 }
 
-export function logError(error: Error | string | unknown): undefined | Promise<void> {
+export function logError(error: Error | string | unknown, extra?: { cause?: ErrorLike }): undefined | Promise<void> {
     console.warn(error);
     if (!sentryInitialized) return;
 
+    // If we pass a cause, simplify/anonymize the cause message too if present:
+    if (extra?.cause) {
+        extra.cause = {
+            ...extra.cause,
+            message: extra.cause.message ? simplifyErrorMessages(extra.cause.message) : undefined
+        };
+    }
+
     if (typeof error === 'string') {
-        Sentry.captureMessage(error);
+        Sentry.captureMessage(error, { extra });
     } else {
-        Sentry.captureException(error);
+        Sentry.captureException(error, { extra });
     }
 
     return Sentry.flush(500).then((sentSuccessfully) => {

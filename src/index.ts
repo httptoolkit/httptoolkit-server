@@ -245,6 +245,13 @@ export async function runHTK(options: {
                         return delay(1000 * 60 * 60 * 6, { unref: true });
                     }
 
+                    if (error.code === 'EACCES') {
+                        // We're running the server without write access to the update directory.
+                        // Weird, but it happens and there's nothing we can do - ignore it.
+                        console.log(`Update check failed: ${error.message}`);
+                        return;
+                    }
+
                     // Report any HTTP response errors cleanly & explicitly:
                     if (error.statusCode) {
                         let url: string | undefined;
@@ -263,7 +270,7 @@ export async function runHTK(options: {
                 }
 
                 console.log(error.message);
-                logError(`Failed to check for updates: ${error.message}`);
+                logError(`Failed to check for updates: ${error.message}`, { cause: error });
             })
         );
     });
