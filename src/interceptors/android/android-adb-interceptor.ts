@@ -138,12 +138,12 @@ export class AndroidAdbInterceptor implements Interceptor {
                 await bringToFront(
                     deviceClient,
                     'tech.httptoolkit.android.v1/tech.httptoolkit.android.MainActivity'
-                ).catch(logError); // Not that important, so we continue if this fails somehow
+                ).catch(console.log); // Not that important, we continue if this fails somehow
 
                 await deviceClient.startActivity({
                     wait: true,
                     action: 'tech.httptoolkit.android.DEACTIVATE'
-                });
+                }).catch(console.log); // Ditto
 
                 closeReverseTunnel(deviceClient, port, port);
             })

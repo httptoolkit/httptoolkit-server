@@ -17,6 +17,8 @@ export const EMULATOR_HOST_IPS = [
     '10.0.3.2', // Genymotion localhost ip
 ];
 
+let reportedAdbConnError = false;
+
 export function createAdbClient() {
     const client = adb.createClient({
         port: process.env['ANDROID_ADB_SERVER_PORT']
@@ -43,13 +45,14 @@ export function createAdbClient() {
     // We listen for errors and report them. This only happens if adbkit completely
     // fails to handle or listen to a connection error. We'd rather report that than crash.
     client.on('error', (e) => {
-        if (isErrorLike(e) && e.code === 'ENOENT') {
-            // No ADB available - that's fine, not notable at all
-            return;
+        // We only report the first error though. Note that most errors will also surface
+        // elsewhere, e.g. as a rejection from the relevant promise. This is mostly here
+        // for weird connection errors that might appear async elsewhere.
+        if (!reportedAdbConnError) {
+            reportedAdbConnError = true;
+            console.log('ADB connection error:', e.message ?? e);
+            logError(e);
         }
-
-        console.log('ADB client error:', e.message ?? e);
-        logError(e);
     });
 
     return client;
@@ -105,6 +108,7 @@ export const getConnectedDevices = batchCalls(
                     e.code === 'ENOENT' || // No ADB available
                     e.code === 'EACCES' || // ADB available, but we aren't allowed to run it
                     e.code === 'EPERM' || // Permissions error launching ADB
+                    e.code === 'EBADF' || // ADB launch failed do to ulimit, I think?
                     e.code === 'ECONNREFUSED' || // Tried to start ADB, but still couldn't connect
                     e.code === 'ENOTDIR' || // ADB path contains something that's not a directory
                     e.signal === 'SIGKILL' || // In some envs 'adb start-server' is always killed (why?)
