@@ -76,7 +76,7 @@ case "$TARGET_ARCH" in
         EXPECTED_ARCH_STRING='x86[_-]64|80386'
         ;;
     arm64)
-        EXPECTED_ARCH_STRING='arm64'
+        EXPECTED_ARCH_STRING='arm64|aarch64'
         ;;
     *)
         echo "Unknown arch $TARGET_ARCH"
