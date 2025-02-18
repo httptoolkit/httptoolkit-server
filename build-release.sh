@@ -116,14 +116,19 @@ NATIVE_BINARIES=$(
     find ./tmp/$TARGET/ \
     -name '*.node' \
     -type f \
-    -exec file {} \;
+    -exec file {} \; \
+    | sed "s#^./tmp/$TARGET/##" # Don't match the build targets's own path name!
 )
 echo "NATIVE BINS: $NATIVE_BINARIES"
 
-BAD_BINS=$(echo "$NATIVE_BINARIES" | grep -vE "$EXPECTED_PLATFORM_STRING" | grep -vE "$EXPECTED_ARCH_STRING" || true)
+BAD_PLATFORM_BINS=$(echo "$NATIVE_BINARIES" | grep -v "$EXPECTED_PLATFORM_STRING" || true)
+BAD_ARCH_BINS=$(echo "$NATIVE_BINARIES" | grep -vE "$EXPECTED_ARCH_STRING" || true)
+
+BAD_BINS="$BAD_PLATFORM_BINS
+$BAD_ARCH_BINS"
 
 if [[ ! -z "$PACKAGE_WHITELIST" ]]; then
-    BAD_BINS=$(echo "$BAD_BINS" | grep -E -v "$PACKAGE_WHITELIST" || true)
+    BAD_BINS=$(echo "$BAD_BINS" | grep -vE "$PACKAGE_WHITELIST" || true)
 fi
 
 if [ `echo "$BAD_BINS" | wc -w` -ne 0 ]; then
