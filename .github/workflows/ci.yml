@@ -89,19 +89,19 @@ jobs:
         include:
           - platform: Ubuntu 24.04
             os: "ubuntu-24.04"
-            test-script: "./unix.sh linux"
+            test-script: "./unix.sh linux x64"
           - platform: Ubuntu 22.04
             os: "ubuntu-22.04"
-            test-script: "./unix.sh linux"
+            test-script: "./unix.sh linux x64"
           - platform: Ubuntu 20.04
             os: "ubuntu-20.04"
-            test-script: "./unix.sh linux"
+            test-script: "./unix.sh linux x64"
           - platform: MacOS 14 (M1)
             os: "macos-14"
-            test-script: "./unix.sh darwin"
+            test-script: "./unix.sh darwin arm64"
           - platform: MacOS 13
             os: "macos-13"
-            test-script: "./unix.sh darwin"
+            test-script: "./unix.sh darwin x64"
           - platform: Windows 2022
             os: "windows-2022"
             test-script: ".\\windows.bat"
