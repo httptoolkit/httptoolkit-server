@@ -82,17 +82,20 @@ const packageApp = async () => {
     console.log('Building for Linux');
     await fs.mkdir(path.join(OUTPUT_DIR, 'nss'));
     await fs.copy(path.join(__dirname, 'nss', 'linux'), path.join(OUTPUT_DIR, 'nss', 'linux'));
-    await spawn(buildScript, ['linux'], { cwd: OUTPUT_DIR, stdio: 'inherit' });
+    await spawn(buildScript, ['linux', 'x64'], { cwd: OUTPUT_DIR, stdio: 'inherit' });
 
-    console.log('Building for Darwin');
+    console.log('Building for Darwin x64');
     await fs.remove(path.join(OUTPUT_DIR, 'nss', 'linux'));
     await fs.copy(path.join(__dirname, 'nss', 'darwin'), path.join(OUTPUT_DIR, 'nss', 'darwin'));
-    await spawn(buildScript, ['darwin'], { cwd: OUTPUT_DIR, stdio: 'inherit' });
+    await spawn(buildScript, ['darwin', 'x64'], { cwd: OUTPUT_DIR, stdio: 'inherit' });
+
+    console.log('Building for Darwin arm64');
+    await spawn(buildScript, ['darwin', 'arm64'], { cwd: OUTPUT_DIR, stdio: 'inherit' });
 
     console.log('Building for Win32');
     await fs.remove(path.join(OUTPUT_DIR, 'nss', 'darwin'));
     await fs.copy(path.join(__dirname, 'nss', 'win32'), path.join(OUTPUT_DIR, 'nss', 'win32'));
-    await spawn(buildScript, ['win32'], { cwd: OUTPUT_DIR, stdio: 'inherit' });
+    await spawn(buildScript, ['win32', 'x64'], { cwd: OUTPUT_DIR, stdio: 'inherit' });
 
     // Oclif builds a nodeless platform-agnostic bundle too (although in our case, nothing is
     // really platform agnostic). Not necessary, probably won't work - drop it.
