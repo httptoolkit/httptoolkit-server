@@ -87,13 +87,16 @@ jobs:
     strategy:
       matrix:
         include:
-          - platform: Ubuntu 24.04
+          - platform: Ubuntu 24.04 x64
             os: "ubuntu-24.04"
             test-script: "./unix.sh linux x64"
-          - platform: Ubuntu 22.04
+          - platform: Ubuntu 24.04 ARM64
+            os: "ubuntu-24.04-arm"
+            test-script: "./unix.sh linux arm64"
+          - platform: Ubuntu 22.04 x64
             os: "ubuntu-22.04"
             test-script: "./unix.sh linux x64"
-          - platform: Ubuntu 20.04
+          - platform: Ubuntu 20.04 x64
             os: "ubuntu-20.04"
             test-script: "./unix.sh linux x64"
           - platform: MacOS 14 (M1)
