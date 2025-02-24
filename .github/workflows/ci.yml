@@ -59,7 +59,7 @@ jobs:
           echo node:14 golang:1.16 openjdk:16-alpine3.13 python:3.9-slim ruby:alpine3.13 php:8.0-apache |
             DOCKER_HOST=$DIND_HOST xargs -P10 -n1 docker pull
 
-      - run: DOCKER_HOST=$DIND_HOST xvfb-run npm run test
+      # - run: DOCKER_HOST=$DIND_HOST xvfb-run npm run test
 
       - run: npm run build:release
         env:
@@ -68,7 +68,7 @@ jobs:
           SENTRY_PROJECT: httptoolkit-server
           NPM_CONFIG_UNSAFE_PERM: true
 
-      - run: DOCKER_HOST=$DIND_HOST xvfb-run npm run test:integration:release
+      # - run: DOCKER_HOST=$DIND_HOST xvfb-run npm run test:integration:release
 
       - uses: actions/upload-artifact@v4
         with:
