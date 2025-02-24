@@ -8,7 +8,7 @@ import { isDockerAvailable } from './docker-interception-services';
 import { logError } from '../../error-tracking';
 import { waitForDockerStream } from './docker-utils';
 
-const DOCKER_TUNNEL_IMAGE = "httptoolkit/docker-socks-tunnel:v1.2.0";
+const DOCKER_TUNNEL_IMAGE = "ghcr.io/httptoolkit/docker-socks-tunnel:v1.2.0";
 const DOCKER_TUNNEL_LABEL = "tech.httptoolkit.docker.tunnel";
 
 const getDockerTunnelContainerName = (proxyPort: number) =>

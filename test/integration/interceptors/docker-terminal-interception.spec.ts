@@ -380,7 +380,7 @@ Successfully built <hash>
 
         // Tunnel is now running:
         tunnel = await docker.getContainer(`httptoolkit-docker-tunnel-${server.port}`).inspect();
-        expect(tunnel.Config.Image.split(':')[0]).to.equal('httptoolkit/docker-socks-tunnel');
+        expect(tunnel.Config.Image.split(':')[0]).to.equal('ghcr.io/httptoolkit/docker-socks-tunnel');
 
         // Then shut everything down:
         await stopDockerInterceptionServices(server.port, ruleParams);
