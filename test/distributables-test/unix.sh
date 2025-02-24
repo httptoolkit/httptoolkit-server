@@ -4,9 +4,11 @@ set -e
 
 ls -la *
 
-tar -xzf ./distributables/v*/httptoolkit-server-*-$1-x64.tar.gz
+tar -xzf ./distributables/v*/httptoolkit-server-*-$1-$2.tar.gz
 
 echo "\nStarting server..."
+
+file ./httptoolkit-server/bin/node
 
 ./httptoolkit-server/bin/httptoolkit-server start &
 SERVER_PID=$!
