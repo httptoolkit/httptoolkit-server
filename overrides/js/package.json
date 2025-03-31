@@ -6,6 +6,6 @@
   "dependencies": {
     "global-agent": "3.0.0",
     "global-tunnel-ng": "2.7.1",
-    "undici": "^5.28.4"
+    "undici": "^5.28.5"
   }
 }
