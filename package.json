@@ -144,7 +144,7 @@
     "tsx": "^4.19.3",
     "typescript": "~4.7",
     "umd-compat-loader": "^2.1.2",
-    "undici": "^5.28.4",
+    "undici": "^5.28.5",
     "unirest": "^0.6.0",
     "webpack": "^5.94.0",
     "webpack-cli": "^5.0.1",
