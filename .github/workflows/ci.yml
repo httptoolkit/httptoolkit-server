@@ -99,12 +99,18 @@ jobs:
           - platform: Ubuntu 20.04 x64
             os: "ubuntu-20.04"
             test-script: "./unix.sh linux x64"
-          - platform: MacOS 14 (M1)
+          - platform: MacOS 15 (ARM64)
+            os: "macos-15"
+            test-script: "./unix.sh darwin arm64"
+          - platform: MacOS 14 (ARM64)
             os: "macos-14"
             test-script: "./unix.sh darwin arm64"
           - platform: MacOS 13
             os: "macos-13"
             test-script: "./unix.sh darwin x64"
+          - platform: Windows 2025
+            os: "windows-2025"
+            test-script: ".\\windows.bat"
           - platform: Windows 2022
             os: "windows-2022"
             test-script: ".\\windows.bat"
