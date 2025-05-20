@@ -52,6 +52,11 @@ const buildGraphql = (
     headers
 });
 
+const hasExited = (process: ChildProcess) => {
+    return process.exitCode !== null ||
+        process.signalCode !== null;
+};
+
 describe('End-to-end server API test', function () {
     // Timeout needs to be long, as first test runs (e.g. in CI) generate
     // fresh certificates, which can take a little while.
@@ -101,8 +106,19 @@ describe('End-to-end server API test', function () {
         });
     });
 
-    afterEach(() => {
-        if (!serverProcess.killed) serverProcess.kill();
+    afterEach(async () => {
+        const killedPromise = new Promise<void>((resolve, reject) => {
+            if (hasExited(serverProcess)) return resolve();
+
+            serverProcess.on('exit', resolve);
+            serverProcess.on('error', reject);
+        });
+
+        if (!hasExited(serverProcess)) {
+            serverProcess.kill();
+            await killedPromise;
+        }
+
         expect(stderr).to.equal('');
     });
 
