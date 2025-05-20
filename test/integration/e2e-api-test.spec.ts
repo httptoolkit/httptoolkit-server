@@ -86,17 +86,6 @@ describe('End-to-end server API test', function () {
 
             serverProcess.stderr!.on('data', (d) => {
                 console.warn(d.toString());
-
-                // Some nodes warn about fs.promises - ignore it.
-                if (d.toString().includes('ExperimentalWarning: The fs.promises API')) return;
-                // We use _stream_wrap, in some node versions this is deprecated, for now ignore it
-                if (d.toString().includes('The _stream_wrap module is deprecated')) return;
-                // Deprecation in 'ftp' module (from pac-proxy) - only appears in built package, not source,
-                // as node doesn't show these deprecations by default when fired within node_modules.
-                if (d.toString().includes('Buffer() is deprecated') && process.env.TEST_BUILT_TARBALL) return;
-                // If the config parent folder doesn't exist at all, we'll see an ENOENT, that's ok:
-                if (d.toString().includes('[ENOENT]')) return;
-
                 stderr = stderr + d.toString();
             });
 
