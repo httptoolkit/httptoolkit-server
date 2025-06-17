@@ -108,7 +108,7 @@ export class ExistingTerminalInterceptor implements Interceptor {
         // A success endpoint, so we can mark this as active (which provides some helpful UX on the frontend)
         await server.forPost('/success').thenCallback(() => {
             serverState.isActive = true;
-            return { status: 200 };
+            return { statusCode: 200 };
         });
 
         this.servers[proxyPort] = serverState;

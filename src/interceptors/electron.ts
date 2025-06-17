@@ -148,7 +148,7 @@ export class ElectronInterceptor implements Interceptor {
                 JSON.stringify(path.join(OVERRIDES_DIR, 'js', 'prepend-electron.js'))
             })({
                 newlineEncodedCertData: "${(await this.certData).replace(/\r\n|\r|\n/g, '\\n')}",
-                spkiFingerprint: "${generateSPKIFingerprint(await this.certData)}"
+                spkiFingerprint: "${await generateSPKIFingerprint(await this.certData)}"
             })`,
             callFrameId
         });

@@ -29,7 +29,7 @@ const getChromiumLaunchOptions = async (
     webExtensionEnabled: boolean
 ): Promise<LaunchOptions & { options: Required<LaunchOptions>['options'] }> => {
     const certificatePem = await readFile(config.https.certPath, 'utf8');
-    const spkiFingerprint = generateSPKIFingerprint(certificatePem);
+    const spkiFingerprint = await generateSPKIFingerprint(certificatePem);
 
     return {
         profile: profilePath,

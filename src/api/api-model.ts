@@ -51,7 +51,8 @@ export class ApiModel {
         // Wait for each async part in parallel:
         const [
             systemProxy,
-            dnsServers
+            dnsServers,
+            spkiFingerprint
         ] = await Promise.all([
             withFallback(
                 () => getSystemProxy(),
@@ -61,7 +62,9 @@ export class ApiModel {
 
             proxyPort
                 ? await this.getDnsServers(proxyPort)
-                : []
+                : [],
+
+            generateSPKIFingerprint(this.config.https.certContent)
         ])
 
         return {
@@ -74,7 +77,7 @@ export class ApiModel {
             // We could calculate this client side, but it  requires node-forge or some
             // other heavyweight crypto lib, and we already have that here, so it's
             // convenient to do it up front.
-            certificateFingerprint: generateSPKIFingerprint(this.config.https.certContent),
+            certificateFingerprint: spkiFingerprint,
 
             networkInterfaces: this.getNetworkInterfaces(),
             systemProxy,
