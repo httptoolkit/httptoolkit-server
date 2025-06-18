@@ -126,7 +126,7 @@ export async function testAndSelectProxyAddress(
 
     const ipTestScript = await buildIpTestScript(ips, proxyPort);
 
-    return await withTimeout(2000, new Promise<string>(async (resolve, reject) => {
+    return await withTimeout(10_000, new Promise<string>(async (resolve, reject) => {
         try {
             session.onMessage((message) => {
                 if (message.type === 'send') {
