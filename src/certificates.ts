@@ -24,7 +24,8 @@ export function getCertificateSubjectHash(cert: forge.pki.Certificate) {
         .update(derBytes)
         .digest()
         .readUInt32LE(0)
-        .toString(16);
+        .toString(16)
+        .padStart(8, '0');
 }
 
 // Get a full SHA1 hash of the certificate
