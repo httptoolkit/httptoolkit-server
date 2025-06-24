@@ -32,6 +32,11 @@ const DEBUG_MODE = false;
 // sent via the proxy and intercepted despite this setting.
 const IGNORED_NON_HTTP_PORTS = [];
 
+// As HTTP/3 is often not well supported by MitM proxies, by default it
+// is blocked entirely, so all outgoing UDP connections to port 443
+// will fail. If this is set to false, they will instead be redirected
+// to the same proxy port & address as TCP connections.
+const BLOCK_HTTP3 = true;
 
 // ----------------------------------------------------------------------------
 // You don't need to modify any of the below, it just checks and applies some
@@ -157,13 +162,14 @@ function waitForModule(moduleName, callback) {
     }
 
     try {
-        Module.ensureInitialized(moduleName);
-        callback(moduleName);
+        const module = Process.getModuleByName(moduleName)
+        module.ensureInitialized();
+        callback(module);
         return;
     } catch (e) {
         try {
-            Module.load(moduleName);
-            callback(moduleName);
+            const module = Module.load(moduleName);
+            callback(module);
             return;
         } catch (e) {}
     }
@@ -188,10 +194,15 @@ new ApiResolver('module').enumerateMatches('exports:linker*!*dlopen*').forEach((
         onLeave() {
             if (!this.moduleName) return;
 
+            const module = Process.findModuleByName(this.moduleName);
+            if (!module) return;
+
             Object.keys(MODULE_LOAD_CALLBACKS).forEach((key) => {
                 if (this.moduleName === key) {
-                    MODULE_LOAD_CALLBACKS[key](this.moduleName);
-                    delete MODULE_LOAD_CALLBACKS[key];
+                    if (module) {
+                        MODULE_LOAD_CALLBACKS[key](module);
+                        delete MODULE_LOAD_CALLBACKS[key];
+                    }
                 }
             });
         }

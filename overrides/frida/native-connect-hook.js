@@ -21,11 +21,15 @@ const PROXY_HOST_IPv4_BYTES = PROXY_HOST.split('.').map(part => parseInt(part, 1
 const IPv6_MAPPING_PREFIX_BYTES = [0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff, 0xff];
 const PROXY_HOST_IPv6_BYTES = IPv6_MAPPING_PREFIX_BYTES.concat(PROXY_HOST_IPv4_BYTES);
 
-const connectFn = (
-    Module.findExportByName('libc.so', 'connect') ?? // Android
-    Module.findExportByName('libc.so.6', 'connect') ?? // Linux
-    Module.findExportByName('libsystem_kernel.dylib', 'connect') // iOS
-);
+let connectFn = null;
+try {
+    connectFn =
+        Process.findModuleByName('libc.so')?.findExportByName('connect') ?? // Android
+        Process.findModuleByName('libc.so.6')?.findExportByName('connect') ?? // Linux
+        Process.findModuleByName('libsystem_kernel.dylib')?.findExportByName('connect'); // iOS
+} catch (e) {
+    console.error("Failed to find 'connect' export:", e);
+}
 
 if (!connectFn) { // Should always be set, but just in case
     console.warn('Could not find libc connect() function to hook raw traffic');
@@ -39,13 +43,16 @@ if (!connectFn) { // Should always be set, but just in case
             const addrLen = args[2].toInt32();
             const addrData = addrPtr.readByteArray(addrLen);
 
-            if (sockType === 'tcp' || sockType === 'tcp6') {
+            const isTCP = sockType === 'tcp' || sockType === 'tcp6';
+            const isUDP = sockType === 'udp' || sockType === 'udp6';
+            const isIPv6 = sockType === 'tcp6' || sockType === 'udp6';
+
+            if (isTCP || isUDP) {
                 const portAddrBytes = new DataView(addrData.slice(2, 4));
                 const port = portAddrBytes.getUint16(0, false); // Big endian!
 
-                const shouldBeIntercepted = !IGNORED_NON_HTTP_PORTS.includes(port);
-
-                const isIPv6 = sockType === 'tcp6';
+                const shouldBeIgnored = IGNORED_NON_HTTP_PORTS.includes(port);
+                const shouldBeBlocked = BLOCK_HTTP3 && !shouldBeIgnored && isUDP && port === 443;
 
                 const hostBytes = isIPv6
                     // 16 bytes offset by 8 (2 for family, 2 for port, 4 for flowinfo):
@@ -61,45 +68,57 @@ if (!connectFn) { // Should always be set, but just in case
 
                 if (isIntercepted) return;
 
-                if (!shouldBeIntercepted) {
-                    // Not intercecpted, sent to unrecognized port - probably not HTTP(S)
+                if (shouldBeBlocked) {
+                    if (isIPv6) {
+                        // Skip 8 bytes: 2 family, 2 port, 4 flowinfo, then write :: (all 0s)
+                        for (let i = 0; i < 16; i++) {
+                            addrPtr.add(8 + i).writeU8(0);
+                        }
+                    } else {
+                        // Skip 4 bytes: 2 family, 2 port, then write 0.0.0.0
+                        addrPtr.add(4).writeU32(0);
+                    }
+                    this.state = 'Blocked';
+                } else if (!shouldBeIgnored) {
+                    // Otherwise, it's an unintercepted connection that should be captured:
+
+                    console.log(`Manually intercepting connection to ${getReadableAddress(hostBytes, isIPv6)}:${port}`);
+
+                    // Overwrite the port with the proxy port:
+                    portAddrBytes.setUint16(0, PROXY_PORT, false); // Big endian
+                    addrPtr.add(2).writeByteArray(portAddrBytes.buffer);
+
+                    // Overwrite the address with the proxy address:
+                    if (isIPv6) {
+                        // Skip 8 bytes: 2 family, 2 port, 4 flowinfo
+                        addrPtr.add(8).writeByteArray(PROXY_HOST_IPv6_BYTES);
+                    } else {
+                        // Skip 4 bytes: 2 family, 2 port
+                        addrPtr.add(4).writeByteArray(PROXY_HOST_IPv4_BYTES);
+                    }
+                    this.state = 'Intercepted';
+                } else {
+                    // Explicitly being left alone
                     if (DEBUG_MODE) {
                         console.debug(`Allowing unintercepted connection to port ${port}`);
                     }
-                    return;
-                }
-
-                // Otherwise, it's an unintercepted connection that should be captured:
-
-                console.log(`Manually intercepting connection to ${getReadableAddress(hostBytes, isIPv6)}:${port}`);
-
-                // Overwrite the port with the proxy port:
-                portAddrBytes.setUint16(0, PROXY_PORT, false); // Big endian
-                addrPtr.add(2).writeByteArray(portAddrBytes.buffer);
-
-                // Overwrite the address with the proxy address:
-                if (isIPv6) {
-                    // Skip 8 bytes: 2 family, 2 port, 4 flowinfo
-                    addrPtr.add(8).writeByteArray(PROXY_HOST_IPv6_BYTES);
-                } else {
-                    // Skip 4 bytes: 2 family, 2 port
-                    addrPtr.add(4).writeByteArray(PROXY_HOST_IPv4_BYTES);
+                    this.state = 'ignored';
                 }
             } else if (DEBUG_MODE) {
                 console.log(`Ignoring ${sockType} connection`);
-                this.ignored = true;
+                this.state = 'ignored';
             }
 
             // N.b. we ignore all non-TCP connections: both UDP and Unix streams
         },
         onLeave: function (result) {
-            if (!DEBUG_MODE || this.ignored) return;
+            if (!DEBUG_MODE || this.state === 'ignored') return;
 
             const fd = this.sockFd;
             const sockType = Socket.type(fd);
             const address = Socket.peerAddress(fd);
             console.debug(
-                `Connected ${sockType} fd ${fd} to ${JSON.stringify(address)} (${result.toInt32()})`
+                `${this.state} ${sockType} fd ${fd} to ${JSON.stringify(address)} (${result.toInt32()})`
             );
         }
     });
