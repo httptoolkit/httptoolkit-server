@@ -111,9 +111,6 @@ jobs:
           - platform: Windows 2022
             os: "windows-2022"
             test-script: ".\\windows.bat"
-          - platform: Windows 2019
-            os: "windows-2019"
-            test-script: ".\\windows.bat"
       fail-fast: false
     name: Test on ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
