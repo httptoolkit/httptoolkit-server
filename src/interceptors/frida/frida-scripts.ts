@@ -26,6 +26,7 @@ export async function buildAndroidFridaScript(
     portsToIgnore: number[]
 ) {
     const scripts = await Promise.all([
+        fs.readFile(path.join(FRIDA_SCRIPTS_ROOT, 'frida-java-bridge.js'), { encoding: 'utf8' }),
         fs.readFile(path.join(FRIDA_SCRIPTS_ROOT, 'config.js'), { encoding: 'utf8' })
             .then((configTemplate) =>
                 buildFridaConfig(configTemplate, caCertContent, proxyHost, proxyPort, portsToIgnore)
@@ -52,6 +53,7 @@ export async function buildIosFridaScript(
     portsToIgnore: number[]
 ) {
     const scripts = await Promise.all([
+        fs.readFile(path.join(FRIDA_SCRIPTS_ROOT, 'frida-objc-bridge.js'), { encoding: 'utf8' }),
         fs.readFile(path.join(FRIDA_SCRIPTS_ROOT, 'config.js'), { encoding: 'utf8' })
             .then((configTemplate) =>
                 buildFridaConfig(configTemplate, caCertContent, proxyHost, proxyPort, portsToIgnore)
