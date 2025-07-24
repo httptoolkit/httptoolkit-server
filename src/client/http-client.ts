@@ -10,7 +10,6 @@ import * as https from 'https';
 import type * as Mockttp from 'mockttp';
 import {
     getDnsLookupFunction,
-    shouldUseStrictHttps,
     getUpstreamTlsOptions as getUpstreamMockttpTlsOptions
 } from 'mockttp/dist/rules/passthrough-handling';
 import { getAgent } from 'mockttp/dist/rules/http-agents';
@@ -58,15 +57,6 @@ export class HttpClient {
         JSON.stringify(dnsServers)
     );
 
-    getCaConfig(additionalCAs?: Array<{ cert: string }>) {
-        if (!additionalCAs) return {};
-        else return {
-            ca: tls.rootCertificates.concat(
-                additionalCAs.map(({ cert }) => cert)
-            )
-        };
-    }
-
     async sendRequest(
         requestDefn: RequestDefinition,
         options: RequestOptions
@@ -78,16 +68,7 @@ export class HttpClient {
         // here, since the UI controls the passthrough options directly already.
 
         const effectivePort = getEffectivePort(url);
-
-        const strictHttpsChecks = shouldUseStrictHttps(
-            url.hostname!,
-            effectivePort,
-            options.ignoreHostHttpsErrors ?? []
-        );
-        const caConfig = this.getCaConfig(
-            options.additionalTrustedCAs ||
-            options.trustAdditionalCAs
-        );
+        const additionalCAs = options.additionalTrustedCAs || options.trustAdditionalCAs;
 
         const agent = await getAgent({
             protocol: url.protocol as 'http:' | 'https:',
@@ -107,9 +88,18 @@ export class HttpClient {
             lookup: this.getDns(options.lookupOptions?.servers),
 
             // TLS options (should be effectively identical to Mockttp's passthrough config)
-            ...getUpstreamMockttpTlsOptions(strictHttpsChecks),
-            ...caConfig,
-            ...options.clientCertificate
+            ...getUpstreamMockttpTlsOptions({
+                hostname: url.hostname!,
+                port: effectivePort,
+
+                ignoreHostHttpsErrors: options.ignoreHostHttpsErrors ?? [],
+                clientCertificateHostMap: options.clientCertificate
+                    ? { '*': options.clientCertificate }
+                    : {},
+                trustedCAs: additionalCAs
+                    ? tls.rootCertificates.concat(additionalCAs.map(({ cert }) => cert))
+                    : undefined
+            })
         });
 
         options.abortSignal?.addEventListener('abort', () => {
