@@ -1,7 +1,7 @@
 const webpack = require('webpack');
 const path = require('path');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
-const SentryPlugin = require('@sentry/webpack-plugin');
+const { sentryWebpackPlugin } = require('@sentry/webpack-plugin');
 
 const pjson = require('./package.json');
 
@@ -102,9 +102,9 @@ module.exports = {
         }),
         // If SENTRY_AUTH_TOKEN is set, upload this sourcemap to Sentry
         process.env.SENTRY_AUTH_TOKEN
-            ? new SentryPlugin({
-                release: pjson.version,
-                include: OUTPUT_DIR,
+            ? sentryWebpackPlugin({
+                release: { name: pjson.version },
+                sourcemaps: { assets: OUTPUT_DIR },
                 urlPrefix: '~/bundle',
                 validate: true
             })

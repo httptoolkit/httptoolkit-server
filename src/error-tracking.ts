@@ -2,7 +2,6 @@ import * as path from 'path';
 import { randomUUID } from 'crypto';
 import * as child_process from 'child_process';
 import * as Sentry from '@sentry/node';
-import { RewriteFrames } from '@sentry/integrations';
 import { ErrorLike } from '@httptoolkit/util';
 
 import { IS_PROD_BUILD } from './constants';
@@ -28,8 +27,9 @@ export function initErrorTracking() {
         Sentry.init({
             dsn: SENTRY_DSN,
             release: packageJson.version,
+            sendDefaultPii: false,
             integrations: [
-                new RewriteFrames({
+                Sentry.rewriteFramesIntegration({
                     // We're one dir down: either /bundle, or /src
                     root: process.platform === 'win32'
                         // Root must always be POSIX format, so we transform it on Windows:
@@ -82,17 +82,13 @@ export function initErrorTracking() {
             }
         });
 
-        Sentry.configureScope((scope) => {
-            scope.setTag('platform', process.platform);
-        });
+        Sentry.setTag('platform', process.platform);
 
-        Sentry.configureScope((scope) => {
-            // We use a random id to distinguish between many errors in one session vs
-            // one error in many sessions. This isn't persisted and can't be used to
-            // identify anybody between sessions.
-            const randomId = randomUUID();
-            scope.setUser({ id: randomId, username: `anon-${randomId}` });
-        });
+        // We use a random id to distinguish between many errors in one session vs
+        // one error in many sessions. This isn't persisted and can't be used to
+        // identify anybody between sessions.
+        const randomId = randomUUID();
+        Sentry.setUser({ id: randomId, username: `anon-${randomId}` });
 
         // Include breadcrumbs for subprocess spawning, to trace interceptor startup details:
         const rawSpawn = child_process.spawn;
