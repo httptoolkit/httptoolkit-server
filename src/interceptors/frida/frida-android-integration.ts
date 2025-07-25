@@ -20,7 +20,10 @@ import {
     getFridaServer,
     killProcess,
     launchScript,
-    testAndSelectProxyAddress
+    testAndSelectProxyAddress,
+    createFridaSessionCache,
+    clearFridaSessionCache,
+    getOrCreateFridaSession
 } from './frida-integration';
 
 const ANDROID_DEVICE_HTK_PATH = '/data/local/tmp/.httptoolkit';
@@ -181,47 +184,15 @@ const getFridaStream = (hostId: string, deviceClient: DeviceClient) =>
         });
     });
 
-const fridaSessionCache: Record<string, {
-    fridaSession: FridaJs.FridaSession,
-    cleanup: () => void,
-    timeout: NodeJS.Timeout
-}> = {};
+// Frida session cache for Android hosts
+const fridaSessionCache = createFridaSessionCache();
 
-const FRIDA_SESSION_IDLE_TIMEOUT = 30_000;
-
-function clearFridaSessionCache(hostId: string) {
-    const cached = fridaSessionCache[hostId];
-    if (cached) {
-        clearTimeout(cached.timeout);
-        cached.cleanup();
-        delete fridaSessionCache[hostId];
-    }
-}
-
-async function getOrCreateFridaSession(hostId: string, deviceClient: DeviceClient) {
-    let cached = fridaSessionCache[hostId];
-    if (cached) {
-        clearTimeout(cached.timeout);
-        cached.timeout = setTimeout(() => clearFridaSessionCache(hostId), FRIDA_SESSION_IDLE_TIMEOUT);
-        return { fridaSession: cached.fridaSession, wasCached: true };
-    }
-
-    const fridaStream = await getFridaStream(hostId, deviceClient);
-    const fridaSession = await FridaJs.connect({ stream: fridaStream });
-
-    const timeout = setTimeout(() => clearFridaSessionCache(hostId), FRIDA_SESSION_IDLE_TIMEOUT);
-    const cleanup = () => fridaSession.disconnect()
-        .catch(() => {})
-        .finally(() => fridaStream.destroy());
-
-    fridaSessionCache[hostId] = {
-        fridaSession,
-        cleanup,
-        timeout
-    };
-
-    fridaStream.on('error', cleanup);
-    return { fridaSession, wasCached: false };
+async function getOrCreateAndroidFridaSession(hostId: string, deviceClient: DeviceClient) {
+    return getOrCreateFridaSession(
+        fridaSessionCache,
+        hostId,
+        () => getFridaStream(hostId, deviceClient)
+    );
 }
 
 export async function getAndroidFridaTargets(adbClient: AdbClient, hostId: string): Promise<Array<{
@@ -235,11 +206,10 @@ export async function getAndroidFridaTargets(adbClient: AdbClient, hostId: strin
     let wasCached: boolean = false;
 
     try {
-        ({ fridaSession, wasCached } = await getOrCreateFridaSession(hostId, deviceClient));
-        const apps = await fridaSession.enumerateApplications();
-        return apps;
+        ({ fridaSession, wasCached } = await getOrCreateAndroidFridaSession(hostId, deviceClient));
+        return await fridaSession.enumerateApplications();
     } catch (e) {
-        clearFridaSessionCache(hostId);
+        clearFridaSessionCache(fridaSessionCache, hostId);
         if (wasCached) {
             // When a cached session fails, we retry with a fresh one:
             return getAndroidFridaTargets(adbClient, hostId);

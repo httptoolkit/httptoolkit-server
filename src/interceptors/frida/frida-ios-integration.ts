@@ -8,7 +8,10 @@ import {
     FridaHost,
     killProcess,
     launchScript,
-    testAndSelectProxyAddress
+    testAndSelectProxyAddress,
+    createFridaSessionCache,
+    clearFridaSessionCache,
+    getOrCreateFridaSession
 } from './frida-integration';
 
 const isDevicePortOpen = (usbmuxClient: UsbmuxClient, deviceId: number, port: number) =>
@@ -102,26 +105,47 @@ async function getDeviceId(usbmuxClient: UsbmuxClient, hostId: string) {
     return deviceId;
 };
 
-export async function getIosFridaTargets(usbmuxClient: UsbmuxClient, hostId: string) {
-    const deviceId = await getDeviceId(usbmuxClient, hostId);
-
-    // Since we don't start Frida ourselves, alt port will never be used
-    const fridaStream = await usbmuxClient.createDeviceTunnel(deviceId, FRIDA_DEFAULT_PORT);
-
-    const fridaSession = await FridaJs.connect({
-        stream: fridaStream
-    });
-
-    const apps = await fridaSession.enumerateApplications();
-    fridaSession.disconnect().catch(() => {});
-    return apps;
-}
-
 // Various ports which we know that certain apps use for non-HTTP traffic that we
 // can't currently intercept, so we avoid capturing for now.
 const KNOWN_APP_PROBLEMATIC_PORTS: Record<string, number[] | undefined> = {
     'com.spotify.client': [4070]
 };
+
+const fridaSessionCache = createFridaSessionCache();
+
+async function getOrCreateIosFridaSession(hostId: string, usbmuxClient: UsbmuxClient) {
+    return getOrCreateFridaSession(
+        fridaSessionCache,
+        hostId,
+        async () => {
+            const deviceId = await getDeviceId(usbmuxClient, hostId);
+
+            // Since we don't start Frida ourselves, alt port will never be used
+            return usbmuxClient.createDeviceTunnel(deviceId, FRIDA_DEFAULT_PORT);
+        }
+    );
+}
+
+export async function getIosFridaTargets(usbmuxClient: UsbmuxClient, hostId: string): Promise<Array<{
+    pid: number | null;
+    id: string;
+    name: string;
+}>> {
+    let fridaSession: FridaJs.FridaSession;
+    let wasCached: boolean = false;
+    try {
+        ({ fridaSession, wasCached } = await getOrCreateIosFridaSession(hostId, usbmuxClient));
+        return await fridaSession.enumerateApplications();
+    } catch (e) {
+        clearFridaSessionCache(fridaSessionCache, hostId);
+        if (wasCached) {
+            // When a cached session fails, we retry with a fresh one:
+            return getIosFridaTargets(usbmuxClient, hostId);
+        } else {
+            throw e;
+        }
+    }
+}
 
 export async function interceptIosFridaTarget(
     usbmuxClient: UsbmuxClient,

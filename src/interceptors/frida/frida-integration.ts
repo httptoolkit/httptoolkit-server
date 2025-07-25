@@ -203,3 +203,55 @@ export async function launchScript(targetName: string, session: FridaJs.FridaAge
 
     scriptLoaded = true;
 }
+
+// Common Frida session cache logic for Android & iOS
+export interface FridaSessionCache {
+    fridaSession: FridaJs.FridaSession;
+    cleanup: () => void;
+    timeout: NodeJS.Timeout;
+}
+
+export const FRIDA_SESSION_IDLE_TIMEOUT = 30_000;
+
+export function createFridaSessionCache() {
+    return {} as Record<string, FridaSessionCache>;
+}
+
+export function clearFridaSessionCache(cache: Record<string, FridaSessionCache>, hostId: string) {
+    const cached = cache[hostId];
+    if (cached) {
+        clearTimeout(cached.timeout);
+        cached.cleanup();
+        delete cache[hostId];
+    }
+}
+
+export async function getOrCreateFridaSession(
+    cache: Record<string, FridaSessionCache>,
+    hostId: string,
+    getStream: () => Promise<any>
+): Promise<{ fridaSession: FridaJs.FridaSession; wasCached: boolean }> {
+    let cached = cache[hostId];
+    if (cached) {
+        clearTimeout(cached.timeout);
+        cached.timeout = setTimeout(() => clearFridaSessionCache(cache, hostId), FRIDA_SESSION_IDLE_TIMEOUT);
+        return { fridaSession: cached.fridaSession, wasCached: true };
+    }
+
+    const fridaStream = await getStream();
+    const fridaSession = await FridaJs.connect({ stream: fridaStream });
+
+    const timeout = setTimeout(() => clearFridaSessionCache(cache, hostId), FRIDA_SESSION_IDLE_TIMEOUT);
+    const cleanup = () => fridaSession.disconnect()
+        .catch(() => {})
+        .finally(() => fridaStream.destroy());
+
+    cache[hostId] = {
+        fridaSession,
+        cleanup,
+        timeout
+    };
+
+    fridaStream.on('error', cleanup);
+    return { fridaSession, wasCached: false };
+}
