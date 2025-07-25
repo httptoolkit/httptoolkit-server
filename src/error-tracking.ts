@@ -1,6 +1,5 @@
 import * as path from 'path';
 import { randomUUID } from 'crypto';
-import * as child_process from 'child_process';
 import * as Sentry from '@sentry/node';
 import { ErrorLike } from '@httptoolkit/util';
 
@@ -91,6 +90,7 @@ export function initErrorTracking() {
         Sentry.setUser({ id: randomId, username: `anon-${randomId}` });
 
         // Include breadcrumbs for subprocess spawning, to trace interceptor startup details:
+        const child_process = require('child_process');
         const rawSpawn = child_process.spawn;
         (child_process as any).spawn = function (command: any, args?: any, options?: { [key: string]: string }) {
             const sanitizedOptions = { ...options,
