@@ -181,18 +181,72 @@ const getFridaStream = (hostId: string, deviceClient: DeviceClient) =>
         });
     });
 
-export async function getAndroidFridaTargets(adbClient: AdbClient, hostId: string) {
-    const deviceClient = adbClient.getDevice(hostId);
+const fridaSessionCache: Record<string, {
+    fridaSession: FridaJs.FridaSession,
+    cleanup: () => void,
+    timeout: NodeJS.Timeout
+}> = {};
+
+const FRIDA_SESSION_IDLE_TIMEOUT = 30_000;
+
+function clearFridaSessionCache(hostId: string) {
+    const cached = fridaSessionCache[hostId];
+    if (cached) {
+        clearTimeout(cached.timeout);
+        cached.cleanup();
+        delete fridaSessionCache[hostId];
+    }
+}
+
+async function getOrCreateFridaSession(hostId: string, deviceClient: DeviceClient) {
+    let cached = fridaSessionCache[hostId];
+    if (cached) {
+        clearTimeout(cached.timeout);
+        cached.timeout = setTimeout(() => clearFridaSessionCache(hostId), FRIDA_SESSION_IDLE_TIMEOUT);
+        return { fridaSession: cached.fridaSession, wasCached: true };
+    }
 
     const fridaStream = await getFridaStream(hostId, deviceClient);
+    const fridaSession = await FridaJs.connect({ stream: fridaStream });
 
-    const fridaSession = await FridaJs.connect({
-        stream: fridaStream
-    });
+    const timeout = setTimeout(() => clearFridaSessionCache(hostId), FRIDA_SESSION_IDLE_TIMEOUT);
+    const cleanup = () => fridaSession.disconnect()
+        .catch(() => {})
+        .finally(() => fridaStream.destroy());
 
-    const apps = await fridaSession.enumerateApplications();
-    fridaSession.disconnect().catch(() => {});
-    return apps;
+    fridaSessionCache[hostId] = {
+        fridaSession,
+        cleanup,
+        timeout
+    };
+
+    fridaStream.on('error', cleanup);
+    return { fridaSession, wasCached: false };
+}
+
+export async function getAndroidFridaTargets(adbClient: AdbClient, hostId: string): Promise<Array<{
+    pid: number | null;
+    id: string;
+    name: string;
+}>> {
+    const deviceClient = adbClient.getDevice(hostId);
+
+    let fridaSession: FridaJs.FridaSession;
+    let wasCached: boolean = false;
+
+    try {
+        ({ fridaSession, wasCached } = await getOrCreateFridaSession(hostId, deviceClient));
+        const apps = await fridaSession.enumerateApplications();
+        return apps;
+    } catch (e) {
+        clearFridaSessionCache(hostId);
+        if (wasCached) {
+            // When a cached session fails, we retry with a fresh one:
+            return getAndroidFridaTargets(adbClient, hostId);
+        } else {
+            throw e;
+        }
+    }
 }
 
 // Various ports which we know that certain apps use for non-HTTP traffic that we
