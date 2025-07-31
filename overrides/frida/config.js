@@ -34,9 +34,15 @@ const IGNORED_NON_HTTP_PORTS = [];
 
 // As HTTP/3 is often not well supported by MitM proxies, by default it
 // is blocked entirely, so all outgoing UDP connections to port 443
-// will fail. If this is set to false, they will instead be redirected
-// to the same proxy port & address as TCP connections.
+// will fail. If this is set to false, they will instead be left unintercepted.
 const BLOCK_HTTP3 = true;
+
+// Set this to true if your proxy supports SOCKS5 connections.
+// This makes it possible for native-connect-hook to redirect
+// non-HTTP traffic through your proxy (to view it raw, and
+// avoid breaking non-HTTP traffic en route).
+const PROXY_SUPPORTS_SOCKS5 = false;
+
 
 // ----------------------------------------------------------------------------
 // You don't need to modify any of the below, it just checks and applies some
@@ -47,7 +53,7 @@ const BLOCK_HTTP3 = true;
 if (DEBUG_MODE) {
     // Add logging just for clean output & to separate reloads:
     console.log('\n*** Starting scripts ***');
-    if (Java.available) {
+    if (globalThis.Java?.available) {
         Java.perform(() => {
             setTimeout(() => console.log('*** Scripts completed ***\n'), 5);
             // (We assume that nothing else will take more than 5ms, but app startup
@@ -156,6 +162,10 @@ function pemToDer(input) {
 
 const CERT_DER = pemToDer(CERT_PEM);
 
+// Right now this API is a bit funky - the callback will be called with a Frida Module instance
+// if the module is properly detected, but may be called with just { name, path, base, size }
+// in some cases (e.g. shared libraries loaded from inside an APK on Android). Works OK right now,
+// as it's not widely used but needs improvement in future if we extend this.
 function waitForModule(moduleName, callback) {
     if (Array.isArray(moduleName)) {
         moduleName.forEach(module => waitForModule(module, callback));
@@ -188,14 +198,24 @@ new ApiResolver('module').enumerateMatches('exports:linker*!*dlopen*').forEach((
         onEnter(args) {
             const moduleArg = args[0].readCString();
             if (moduleArg) {
+                this.path = moduleArg;
                 this.moduleName = getModuleName(moduleArg);
             }
         },
-        onLeave() {
-            if (!this.moduleName) return;
+        onLeave(retval) {
+            if (!this.path || !retval || retval.isNull()) return;
+            if (!MODULE_LOAD_CALLBACKS[this.moduleName]) return;
 
-            const module = Process.findModuleByName(this.moduleName);
-            if (!module) return;
+            let module = Process.findModuleByName(this.moduleName)
+                ?? Process.findModuleByAddress(retval);
+            if (!module) {
+                // Some modules are loaded in ways that mean Frida can't detect them, and
+                // can't look them up by name (notably when loading libraries from inside an
+                // APK on Android). To handle this, we can use dlsym to look up an example
+                // symbol and find the underlying module details directly, where possible.
+                module = getAnonymousModule(this.moduleName, this.path, retval);
+                if (!module) return;
+            }
 
             Object.keys(MODULE_LOAD_CALLBACKS).forEach((key) => {
                 if (this.moduleName === key) {
@@ -208,3 +228,28 @@ new ApiResolver('module').enumerateMatches('exports:linker*!*dlopen*').forEach((
         }
     });
 });
+
+const getAnonymousModule = (name, path, handle) => {
+    const dlsymAddr = Module.findGlobalExportByName('dlsym');
+    if (!dlsymAddr) {
+        console.error(`[!] Cannot find dlsym, cannot get anonymous module info for ${name}`);
+        return;
+    }
+
+    const dlsym = new NativeFunction(dlsymAddr, 'pointer', ['pointer', 'pointer']);
+
+    // Handle here is the return value from dlopen - but in this scenario, it's just an
+    // opaque handle into to 'soinfo' data that other methods can use to get the
+    // real pointer to parts of the module, like so:
+    const onLoadPointer = dlsym(handle, Memory.allocUtf8String('JNI_OnLoad'));
+
+    // Once we have an actual pointer, we can get the range that holds it:
+    const range = Process.getRangeByAddress(onLoadPointer);
+
+    return {
+        base: range.base,
+        size: range.size,
+        name,
+        path,
+    }
+};
