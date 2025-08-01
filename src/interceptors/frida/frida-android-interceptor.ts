@@ -58,7 +58,7 @@ export class FridaAndroidInterceptor implements Interceptor {
         options:
             | { action: 'setup', hostId: string }
             | { action: 'launch', hostId: string }
-            | { action: 'intercept', hostId: string, targetId: string }
+            | { action: 'intercept', hostId: string, targetId: string, enableSocks?: boolean }
     ): Promise<void> {
         if (options.action === 'setup') {
             await setupAndroidHost(this.config, this.adbClient, options.hostId);
@@ -77,7 +77,8 @@ export class FridaAndroidInterceptor implements Interceptor {
                 options.hostId,
                 options.targetId,
                 this.config.https.certContent,
-                proxyPort
+                proxyPort,
+                options.enableSocks ?? false
             );
 
             // Track this session, so we can close it to stop the interception later

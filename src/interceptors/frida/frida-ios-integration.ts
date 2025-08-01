@@ -152,7 +152,8 @@ export async function interceptIosFridaTarget(
     hostId: string,
     appId: string,
     caCertContent: string,
-    proxyPort: number
+    proxyPort: number,
+    enableSocks: boolean
 ) {
     console.log(`Intercepting ${appId} via iOS Frida on ${hostId}...`);
     const deviceId = await getDeviceId(usbmuxClient, hostId);
@@ -171,7 +172,8 @@ export async function interceptIosFridaTarget(
             caCertContent,
             proxyIp,
             proxyPort,
-            KNOWN_APP_PROBLEMATIC_PORTS[appId] ?? []
+            KNOWN_APP_PROBLEMATIC_PORTS[appId] ?? [],
+            enableSocks
         );
 
         await launchScript(`iOS (${appId})`, session, interceptionScript);

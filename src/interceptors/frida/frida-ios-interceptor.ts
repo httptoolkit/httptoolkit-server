@@ -52,7 +52,7 @@ export class FridaIosInterceptor implements Interceptor {
     async activate(
         proxyPort: number,
         options:
-            | { action: 'intercept', hostId: string, targetId: string }
+            | { action: 'intercept', hostId: string, targetId: string, enableSocks?: boolean }
     ): Promise<void> {
         if (options.action === 'intercept') {
             const fridaSession = await interceptIosFridaTarget(
@@ -60,7 +60,8 @@ export class FridaIosInterceptor implements Interceptor {
                 options.hostId,
                 options.targetId,
                 this.config.https.certContent,
-                proxyPort
+                proxyPort,
+                options.enableSocks ?? false
             );
 
             // Track this session, so we can close it to stop the interception later

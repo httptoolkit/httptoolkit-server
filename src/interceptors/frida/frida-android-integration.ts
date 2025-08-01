@@ -230,7 +230,8 @@ export async function interceptAndroidFridaTarget(
     hostId: string,
     appId: string,
     caCertContent: string,
-    proxyPort: number
+    proxyPort: number,
+    enableSocks: boolean
 ) {
     console.log(`Intercepting ${appId} via Android Frida on ${hostId}...`);
     const deviceClient = adbClient.getDevice(hostId);
@@ -260,7 +261,8 @@ export async function interceptAndroidFridaTarget(
             caCertContent,
             proxyIp,
             proxyPort,
-            KNOWN_APP_PROBLEMATIC_PORTS[appId] ?? []
+            KNOWN_APP_PROBLEMATIC_PORTS[appId] ?? [],
+            enableSocks
         );
 
         await launchScript(`Android (${appId})`, session, interceptionScript);
