@@ -236,8 +236,10 @@ export async function interceptAndroidFridaTarget(
     console.log(`Intercepting ${appId} via Android Frida on ${hostId}...`);
     const deviceClient = adbClient.getDevice(hostId);
 
-    await createPersistentReverseTunnel(deviceClient, proxyPort, proxyPort)
-        .catch(() => {}); // If we can't tunnel that's OK - we'll use wifi/etc instead
+    // We try to tunnel the proxy over ADB, but if we can't then that's OK - we'll use wifi/etc instead
+    const tunnelCreated = await createPersistentReverseTunnel(deviceClient, proxyPort, proxyPort)
+        .then(() => true)
+        .catch(() => false)
 
     const fridaStream = await getFridaStream(hostId, deviceClient);
 
@@ -255,6 +257,13 @@ export async function interceptAndroidFridaTarget(
                 '127.0.0.1',
                 ...EMULATOR_HOST_IPS,
             ]
+        }).catch((e) => {
+            console.warn(`Failed to select proxy address for ${appId} on ${hostId}: ${e.message ?? e}`);
+
+            // This can be flaky in some weird cases - when all else fails, we always fallback to the
+            // ADB reverse tunnel if that's available
+            if (tunnelCreated) return '127.0.0.1'
+            else throw e;
         });
 
         const interceptionScript = await buildAndroidFridaScript(
