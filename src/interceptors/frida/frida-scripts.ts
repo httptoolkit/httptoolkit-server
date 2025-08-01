@@ -66,6 +66,7 @@ export async function buildIosFridaScript(
             ),
         ...[
             ['ios', 'ios-connect-hook.js'],
+            ['ios', 'ios-disable-detection.js'],
             ['native-tls-hook.js'],
             ['native-connect-hook.js'],
         ].map((hookRelPath) =>
