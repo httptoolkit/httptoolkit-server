@@ -36,7 +36,7 @@ if (process.platform !== 'win32') {
     addShutdownHandler(async () => Promise.all(
         (await readDir(os.tmpdir()))
             .filter((filename) => filename.match(/^httptoolkit-\d+-docker.sock$/))
-            .map((filename) => deleteFile(path.join(os.tmpdir(), filename)))
+            .map((filename) => deleteFile(path.join(os.tmpdir(), filename)).catch(() => {}))
     ));
 }
 
