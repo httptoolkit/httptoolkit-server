@@ -2,15 +2,39 @@
 # ^ Note that we use sh, not bash, for alpine compatibility
 set -e
 
+# Find the path to this file:
+case "$0" in
+  */*)
+    # If the invocation contained a path, "dirname" is reliable:
+    SCRIPT_DIR=$(dirname -- "$0")
+    ;;
+  *)
+    # If not, we search $PATH:
+    self_path=$(command -v -- "$0")
+    if [ -z "$self_path" ]; then
+        echo "Fatal: Could not find script '$0' in PATH." >&2
+        exit 1
+    fi
+    SCRIPT_DIR=$(dirname -- "$self_path")
+    ;;
+esac
+
 # Exclude ourselves from PATH, find the real node, then reset PATH
-PATH="$(printf '%s\n' "$PATH" | sed "s:$(dirname "$0")\:::g")"
+PATH="$(printf '%s\n' "$PATH" | sed "s:${SCRIPT_DIR}\:::g")"
     # ^ This is made more complicated by sh, since we can't use variable expansion, but this
     # should be equivalent. We use : as a safe sed delim here, though it is confusing!
 
-real_node=`command -v node`
-PATH="`dirname "$0"`:$PATH"
+real_node=$(command -v -- node)
+if [ -z "$real_node" ]; then
+    echo "Fatal: Could not find the real 'node' executable in the modified PATH." >&2
+    exit 1
+fi
 
-PREPEND_PATH=`dirname "$0"`/../js/prepend-node.js
+# Reset PATH back to include us again
+PATH="$SCRIPT_DIR:$PATH"
+
+# Define the path to our helper script using the reliable SCRIPT_DIR
+PREPEND_PATH="$SCRIPT_DIR/../js/prepend-node.js"
 
 # Call node with the given arguments, prefixed with our extra logic
 if command -v winpty >/dev/null 2>&1; then
