@@ -67,7 +67,8 @@ export class AndroidAdbInterceptor implements Interceptor {
     }
 
     async activate(proxyPort: number, options: {
-        deviceId: string
+        deviceId: string,
+        enableSocks?: boolean
     }): Promise<void | {}> {
         const deviceClient = new DeviceClient(this.adbClient, options.deviceId);
 
@@ -106,6 +107,7 @@ export class AndroidAdbInterceptor implements Interceptor {
             ),
             port: proxyPort,
             localTunnelPort: proxyPort,
+            enableSocks: options.enableSocks ?? false,
             certFingerprint: await generateSPKIFingerprint(this.config.https.certContent)
         };
         const intentData = urlSafeBase64(JSON.stringify(setupParams));
