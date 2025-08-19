@@ -62,11 +62,21 @@ async function generateHTTPSConfig(configPath: string) {
         ]);
     });
 
+    // Setup SSL keylog paths for debugging TLS connections
+    const keylogDir = path.join(configPath, 'keylogs');
+    await ensureDirectoryExists(keylogDir);
+    const incomingKeylogFile = path.join(keylogDir, 'incoming-tls.log');
+    const upstreamKeylogFile = path.join(keylogDir, 'upstream-tls.log');
+
     return {
         keyPath,
         certPath,
         certContent,
-        keyLength: 2048 // Reasonably secure keys please
+        keyLength: 2048, // Reasonably secure keys please
+        sslKeylog: {
+            incomingKeylogFile,
+            upstreamKeylogFile
+        }
     };
 }
 
@@ -96,18 +106,25 @@ function manageBackgroundServices(
             shutdownTimer = undefined;
         }
 
-        const httpProxyPort = http.getMockServer().port;
+        let httpProxyPort: number | undefined;
+        try {
+            httpProxyPort = http?.getMockServer()?.port;
+        } catch (error) {
+            console.error('Error getting mock server port:', error);
+        }
 
         console.log(`Mock session started, http on port ${
-            httpProxyPort
+            httpProxyPort || 'unknown'
         }, webrtc ${
             !!webrtc ? 'enabled' : 'disabled'
         }`);
 
-        startDockerInterceptionServices(httpProxyPort, httpsConfig, ruleParameters)
-        .catch((error) => {
-            console.log("Could not start Docker components:", error);
-        });
+        if (httpProxyPort) {
+            startDockerInterceptionServices(httpProxyPort, httpsConfig, ruleParameters)
+            .catch((error) => {
+                console.log("Could not start Docker components:", error);
+            });
+        }
 
         updateWebExtensionConfig(sessionId, httpProxyPort, !!webrtc)
         .catch((error) => {
@@ -177,6 +194,7 @@ export async function runHTK(options: {
     console.log('Config checked in', configCheckTime - startTime, 'ms');
 
     const httpsConfig = await generateHTTPSConfig(configPath);
+    console.log('[DEBUG] HTTPS Config:', JSON.stringify(httpsConfig, null, 2));
 
     const certSetupTime = Date.now();
     console.log('Certificates setup in', certSetupTime - configCheckTime, 'ms');
@@ -186,6 +204,7 @@ export async function runHTK(options: {
         http: MockttpAdminPlugin,
         webrtc: MockRTCAdminPlugin
     }>({
+        debug: true, // Enable debug mode to ensure keylog events are emitted
         adminPlugins: {
             http: MockttpAdminPlugin,
             webrtc: MockRTCAdminPlugin
@@ -193,6 +212,7 @@ export async function runHTK(options: {
         pluginDefaults: {
             http: {
                 options: {
+                    debug: true, // Enable debug mode for HTTP plugin
                     cors: false, // Don't add mocked CORS responses to intercepted traffic
                     recordTraffic: false, // Don't persist traffic here (keep it in the UI)
                     https: httpsConfig // Use our HTTPS config for HTTPS MITMs.
