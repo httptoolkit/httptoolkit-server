@@ -159,13 +159,12 @@ const getDeviceName = async (adbClient: Adb.Client, deviceId: string) => {
                     .catch(() => {})
             )?.trim();
 
-            if (name) {
+            if (name && !name.startsWith('cmd: Failure calling service')) {
                 deviceName = name;
             } else {
                 const props = await device.getProperties();
 
-                deviceName = props['ro.product.model'] ||
-                    deviceId;
+                deviceName = props['ro.product.model'] || deviceId;
             }
         }
     } catch (e: any) {
