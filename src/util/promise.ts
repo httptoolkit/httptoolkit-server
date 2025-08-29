@@ -5,10 +5,11 @@ export async function waitUntil<T extends unknown>(
     tries: number,
     test: () => Promise<T>
 ): Promise<Exclude<T, false>> {
-    let result = tries > 0 && await test()
+    let remainingTries = tries;
+    let result = remainingTries > 0 && await test();
 
-    while (tries > 0 && !result) {
-        tries = tries - 1;
+    while (remainingTries > 0 && !result) {
+        remainingTries = remainingTries - 1;
         await delay(delayMs);
         result = await test();
     }
