@@ -24,7 +24,7 @@ import { IS_PROD_BUILD, MOCKTTP_ALLOWED_ORIGINS } from './constants';
 
 import { readFile, checkAccess, writeFile, ensureDirectoryExists } from './util/fs';
 
-import { registerShutdownHandler, shutdown } from './shutdown';
+import { addShutdownHandler, registerShutdownHandler, shutdown } from './shutdown';
 import { getTimeToCertExpiry, parseCert } from './certificates';
 
 import {
@@ -218,6 +218,8 @@ export async function runHTK(options: {
         port: 45456,
         host: '127.0.0.1'
     });
+
+    addShutdownHandler(() => standalone.stop());
 
     const standaloneSetupTime = Date.now();
     console.log('Standalone server started in', standaloneSetupTime - certSetupTime, 'ms');
