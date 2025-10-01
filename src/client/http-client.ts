@@ -84,6 +84,9 @@ export class HttpClient {
             method: requestDefn.method,
             signal: options.abortSignal,
 
+            setDefaultHeaders: false,
+            headers: flattenPairedRawHeaders(requestDefn.headers),
+
             // Low-level connection configuration:
             agent,
             lookup: this.getDns(options.lookupOptions?.servers),
@@ -101,7 +104,7 @@ export class HttpClient {
                     ? tls.rootCertificates.concat(additionalCAs.map(({ cert }) => cert))
                     : undefined
             })
-        });
+        } as any); // Would be nice to avoid this but raw header options aren't in the types yet
 
         if (options.keyLogFile) {
             request.on('socket', (socket) => {
@@ -113,19 +116,6 @@ export class HttpClient {
             // In older Node versions, this seems to be required to _actually_ abort the request:
             request.abort();
         });
-
-        // Node supports sending raw headers via [key, value, key, value] array, but if we do
-        // so with 'headers' above then we can't removeHeader first (to disable the defaults).
-        // Instead we remove headers and then manually trigger the 'raw' write behaviour.
-
-        request.removeHeader('connection');
-        request.removeHeader('transfer-encoding');
-        request.removeHeader('content-length');
-
-        (request as any)._storeHeader(
-            request.method + ' ' + request.path + ' HTTP/1.1\r\n',
-            flattenPairedRawHeaders(requestDefn.headers)
-        );
 
         if (requestDefn.rawBody?.byteLength) {
             request.end(requestDefn.rawBody);
