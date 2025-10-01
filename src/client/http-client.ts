@@ -22,6 +22,7 @@ import {
     RequestOptions,
     RULE_PARAM_REF_KEY
 } from './client-types';
+import * as fs from '../util/fs';
 
 export class HttpClient {
 
@@ -101,6 +102,12 @@ export class HttpClient {
                     : undefined
             })
         });
+
+        if (options.keyLogFile) {
+            request.on('socket', (socket) => {
+                socket.on('keylog', (line) => fs.appendOrCreateFile(options.keyLogFile!, line));
+            });
+        }
 
         options.abortSignal?.addEventListener('abort', () => {
             // In older Node versions, this seems to be required to _actually_ abort the request:

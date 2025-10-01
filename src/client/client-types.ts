@@ -83,6 +83,11 @@ export interface RequestOptions {
     lookupOptions?: { servers?: string[] };
 
     /**
+     * A path to a file where TLS key logging information should be written.
+     */
+    keyLogFile?: string;
+
+    /**
      * An abort signal, which can be used to cancel the in-process request if
      * required.
      */
