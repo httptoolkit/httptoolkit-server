@@ -271,8 +271,7 @@ export async function runHTK(options: {
                     }
                 }
 
-                console.log(error.message);
-                logError(`Failed to check for updates: ${error.message}`, { cause: error });
+                console.error(`Failed to check for updates: ${error.message}`, { cause: error });
             })
         );
     });
