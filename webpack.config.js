@@ -103,8 +103,10 @@ module.exports = {
         // If SENTRY_AUTH_TOKEN is set, upload this sourcemap to Sentry
         process.env.SENTRY_AUTH_TOKEN
             ? sentryWebpackPlugin({
+                org: 'http-toolkit',
+                project: 'httptoolkit-server',
                 release: { name: pjson.version },
-                sourcemaps: { assets: OUTPUT_DIR },
+                sourcemaps: { assets: [`${OUTPUT_DIR}/**`] },
                 urlPrefix: '~/bundle',
                 validate: true
             })
