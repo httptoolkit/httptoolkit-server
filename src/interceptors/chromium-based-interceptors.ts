@@ -139,7 +139,7 @@ abstract class FreshChromiumBasedInterceptor implements Interceptor {
             await delay(1000); // No hurry, make sure the browser & related processes have all cleaned up
 
             const activeBrowserCount = Object.keys(this.activeBrowsers).length;
-            const profilePath = snapProfilePath ?? browserDetails?.profile;
+            const profilePath = snapProfilePath ?? (browserDetails as any).profile;
             if (activeBrowserCount === 0 && typeof profilePath === 'string') {
                 // If we were the last browser and we have a profile path, and it's definitely part of our
                 // local/snap config (just in case something's gone wrong) -> delete it & reset everything.
@@ -340,8 +340,8 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
             if (process.platform === 'win32') {
                 // Try to cleanly close if we can, rather than killing Chrome directly:
                 try {
-                    await windowsClose(browser!.pid)
-                        .then(() => waitForExit(browser!.pid));
+                    await windowsClose(browser.pid!)
+                        .then(() => waitForExit(browser.pid!));
                     return;
                 } catch (e) {} // If this fails/times out, kill like we do elsewhere:
             }
