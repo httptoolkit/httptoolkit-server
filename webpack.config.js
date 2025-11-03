@@ -47,7 +47,7 @@ module.exports = {
             {
                 // Some browser launchers (Opera) use resource files from within the browser-launcher
                 // module. We need to reroute that to point to the unbundled files:
-                test: /node_modules\/@httptoolkit\/browser-launcher\/lib\/run.js$/,
+                test: /node_modules\/@httptoolkit\/browser-launcher\/dist\/run.js$/,
                 loader: 'string-replace-loader',
                 options: {
                     search: '../res/',
@@ -93,7 +93,7 @@ module.exports = {
             resourceRegExp: /^\.\/protocol.json$/,
             contextRegExp: /chrome-remote-interface/
         }),
-        // Copy Mockttp's schema (read with readFile) into the output directory
+        // Copy browser launcher's static resources into the output directory
         new CopyWebpackPlugin({
             patterns: [{
                 from: path.join('node_modules', '@httptoolkit', 'browser-launcher', 'res'),

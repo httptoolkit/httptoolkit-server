@@ -1,21 +1,17 @@
 import * as path from 'path';
-import { promisify } from 'util';
 
 import { delay, isErrorLike } from '@httptoolkit/util';
-import getBrowserLauncherCb from '@httptoolkit/browser-launcher';
 import {
-    LaunchOptions,
-    Launch,
-    BrowserInstance,
+    getLauncher,
+    updateBrowsers,
     Browser,
-    update as updateBrowserCacheCb
+    BrowserInstance,
+    LaunchOptions,
+    LaunchFunction
 } from '@httptoolkit/browser-launcher';
 
 import { logError } from './error-tracking';
 import { readFile, deleteFile } from './util/fs';
-
-const getBrowserLauncher = promisify(getBrowserLauncherCb);
-const updateBrowserCache: (configPath: string) => Promise<unknown> = promisify(updateBrowserCacheCb);
 
 const browserConfigPath = (configPath: string) => path.join(configPath, 'browsers.json');
 
@@ -44,12 +40,12 @@ export async function checkBrowserConfig(configPath: string) {
     }
 }
 
-let launcher: Promise<Launch> | undefined;
+let launcher: Promise<LaunchFunction> | undefined;
 
-function getLauncher(configPath: string) {
+function getBrowserLauncher(configPath: string) {
     if (!launcher) {
         const browserConfig = browserConfigPath(configPath);
-        launcher = getBrowserLauncher(browserConfig);
+        launcher = getLauncher(browserConfig);
 
         launcher.then(async () => {
             // Async after first creating the launcher, we trigger a background cache update.
@@ -57,10 +53,10 @@ function getLauncher(configPath: string) {
             // spawn on unix-based OSs) so defer briefly.
             await delay(2000);
             try {
-                await updateBrowserCache(browserConfig);
+                await updateBrowsers(browserConfig);
                 console.log('Browser cache updated');
                 // Need to reload the launcher after updating the cache:
-                launcher = getBrowserLauncher(browserConfig);
+                launcher = getLauncher(browserConfig);
             } catch (e) {
                 logError(e)
             }
@@ -77,7 +73,7 @@ function getLauncher(configPath: string) {
 }
 
 export const getAvailableBrowsers = async (configPath: string) => {
-    return (await getLauncher(configPath)).browsers;
+    return (await getBrowserLauncher(configPath)).browsers;
 };
 
 export const getBrowserDetails = async (configPath: string, variant: string): Promise<Browser | undefined> => {
@@ -90,8 +86,8 @@ export const getBrowserDetails = async (configPath: string, variant: string): Pr
 export { LaunchOptions };
 
 export const launchBrowser = async (url: string, options: LaunchOptions, configPath: string) => {
-    const launcher = await getLauncher(configPath);
-    const browserInstance = await promisify(launcher)(url, options);
+    const launcher = await getBrowserLauncher(configPath);
+    const browserInstance = await launcher(url, options);
 
     browserInstance.process.on('error', (e) => {
         // If nothing else is listening for this error, this acts as default
