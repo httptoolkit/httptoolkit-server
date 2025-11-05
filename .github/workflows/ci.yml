@@ -96,6 +96,9 @@ jobs:
           - platform: Ubuntu 22.04 x64
             os: "ubuntu-22.04"
             test-script: "./unix.sh linux x64"
+          - platform: MacOS 26 (ARM64)
+            os: "macos-26"
+            test-script: "./unix.sh darwin arm64"
           - platform: MacOS 15 (ARM64)
             os: "macos-15"
             test-script: "./unix.sh darwin arm64"
