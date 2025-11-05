@@ -102,6 +102,9 @@ jobs:
           - platform: MacOS 15 (ARM64)
             os: "macos-15"
             test-script: "./unix.sh darwin arm64"
+          - platform: MacOS 15 (x64)
+            os: "macos-15-intel"
+            test-script: "./unix.sh darwin x64"
           - platform: MacOS 14 (ARM64)
             os: "macos-14"
             test-script: "./unix.sh darwin arm64"
