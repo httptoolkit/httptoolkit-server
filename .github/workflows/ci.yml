@@ -56,7 +56,7 @@ jobs:
           sleep 5
 
           # Pre-pull lots of the Docker images we'll want to use later
-          echo node:14 golang:1.16 openjdk:16-alpine3.13 python:3.9-slim ruby:alpine3.13 php:8.0-apache |
+          echo node:14 golang:1.16 eclipse-temurin:24-alpine python:3.9-slim ruby:alpine3.13 php:8.0-apache |
             DOCKER_HOST=$DIND_HOST xargs -P10 -n1 docker pull
 
       - run: DOCKER_HOST=$DIND_HOST xvfb-run npm run test

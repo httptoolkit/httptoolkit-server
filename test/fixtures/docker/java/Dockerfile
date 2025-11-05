@@ -1,4 +1,4 @@
-FROM openjdk:16-alpine3.13
+FROM eclipse-temurin:24-alpine
 
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
