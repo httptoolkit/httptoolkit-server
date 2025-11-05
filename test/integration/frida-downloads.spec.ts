@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import * as FridaJs from 'frida-js';
 
-import { FRIDA_SRIS, FRIDA_VERSION } from '../../src/interceptors/frida/frida-integration';
+import { FRIDA_SRIS, FRIDA_VERSION } from '../../src/interceptors/frida/frida-integration.ts';
 
 describe("Frida download SRIs", function () {
     this.timeout(30000); // Can be slow, since we're doing MB downloads & disk IO

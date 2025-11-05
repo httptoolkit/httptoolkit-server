@@ -1,10 +1,10 @@
 import _ from 'lodash';
-import { ErrorLike } from '@httptoolkit/util';
+import type { ErrorLike } from '@httptoolkit/util';
 
-import { HtkConfig } from '../config';
-import { addShutdownHandler } from '../shutdown';
+import type { HtkConfig } from '../config.d.ts';
+import { addShutdownHandler } from '../shutdown.ts';
 
-import { FreshFirefox, FreshFirefoxDeveloper, FreshFirefoxNightly } from './fresh-firefox';
+import { FreshFirefox, FreshFirefoxDeveloper, FreshFirefoxNightly } from './fresh-firefox.ts';
 import {
     FreshChrome,
     ExistingChrome,
@@ -20,15 +20,15 @@ import {
     FreshEdgeCanary,
     FreshBrave,
     FreshOpera
-} from './chromium-based-interceptors';
-import { FreshTerminalInterceptor } from './terminal/fresh-terminal-interceptor';
-import { ExistingTerminalInterceptor } from './terminal/existing-terminal-interceptor';
-import { AndroidAdbInterceptor } from './android/android-adb-interceptor';
-import { DockerContainerInterceptor } from './docker/docker-interceptor';
-import { ElectronInterceptor } from './electron';
-import { JvmInterceptor } from './jvm';
-import { FridaAndroidInterceptor } from './frida/frida-android-interceptor';
-import { FridaIosInterceptor } from './frida/frida-ios-interceptor';
+} from './chromium-based-interceptors.ts';
+import { FreshTerminalInterceptor } from './terminal/fresh-terminal-interceptor.ts';
+import { ExistingTerminalInterceptor } from './terminal/existing-terminal-interceptor.ts';
+import { AndroidAdbInterceptor } from './android/android-adb-interceptor.ts';
+import { DockerContainerInterceptor } from './docker/docker-interceptor.ts';
+import { ElectronInterceptor } from './electron.ts';
+import { JvmInterceptor } from './jvm.ts';
+import { FridaAndroidInterceptor } from './frida/frida-android-interceptor.ts';
+import { FridaIosInterceptor } from './frida/frida-ios-interceptor.ts';
 
 export interface Interceptor {
     id: string;

@@ -4,10 +4,8 @@ import { exec } from 'child_process';
 
 import { expect } from 'chai';
 
-import fetch from 'node-fetch';
-
-import { FIXTURES_DIR } from '../../test-util';
-import { setupInterceptor, itIsAvailable } from './interceptor-test-utils';
+import { FIXTURES_DIR } from '../../test-util.ts';
+import { setupInterceptor, itIsAvailable } from './interceptor-test-utils.ts';
 
 const execAsync = util.promisify(exec);
 

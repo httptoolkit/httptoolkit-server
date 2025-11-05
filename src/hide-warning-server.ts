@@ -1,6 +1,6 @@
-import { getLocal, Mockttp } from 'mockttp';
-import { HtkConfig } from './config';
-import { EPHEMERAL_PORT_RANGE } from './constants';
+import { getLocal, type Mockttp } from 'mockttp';
+import type { HtkConfig } from './config.d.ts';
+import { EPHEMERAL_PORT_RANGE } from './constants.ts';
 
 // The first tab that opens in a new Chrome/Edge window warns about dangerous flags.
 // Closing it and immediately opening a new one is a bit cheeky, but
@@ -8,10 +8,16 @@ import { EPHEMERAL_PORT_RANGE } from './constants';
 
 export class HideWarningServer {
 
+    private config: HtkConfig;
+    private options: { delay: number | undefined } = { delay: undefined };
+
     constructor(
-        private config: HtkConfig,
-        private options: { delay: number | undefined } = { delay: undefined }
-    ) {}
+        config: HtkConfig,
+        options: { delay: number | undefined } = { delay: undefined }
+    ) {
+        this.config = config;
+        this.options = options;
+    }
 
     private server: Mockttp = getLocal();
 

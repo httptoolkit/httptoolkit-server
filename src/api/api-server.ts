@@ -4,15 +4,15 @@ import express from 'express';
 import cors from 'cors';
 import corsGate from 'cors-gate';
 
-import { HtkConfig } from '../config';
-import { buildInterceptors } from '../interceptors';
-import { ALLOWED_ORIGINS } from '../constants';
-import { shutdown } from '../shutdown';
+import type { HtkConfig } from '../config.d.ts';
+import { buildInterceptors } from '../interceptors/index.ts';
+import { ALLOWED_ORIGINS } from '../constants.ts';
+import { shutdown } from '../shutdown.ts';
 
-import { ApiModel } from './api-model';
-import { exposeGraphQLAPI } from './graphql-api';
-import { exposeRestAPI } from './rest-api';
-import { HttpClient } from '../client/http-client';
+import { ApiModel } from './api-model.ts';
+import { exposeGraphQLAPI } from './graphql-api.ts';
+import { exposeRestAPI } from './rest-api.ts';
+import { HttpClient } from '../client/http-client.ts';
 
 /**
  * This file contains the core server API, used by the UI to query

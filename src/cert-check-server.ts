@@ -1,8 +1,8 @@
-import { getLocal, Mockttp } from 'mockttp';
+import { getLocal, type Mockttp } from 'mockttp';
 import { getDeferred } from '@httptoolkit/util';
 
-import { HtkConfig } from './config';
-import { EPHEMERAL_PORT_RANGE } from './constants';
+import type { HtkConfig } from './config.d.ts';
+import { EPHEMERAL_PORT_RANGE } from './constants.ts';
 
 const buildPage = (style: string, script?: string, body?: string) =>
     `<html>
@@ -27,7 +27,11 @@ const buildPage = (style: string, script?: string, body?: string) =>
 
 export class CertCheckServer {
 
-    constructor(private config: HtkConfig) { }
+    private config: HtkConfig;
+
+    constructor(config: HtkConfig) {
+        this.config = config;
+    }
 
     private server: Mockttp | undefined;
 

@@ -15,24 +15,25 @@ import {
     MockRTCAdminPlugin
 } from 'mockrtc';
 
-import updateCommand from '@oclif/plugin-update/lib/commands/update';
+import * as UpdatePlugin from '@oclif/plugin-update/lib/commands/update.js';
+const updateCommand = UpdatePlugin.default;
 
-import { HttpToolkitServerApi } from './api/api-server';
-import { checkBrowserConfig } from './browsers';
-import { logError } from './error-tracking';
-import { IS_PROD_BUILD, MOCKTTP_ALLOWED_ORIGINS } from './constants';
+import { HttpToolkitServerApi } from './api/api-server.ts';
+import { checkBrowserConfig } from './browsers.ts';
+import { logError } from './error-tracking.ts';
+import { IS_PROD_BUILD, MOCKTTP_ALLOWED_ORIGINS } from './constants.ts';
 
-import { readFile, checkAccess, writeFile, ensureDirectoryExists } from './util/fs';
+import { readFile, checkAccess, writeFile, ensureDirectoryExists } from './util/fs.ts';
 
-import { addShutdownHandler, registerShutdownHandler, shutdown } from './shutdown';
-import { getTimeToCertExpiry, parseCert } from './certificates';
+import { addShutdownHandler, registerShutdownHandler, shutdown } from './shutdown.ts';
+import { getTimeToCertExpiry, parseCert } from './certificates.ts';
 
 import {
     startDockerInterceptionServices,
     stopDockerInterceptionServices
-} from './interceptors/docker/docker-interception-services';
-import { clearWebExtensionConfig, updateWebExtensionConfig } from './webextension';
-import { HttpClient } from './client/http-client';
+} from './interceptors/docker/docker-interception-services.ts';
+import { clearWebExtensionConfig, updateWebExtensionConfig } from './webextension.ts';
+import { HttpClient } from './client/http-client.ts';
 
 async function generateHTTPSConfig(configPath: string) {
     const keyPath = path.join(configPath, 'ca.key');
@@ -234,7 +235,7 @@ export async function runHTK(options: {
     const updateMutex = new Mutex();
     apiServer.on('update-requested', () => {
         updateMutex.runExclusive(() =>
-            (<Promise<void>> updateCommand.run(['stable']))
+            (updateCommand.run(['stable']) as Promise<void>)
             .catch((error) => {
                 if (isErrorLike(error)) {
                     // Did we receive a successful update, that wants to restart the server:

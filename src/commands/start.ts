@@ -1,6 +1,6 @@
 // Import types only from TS
-type ErrorTrackingModule = typeof import('../error-tracking');
-type IndexTypeModule = typeof import('../index');
+type ErrorTrackingModule = typeof import('../error-tracking.ts');
+type IndexTypeModule = typeof import('../index.ts');
 
 // We accept auth tokens from the environment, allowing a token to be
 // set without exposing it in the command line arguments.
@@ -12,7 +12,7 @@ import { promises as fs } from 'fs';
 import * as net from 'net';
 import * as semver from 'semver';
 
-import { IS_PROD_BUILD } from '../constants';
+import { IS_PROD_BUILD } from '../constants.ts';
 
 function maybeBundleImport<T>(moduleName: string): T {
     if (IS_PROD_BUILD || process.env.OCLIF_TS_NODE === '0') {
@@ -175,4 +175,4 @@ function isOwnedPath(input: string) {
     }
 }
 
-export = HttpToolkitServer;
+module.exports = HttpToolkitServer;

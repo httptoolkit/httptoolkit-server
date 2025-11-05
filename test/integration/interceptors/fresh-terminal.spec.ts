@@ -3,9 +3,9 @@ import { fork } from 'child_process';
 
 import { expect } from 'chai';
 
-import { FIXTURES_DIR } from '../../test-util';
-import { setupInterceptor, itIsAvailable, itCanBeActivated } from './interceptor-test-utils';
-import { getTerminalEnvVars } from '../../../src/interceptors/terminal/terminal-env-overrides';
+import { FIXTURES_DIR } from '../../test-util.ts';
+import { setupInterceptor, itIsAvailable, itCanBeActivated } from './interceptor-test-utils.ts';
+import { getTerminalEnvVars } from '../../../src/interceptors/terminal/terminal-env-overrides.ts';
 
 const interceptorSetup = setupInterceptor('fresh-terminal');
 

@@ -2,18 +2,18 @@ import _ from 'lodash';
 import * as stream from 'stream';
 import * as FridaJs from 'frida-js';
 
-import { Interceptor } from "..";
-import { HtkConfig } from '../../config';
+import { type Interceptor } from '../index.ts';
+import type { HtkConfig } from '../../config.d.ts';
 
-import { createAdbClient } from '../android/adb-commands';
-import { cleanupOldFridaServers, FridaHost, FridaTarget, killProcess } from './frida-integration';
+import { createAdbClient } from '../android/adb-commands.ts';
+import { cleanupOldFridaServers, type FridaHost, type FridaTarget, killProcess } from './frida-integration.ts';
 import {
     getAndroidFridaHosts,
     getAndroidFridaTargets,
     interceptAndroidFridaTarget,
     launchAndroidHost,
     setupAndroidHost
-} from './frida-android-integration';
+} from './frida-android-integration.ts';
 import { combineParallelCalls } from '@httptoolkit/util';
 
 export class FridaAndroidInterceptor implements Interceptor {
@@ -23,9 +23,11 @@ export class FridaAndroidInterceptor implements Interceptor {
 
     private adbClient = createAdbClient();
 
-    constructor(
-        private config: HtkConfig
-    ) {}
+    private config: HtkConfig;
+
+    constructor(config: HtkConfig) {
+        this.config = config;
+    }
 
     getFridaHosts = combineParallelCalls(() => getAndroidFridaHosts(this.adbClient));
 

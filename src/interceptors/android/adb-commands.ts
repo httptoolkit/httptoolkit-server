@@ -1,13 +1,16 @@
 import * as stream from 'stream';
 import * as path from 'path';
 
-import adb, * as Adb from '@devicefarmer/adbkit';
+import adbModule from '@devicefarmer/adbkit';
+import type * as Adb from '@devicefarmer/adbkit';
+const adb = adbModule;
+
 import { delay, isErrorLike } from '@httptoolkit/util';
 
-import { logError } from '../../error-tracking';
-import { waitUntil } from '../../util/promise';
-import { getCertificateFingerprint, parseCert } from '../../certificates';
-import { streamToBuffer } from '../../util/stream';
+import { logError } from '../../error-tracking.ts';
+import { waitUntil } from '../../util/promise.ts';
+import { getCertificateFingerprint, parseCert } from '../../certificates.ts';
+import { streamToBuffer } from '../../util/stream.ts';
 
 export const ANDROID_TEMP = '/data/local/tmp';
 export const SYSTEM_CA_PATH = '/system/etc/security/cacerts';

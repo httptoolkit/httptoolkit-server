@@ -2,24 +2,24 @@ import * as path from 'path';
 import { promisify } from 'util';
 
 import { delay, isErrorLike } from '@httptoolkit/util';
-import getBrowserLauncherCb from '@httptoolkit/browser-launcher';
-import {
-    LaunchOptions,
-    Launch,
-    BrowserInstance,
-    Browser,
-    update as updateBrowserCacheCb
+import getBrowserLauncherCb, {
+    type LaunchOptions,
+    type Launch,
+    type BrowserInstance,
+    type Browser
 } from '@httptoolkit/browser-launcher';
 
-import { logError } from './error-tracking';
-import { readFile, deleteFile } from './util/fs';
+const updateBrowserCacheCb = getBrowserLauncherCb.update;
+
+import { logError } from './error-tracking.ts';
+import { readFile, deleteFile } from './util/fs.ts';
 
 const getBrowserLauncher = promisify(getBrowserLauncherCb);
 const updateBrowserCache: (configPath: string) => Promise<unknown> = promisify(updateBrowserCacheCb);
 
 const browserConfigPath = (configPath: string) => path.join(configPath, 'browsers.json');
 
-export { BrowserInstance, Browser };
+export type { BrowserInstance, Browser };
 
 export async function checkBrowserConfig(configPath: string) {
     // It's not clear why, but sometimes the browser config can become corrupted, so it's not valid JSON
@@ -87,7 +87,7 @@ export const getBrowserDetails = async (configPath: string, variant: string): Pr
     return browsers.find(b => b.name === variant);
 };
 
-export { LaunchOptions };
+export type { LaunchOptions };
 
 export const launchBrowser = async (url: string, options: LaunchOptions, configPath: string) => {
     const launcher = await getLauncher(configPath);

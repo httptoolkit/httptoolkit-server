@@ -5,16 +5,18 @@ import * as tmp from 'tmp';
 
 import { expect } from 'chai';
 
-import { getLocal, generateCACertificate, Mockttp, requestHandlers } from 'mockttp';
+import { getLocal, generateCACertificate, type Mockttp, requestSteps } from 'mockttp';
 
-import { buildInterceptors, Interceptor } from '../../../src/interceptors';
-import { getDnsServer } from '../../../src/dns-server';
+import { buildInterceptors, type Interceptor } from '../../../src/interceptors/index.ts';
+import { getDnsServer } from '../../../src/dns-server.ts';
 
 const getCertificateDetails = _.memoize(async (configPath: string) => {
     const keyPath = path.join(configPath, 'ca.key');
     const certPath = path.join(configPath, 'ca.pem');
 
-    const newCertPair = await generateCACertificate({ commonName: 'HTTP Toolkit CA - DO NOT TRUST' });
+    const newCertPair = await generateCACertificate({
+        subject: { commonName: 'HTTP Toolkit CA - DO NOT TRUST' }
+    });
 
     fs.writeFileSync(keyPath, newCertPair.key);
     fs.writeFileSync(certPath, newCertPair.cert);
@@ -26,7 +28,7 @@ type TestSetup = {
     server: Mockttp,
     configPath: string,
     httpsConfig: { certPath: string, keyPath: string, certContent: string, keyLength: number }
-    getPassThroughOptions(): Promise<requestHandlers.PassThroughHandlerOptions>;
+    getPassThroughOptions(): Promise<requestSteps.PassThroughStepOptions>;
 };
 
 export async function setupTest(): Promise<TestSetup> {
@@ -34,7 +36,7 @@ export async function setupTest(): Promise<TestSetup> {
     const httpsConfig = await getCertificateDetails(configPath);
     const server = getLocal({ https: httpsConfig });
 
-    const getPassThroughOptions = async (): Promise<requestHandlers.PassThroughHandlerOptions> => ({
+    const getPassThroughOptions = async (): Promise<requestSteps.PassThroughStepOptions> => ({
         lookupOptions: {
             servers: [`127.0.0.1:${(await getDnsServer(server.port)).address().port}`]
         }

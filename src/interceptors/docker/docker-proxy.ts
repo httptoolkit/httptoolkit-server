@@ -6,22 +6,22 @@ import * as net from 'net';
 import * as http from 'http';
 import Dockerode from 'dockerode';
 import getRawBody from 'raw-body';
-import { makeDestroyable, DestroyableServer } from 'destroyable-server';
+import { makeDestroyable, type DestroyableServer } from 'destroyable-server';
 
-import { chmod, deleteFile, readDir } from '../../util/fs';
-import { rawHeadersToHeaders } from '../../util/http';
-import { streamToBuffer } from '../../util/stream';
-import { logError } from '../../error-tracking';
-import { addShutdownHandler } from '../../shutdown';
+import { chmod, deleteFile, readDir } from '../../util/fs.ts';
+import { rawHeadersToHeaders } from '../../util/http.ts';
+import { streamToBuffer } from '../../util/stream.ts';
+import { logError } from '../../error-tracking.ts';
+import { addShutdownHandler } from '../../shutdown.ts';
 
-import { getDockerAddress } from './docker-utils';
+import { getDockerAddress } from './docker-utils.ts';
 import {
     isInterceptedContainer,
     transformContainerCreationConfig
-} from './docker-commands';
-import { injectIntoBuildStream, getBuildOutputPipeline } from './docker-build-injection';
-import { ensureDockerServicesRunning, isDockerAvailable } from './docker-interception-services';
-import { transformComposeResponseLabels } from './docker-compose';
+} from './docker-commands.ts';
+import { injectIntoBuildStream, getBuildOutputPipeline } from './docker-build-injection.ts';
+import { ensureDockerServicesRunning, isDockerAvailable } from './docker-interception-services.ts';
+import { transformComposeResponseLabels } from './docker-compose.ts';
 
 export const getDockerPipePath = (proxyPort: number, targetPlatform: NodeJS.Platform = process.platform) => {
     if (targetPlatform === 'win32') {
@@ -302,7 +302,7 @@ async function createDockerProxy(
             });
         }
 
-        dockerReq.on('upgrade', (dockerRes, dockerSocket, dockerHead) => {
+        dockerReq.on('upgrade', (dockerRes, dockerSocket, dockerHead: Uint8Array) => {
             socket.write(
                 `HTTP/1.1 ${dockerRes.statusCode} ${dockerRes.statusMessage}\r\n` +
                 Object.keys(dockerRes.headers).map((key) =>

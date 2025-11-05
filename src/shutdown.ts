@@ -1,5 +1,5 @@
 import { delay } from '@httptoolkit/util';
-import { logError } from './error-tracking';
+import { logError } from './error-tracking.ts';
 
 type ShutdownHandler = () => Promise<unknown>;
 const shutdownHandlers: Array<ShutdownHandler> = [];

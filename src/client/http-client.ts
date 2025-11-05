@@ -21,16 +21,20 @@ import {
     RequestDefinition,
     RequestOptions,
     RULE_PARAM_REF_KEY
-} from './client-types';
-import * as fs from '../util/fs';
+} from './client-types.ts';
+import * as fs from '../util/fs.ts';
+
+type RuleParameters = {
+    [key: string]: Mockttp.ProxySettingCallback | undefined
+};
 
 export class HttpClient {
 
-    constructor(
-        private ruleParameters: {
-            [key: string]: Mockttp.ProxySettingCallback | undefined
-        }
-    ) {}
+    private ruleParameters: RuleParameters;
+
+    constructor(ruleParameters: RuleParameters) {
+        this.ruleParameters = ruleParameters;
+    }
 
     getProxyConfig(proxyConfig: ClientProxyConfig): Mockttp.ProxySettingSource {
         if (!proxyConfig) return undefined;

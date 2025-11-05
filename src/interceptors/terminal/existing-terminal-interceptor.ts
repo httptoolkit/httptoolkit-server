@@ -1,10 +1,10 @@
 
-import { Mockttp, getLocal } from 'mockttp';
+import { type Mockttp, getLocal } from 'mockttp';
 
-import { Interceptor } from '..';
-import { HtkConfig } from '../../config';
-import { getTerminalEnvVars } from './terminal-env-overrides';
-import { getBashShellScript, getFishShellScript, getGitBashShellScript, getPowerShellScript } from './terminal-scripts';
+import { type Interceptor } from '../index.ts';
+import type { HtkConfig } from '../../config.d.ts';
+import { getTerminalEnvVars } from './terminal-env-overrides.ts';
+import { getBashShellScript, getFishShellScript, getGitBashShellScript, getPowerShellScript } from './terminal-scripts.ts';
 
 interface ServerState {
     server: Mockttp;
@@ -57,7 +57,11 @@ export class ExistingTerminalInterceptor implements Interceptor {
     id = 'existing-terminal';
     version = '1.0.0';
 
-    constructor(private config: HtkConfig) { }
+    private config: HtkConfig;
+
+    constructor(config: HtkConfig) {
+        this.config = config;
+    }
 
     isActivable(): Promise<boolean> {
         return Promise.resolve(true);

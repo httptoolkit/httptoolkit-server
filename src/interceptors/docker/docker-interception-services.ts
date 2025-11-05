@@ -1,26 +1,26 @@
 import Docker from 'dockerode';
-import { ProxySettingCallback } from 'mockttp';
+import { type ProxySettingCallback } from 'mockttp';
 
-import { logError } from '../../error-tracking';
-import { addShutdownHandler } from '../../shutdown';
+import { logError } from '../../error-tracking.ts';
+import { addShutdownHandler } from '../../shutdown.ts';
 
-import { getDockerAddress } from './docker-utils';
-import { DOCKER_BUILD_LABEL } from './docker-build-injection';
-import { DOCKER_CONTAINER_LABEL } from './docker-commands';
+import { getDockerAddress } from './docker-utils.ts';
+import { DOCKER_BUILD_LABEL } from './docker-build-injection.ts';
+import { DOCKER_CONTAINER_LABEL } from './docker-commands.ts';
 
-import { getDnsServer } from '../../dns-server';
+import { getDnsServer } from '../../dns-server.ts';
 import {
     monitorDockerNetworkAliases,
     stopMonitoringDockerNetworkAliases
-} from './docker-networking';
-import { ensureDockerProxyRunning, stopDockerProxy } from './docker-proxy';
+} from './docker-networking.ts';
+import { ensureDockerProxyRunning, stopDockerProxy } from './docker-proxy.ts';
 import {
     prepareDockerTunnel,
     getDockerTunnelPort,
     ensureDockerTunnelRunning,
     stopDockerTunnel,
-} from './docker-tunnel-proxy';
-import { ensureDockerInjectionVolumeExists } from './docker-data-injection';
+} from './docker-tunnel-proxy.ts';
+import { ensureDockerInjectionVolumeExists } from './docker-data-injection.ts';
 
 let dockerAvailableCache: Promise<boolean> | undefined;
 

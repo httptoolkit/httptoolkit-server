@@ -2,11 +2,11 @@ import _ from 'lodash';
 import { DeviceClient } from '@devicefarmer/adbkit';
 import { delay } from '@httptoolkit/util';
 
-import { Interceptor } from '..';
-import { HtkConfig } from '../../config';
+import { type Interceptor } from '../index.ts';
+import type { HtkConfig } from '../../config.d.ts';
 import { generateSPKIFingerprint } from 'mockttp';
 
-import { logError } from '../../error-tracking';
+import { logError } from '../../error-tracking.ts';
 import {
     ANDROID_TEMP,
     createAdbClient,
@@ -22,10 +22,10 @@ import {
     createPersistentReverseTunnel,
     closeReverseTunnel,
     EMULATOR_HOST_IPS
-} from './adb-commands';
-import { streamLatestApk, clearAllApks } from './fetch-apk';
-import { parseCert, getCertificateFingerprint, getCertificateSubjectHash } from '../../certificates';
-import { getReachableInterfaces } from '../../util/network';
+} from './adb-commands.ts';
+import { streamLatestApk, clearAllApks } from './fetch-apk.ts';
+import { parseCert, getCertificateFingerprint, getCertificateSubjectHash } from '../../certificates.ts';
+import { getReachableInterfaces } from '../../util/network.ts';
 
 function urlSafeBase64(content: string) {
     return Buffer.from(content, 'utf8').toString('base64')
@@ -43,9 +43,11 @@ export class AndroidAdbInterceptor implements Interceptor {
 
     private adbClient = createAdbClient();
 
-    constructor(
-        private config: HtkConfig
-    ) { }
+    private config: HtkConfig;
+
+    constructor(config: HtkConfig) {
+        this.config = config;
+    }
 
     async isActivable(): Promise<boolean> {
         return Object.keys(await getConnectedDevices(this.adbClient)).length > 0;

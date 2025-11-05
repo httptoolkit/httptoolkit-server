@@ -2,21 +2,21 @@ import _ from 'lodash';
 import * as path from 'path';
 import * as childProc from 'child_process';
 import Docker from 'dockerode';
-import { ProxySettingCallback } from 'mockttp';
+import { type ProxySettingCallback } from 'mockttp';
 
 import { expect } from 'chai';
 import { delay } from '@httptoolkit/util';
 
-import { setupTest } from './interceptor-test-utils';
-import { FIXTURES_DIR } from '../../test-util';
-import { spawnToResult } from '../../../src/util/process-management';
+import { setupTest } from './interceptor-test-utils.ts';
+import { FIXTURES_DIR } from '../../test-util.ts';
+import { spawnToResult } from '../../../src/util/process-management.ts';
 
-import { getTerminalEnvVars } from '../../../src/interceptors/terminal/terminal-env-overrides';
+import { getTerminalEnvVars } from '../../../src/interceptors/terminal/terminal-env-overrides.ts';
 
 import {
     startDockerInterceptionServices,
     stopDockerInterceptionServices
-} from '../../../src/interceptors/docker/docker-interception-services';
+} from '../../../src/interceptors/docker/docker-interception-services.ts';
 
 const testSetup = setupTest();
 

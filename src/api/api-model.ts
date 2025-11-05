@@ -1,35 +1,50 @@
 import * as _ from 'lodash';
 import * as os from 'os';
 
-import { ErrorLike, delay } from '@httptoolkit/util';
+import { type ErrorLike, delay } from '@httptoolkit/util';
 import { generateSPKIFingerprint } from 'mockttp';
 import { getSystemProxy } from 'os-proxy-config';
 
-import { SERVER_VERSION } from "../constants";
-import { logError, addBreadcrumb } from '../error-tracking';
+import { SERVER_VERSION } from '../constants.ts';
+import { logError, addBreadcrumb } from '../error-tracking.ts';
 
-import { HtkConfig } from "../config";
-import { ActivationError, Interceptor } from "../interceptors";
-import { getDnsServer } from '../dns-server';
-import { getCertExpiry, parseCert } from '../certificates';
+import type { HtkConfig } from '../config.d.ts';
+import { ActivationError, Interceptor } from '../interceptors/index.ts';
+import { getDnsServer } from '../dns-server.ts';
+import { getCertExpiry, parseCert } from '../certificates.ts';
 
-import * as Client from '../client/client-types';
-import { HttpClient } from '../client/http-client';
+import * as Client from '../client/client-types.ts';
+import { HttpClient } from '../client/http-client.ts';
 
 const INTERCEPTOR_TIMEOUT = 1000;
 
 export class ApiModel {
 
+    private config: HtkConfig;
+    private interceptors: _.Dictionary<Interceptor>;
+    private getRuleParamKeys: () => string[];
+    private httpClient: HttpClient;
+    private callbacks: {
+        onTriggerUpdate: () => void,
+        onTriggerShutdown: () => void
+    };
+
     constructor(
-        private config: HtkConfig,
-        private interceptors: _.Dictionary<Interceptor>,
-        private getRuleParamKeys: () => string[],
-        private httpClient: HttpClient,
-        private callbacks: {
+        config: HtkConfig,
+        interceptors: _.Dictionary<Interceptor>,
+        getRuleParamKeys: () => string[],
+        httpClient: HttpClient,
+        callbacks: {
             onTriggerUpdate: () => void,
             onTriggerShutdown: () => void
         }
-    ) {}
+    ) {
+        this.config = config;
+        this.interceptors = interceptors;
+        this.getRuleParamKeys = getRuleParamKeys;
+        this.httpClient = httpClient;
+        this.callbacks = callbacks;
+    }
 
     getVersion() {
         return SERVER_VERSION;

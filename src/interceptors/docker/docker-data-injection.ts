@@ -3,10 +3,10 @@ import Docker from 'dockerode';
 import * as TarStream from 'tar-stream';
 import * as TarFs from 'tar-fs';
 
-import { SERVER_VERSION } from "../../constants";
-import { OVERRIDES_DIR } from '../terminal/terminal-env-overrides';
-import { isDockerAvailable } from "./docker-interception-services";
-import { waitForDockerStream } from './docker-utils';
+import { SERVER_VERSION } from '../../constants.ts';
+import { OVERRIDES_DIR } from '../terminal/terminal-env-overrides.ts';
+import { isDockerAvailable } from './docker-interception-services.ts';
+import { waitForDockerStream } from './docker-utils.ts';
 
 const DOCKER_BLANK_IMAGE_NAME = 'httptoolkit/scratch';
 const DOCKER_BLANK_LABEL = 'tech.httptoolkit.docker.scratch';

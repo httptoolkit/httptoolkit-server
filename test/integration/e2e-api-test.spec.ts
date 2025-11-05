@@ -8,7 +8,6 @@ import * as tmp from 'tmp';
 import decompress from 'decompress';
 import { expect } from 'chai';
 import getGraphQL from 'graphql.js';
-import fetch from 'node-fetch';
 
 import { getRemote, getLocal } from 'mockttp';
 

@@ -4,14 +4,14 @@ import * as stream from 'stream';
 
 import * as EventStream from 'event-stream';
 import getRawBody from 'raw-body';
-import maybeGunzip = require('gunzip-maybe');
+import maybeGunzip from 'gunzip-maybe';
 import * as tarStream from 'tar-stream';
-import { parse as parseDockerfile, CommandEntry } from 'docker-file-parser';
+import { parse as parseDockerfile, type CommandEntry } from 'docker-file-parser';
 import { getDeferred } from '@httptoolkit/util';
 
-import { getTerminalEnvVars } from '../terminal/terminal-env-overrides';
-import { getDockerHostAddress } from './docker-commands';
-import { packOverrideFiles } from './docker-data-injection';
+import { getTerminalEnvVars } from '../terminal/terminal-env-overrides.ts';
+import { getDockerHostAddress } from './docker-commands.ts';
+import { packOverrideFiles } from './docker-data-injection.ts';
 
 const HTTP_TOOLKIT_INJECTED_PATH = '/.http-toolkit-injections';
 const HTTP_TOOLKIT_INJECTED_OVERRIDES_PATH = path.posix.join(HTTP_TOOLKIT_INJECTED_PATH, 'overrides');

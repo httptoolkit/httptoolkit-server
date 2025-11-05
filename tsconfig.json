@@ -1,5 +1,6 @@
 {
     "compilerOptions": {
+        "skipLibCheck": true,
         "declaration": true,
         "importHelpers": true,
         "module": "commonjs",
@@ -8,7 +9,9 @@
         "outDir": "lib",
         "strict": true,
         "target": "es2020",
+        "erasableSyntaxOnly": true,
         "resolveJsonModule": true,
+        "rewriteRelativeImportExtensions": true,
         "esModuleInterop": true,
         "composite": true,
         "typeRoots" : [

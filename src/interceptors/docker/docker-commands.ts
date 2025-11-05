@@ -4,9 +4,9 @@ import * as path from 'path';
 
 import { delay } from '@httptoolkit/util';
 
-import { getTerminalEnvVars } from '../terminal/terminal-env-overrides';
-import { transformComposeCreationLabels } from './docker-compose';
-import { getDockerDataVolumeName } from './docker-data-injection';
+import { getTerminalEnvVars } from '../terminal/terminal-env-overrides.ts';
+import { transformComposeCreationLabels } from './docker-compose.ts';
+import { getDockerDataVolumeName } from './docker-data-injection.ts';
 
 // Used to label intercepted docker containers with the port of the proxy
 // that's currently intercepting them.

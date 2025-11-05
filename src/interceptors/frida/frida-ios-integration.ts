@@ -1,18 +1,18 @@
 import { UsbmuxClient } from 'usbmux-client';
 import * as FridaJs from 'frida-js';
 
-import { buildIosFridaScript } from './frida-scripts';
+import { buildIosFridaScript } from './frida-scripts.ts';
 
 import {
     FRIDA_DEFAULT_PORT,
-    FridaHost,
+    type FridaHost,
     killProcess,
     launchScript,
     testAndSelectProxyAddress,
     createFridaSessionCache,
     clearFridaSessionCache,
     getOrCreateFridaSession
-} from './frida-integration';
+} from './frida-integration.ts';
 
 const isDevicePortOpen = (usbmuxClient: UsbmuxClient, deviceId: number, port: number) =>
     usbmuxClient.createDeviceTunnel(deviceId, port).then((conn) => {

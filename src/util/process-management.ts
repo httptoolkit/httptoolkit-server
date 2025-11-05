@@ -14,9 +14,9 @@ export function spawnToResult(command: string, args: string[] = [], options = {}
         const childProc = spawn(command, args, Object.assign({ stdio: 'pipe' } as const, options));
         const { stdout, stderr } = childProc;
 
-        const stdoutData: Buffer[] = [];
+        const stdoutData: Uint8Array[] = [];
         stdout.on('data', (d) => stdoutData.push(d));
-        const stderrData: Buffer[] = [];
+        const stderrData: Uint8Array[] = [];
         stderr.on('data', (d) => stderrData.push(d));
 
         if (inheritOutput) {

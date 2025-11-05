@@ -2,8 +2,8 @@ import * as path from 'path';
 import * as stream from 'stream';
 import { CustomError } from '@httptoolkit/util';
 
-import { HtkConfig } from './config';
-import * as fs from './util/fs';
+import type { HtkConfig } from './config.d.ts';
+import * as fs from './util/fs.ts';
 
 /**
  * This retrieves a stream for a dependency file, either from disk if it's already available

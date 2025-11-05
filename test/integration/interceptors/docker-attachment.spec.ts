@@ -6,11 +6,10 @@ import { expect } from 'chai';
 
 import { delay } from '@httptoolkit/util';
 import Docker from 'dockerode';
-import fetch from 'node-fetch';
 
-import { FIXTURES_DIR } from '../../test-util';
-import { setupInterceptor, itIsAvailable } from './interceptor-test-utils';
-import { waitForDockerStream } from '../../../src/interceptors/docker/docker-utils';
+import { FIXTURES_DIR } from '../../test-util.ts';
+import { setupInterceptor, itIsAvailable } from './interceptor-test-utils.ts';
+import { waitForDockerStream } from '../../../src/interceptors/docker/docker-utils.ts';
 
 const docker = new Docker();
 const DOCKER_FIXTURES = path.join(FIXTURES_DIR, 'docker');

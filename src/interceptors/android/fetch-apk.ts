@@ -1,11 +1,10 @@
 import * as path from 'path';
 import * as stream from 'stream';
 import * as semver from 'semver';
-import fetch from 'node-fetch';
 
-import * as fs from '../../util/fs';
-import { HtkConfig } from '../../config';
-import { logError } from '../../error-tracking';
+import * as fs from '../../util/fs.ts';
+import type { HtkConfig } from '../../config.d.ts';
+import { logError } from '../../error-tracking.ts';
 
 const APK_REPO_RELEASE = 'httptoolkit/httptoolkit-android/releases/latest';
 
@@ -72,7 +71,7 @@ async function getLatestLocalApk(config: HtkConfig) {
 
 async function updateLocalApk(
     version: string,
-    apkStream: stream.Readable | NodeJS.ReadableStream,
+    apkStream: stream.Readable,
     config: HtkConfig
 ) {
     console.log(`Updating local APK to version ${version}`);
@@ -144,7 +143,10 @@ export async function streamLatestApk(config: HtkConfig): Promise<stream.Readabl
             if (!apkResponse.ok) {
                 throw new Error(`APK download failed with ${apkResponse.status}`);
             }
-            const apkStream = apkResponse.body;
+            if (!apkResponse.body) {
+                throw new Error('APK download response with no body');
+            }
+            const apkStream = stream.Readable.fromWeb(apkResponse.body as any);
 
             // We buffer output into two passthrough streams, so both file & install
             // stream usage can be set up async independently. Buffers are 10MB, to
@@ -177,7 +179,11 @@ export async function streamLatestApk(config: HtkConfig): Promise<stream.Readabl
     // We have a local APK & a remote APK, and the remote is newer.
     // Try to update it async, and use the local APK in the meantime.
     fetch(latestApkRelease.url).then((apkResponse) => {
-        const apkStream = apkResponse.body;
+        if (!apkResponse.body) {
+            console.warn('Async APK update failed - no body available');
+            return;
+        }
+        const apkStream = stream.Readable.fromWeb(apkResponse.body as any);
         return updateLocalApk(latestApkRelease.version, apkStream, config);
     }).catch(logError);
 

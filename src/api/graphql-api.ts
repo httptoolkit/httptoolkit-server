@@ -4,8 +4,9 @@ import type { Application as ExpressApp } from 'express';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import { GraphQLScalarType } from 'graphql';
 import { createHandler as createGraphQLHandler } from 'graphql-http/lib/use/express';
-import gql from 'graphql-tag';
-import { ApiModel } from './api-model';
+import { gql } from 'graphql-tag';
+
+import { ApiModel } from './api-model.ts';
 
 const typeDefs = gql`
     type Query {

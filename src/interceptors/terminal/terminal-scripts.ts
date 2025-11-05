@@ -3,9 +3,9 @@ import * as util from 'util';
 import * as os from 'os';
 import * as path from 'path';
 
-import * as fs from '../../util/fs';
-import { logError } from '../../error-tracking';
-import { OVERRIDE_BIN_PATH } from './terminal-env-overrides';
+import * as fs from '../../util/fs.ts';
+import { logError } from '../../error-tracking.ts';
+import { OVERRIDE_BIN_PATH } from './terminal-env-overrides.ts';
 
 // Generate POSIX paths for git-bash on Windows (or use the normal path everywhere else)
 const POSIX_OVERRIDE_BIN_PATH = process.platform === 'win32'

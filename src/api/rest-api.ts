@@ -10,11 +10,11 @@ import type {
     RouteParameters
 } from 'express-serve-static-core';
 import type { ParsedQs } from 'qs';
-import { ErrorLike, StatusError } from '@httptoolkit/util';
+import { type ErrorLike, StatusError } from '@httptoolkit/util';
 
-import { logError } from '../error-tracking';
-import { ApiModel } from './api-model';
-import * as Client from '../client/client-types';
+import { logError } from '../error-tracking.ts';
+import { ApiModel } from './api-model.ts';
+import * as Client from '../client/client-types.ts';
 
 /**
  * This file exposes the API model via a REST-ish classic HTTP API.

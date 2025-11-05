@@ -1,5 +1,5 @@
 import * as crypto from 'crypto';
-import * as forge from 'node-forge';
+import forge from 'node-forge';
 
 export const parseCert = forge.pki.certificateFromPem;
 

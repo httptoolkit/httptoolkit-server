@@ -4,12 +4,12 @@ import Docker from 'dockerode';
 import * as EventStream from 'event-stream';
 import * as mobx from 'mobx';
 
-import { logError } from '../../error-tracking';
+import { logError } from '../../error-tracking.ts';
 
-import { isInterceptedContainer } from './docker-commands';
-import { isDockerAvailable } from './docker-interception-services';
-import { updateDockerTunnelledNetworks } from './docker-tunnel-proxy';
-import { getDnsServer } from '../../dns-server';
+import { isInterceptedContainer } from './docker-commands.ts';
+import { isDockerAvailable } from './docker-interception-services.ts';
+import { updateDockerTunnelledNetworks } from './docker-tunnel-proxy.ts';
+import { getDnsServer } from '../../dns-server.ts';
 
 interface DockerEvent {
     Type: string;
@@ -177,11 +177,19 @@ const HostGatewaySet = new Set<HostGateway>([HostGateway]);
  */
 class DockerNetworkMonitor {
 
+    private docker: Docker;
+    private proxyPort: number;
+    private dockerEventStream: stream.Stream;
+
     constructor(
-        private docker: Docker,
-        private proxyPort: number,
-        private dockerEventStream: stream.Stream
+        docker: Docker,
+        proxyPort: number,
+        dockerEventStream: stream.Stream
     ) {
+        this.docker = docker;
+        this.proxyPort = proxyPort;
+        this.dockerEventStream = dockerEventStream;
+
         // We use mobx here to automatically propagate updates whilst avoiding
         // unnecessary updates when nothing changes.
         mobx.makeObservable(this, {

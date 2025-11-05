@@ -1,8 +1,8 @@
 import * as _ from 'lodash';
 import * as path from 'path';
 
-import { APP_ROOT } from '../../constants';
-import { getDockerPipePath } from '../docker/docker-proxy';
+import { APP_ROOT } from '../../constants.ts';
+import { getDockerPipePath } from '../docker/docker-proxy.ts';
 
 const BIN_OVERRIDE_DIR = 'path';
 const RUBY_OVERRIDE_DIR = 'gems';

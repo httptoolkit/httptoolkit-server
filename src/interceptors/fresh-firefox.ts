@@ -1,21 +1,21 @@
 import _ from 'lodash';
 import * as path from 'path';
-import { SpawnOptions } from 'child_process';
+import { type SpawnOptions } from 'child_process';
 
 import { delay, isErrorLike } from '@httptoolkit/util';
 
-import { APP_ROOT } from '../constants';
-import { HtkConfig } from '../config';
-import { logError } from '../error-tracking';
+import { APP_ROOT } from '../constants.ts';
+import type { HtkConfig } from '../config.d.ts';
+import { logError } from '../error-tracking.ts';
 
-import { isSnap, getSnapConfigPath } from '../util/snap';
+import { isSnap, getSnapConfigPath } from '../util/snap.ts';
 
-import { launchBrowser, BrowserInstance, getBrowserDetails } from '../browsers';
-import { readFile, canAccess, deleteFolder } from '../util/fs';
-import { spawnToResult, windowsKillByCliMatch } from '../util/process-management';
-import { MessageServer } from '../message-server';
-import { CertCheckServer } from '../cert-check-server';
-import { Interceptor } from '.';
+import { launchBrowser, type BrowserInstance, getBrowserDetails } from '../browsers.ts';
+import { readFile, canAccess, deleteFolder } from '../util/fs.ts';
+import { spawnToResult, windowsKillByCliMatch } from '../util/process-management.ts';
+import { MessageServer } from '../message-server.ts';
+import { CertCheckServer } from '../cert-check-server.ts';
+import { type Interceptor } from './index.ts';
 
 const FIREFOX_PREF_REGEX = /\w+_pref\("([^"]+)", (.*)\);/
 
@@ -72,11 +72,18 @@ abstract class Firefox implements Interceptor {
     readonly abstract id: string;
     readonly abstract version: string;
 
+    private config: HtkConfig;
+    private variantName: string;
+    private pathName: string;
+
     protected constructor(
-        private config: HtkConfig,
-        private variantName: string,
-        private pathName: string = variantName + '-profile',
-    ) {}
+        config: HtkConfig,
+        variantName: string
+    ) {
+        this.config = config;
+        this.variantName = variantName;
+        this.pathName = variantName + '-profile';
+    }
 
     private readonly activeBrowsers: _.Dictionary<BrowserInstance> = {};
 

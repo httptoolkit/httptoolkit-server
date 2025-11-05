@@ -1,7 +1,7 @@
 import * as path from 'path';
 
-import * as fs from '../../util/fs';
-import { OVERRIDES_DIR } from '../terminal/terminal-env-overrides';
+import * as fs from '../../util/fs.ts';
+import { OVERRIDES_DIR } from '../terminal/terminal-env-overrides.ts';
 
 const FRIDA_SCRIPTS_ROOT = path.join(OVERRIDES_DIR, 'frida');
 

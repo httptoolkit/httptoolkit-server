@@ -1,15 +1,15 @@
 import _ from 'lodash';
 import * as path from 'path';
 
-import { delay, ErrorLike } from '@httptoolkit/util';
+import { delay, type ErrorLike } from '@httptoolkit/util';
 
-import { Interceptor } from '.';
+import { type Interceptor } from './index.ts';
 
-import { HtkConfig } from '../config';
-import { spawnToResult, waitForExit } from '../util/process-management';
-import { OVERRIDE_JAVA_AGENT } from './terminal/terminal-env-overrides';
-import { logError } from '../error-tracking';
-import { commandExists, canAccess } from '../util/fs';
+import type { HtkConfig } from '../config.d.ts';
+import { spawnToResult, waitForExit } from '../util/process-management.ts';
+import { OVERRIDE_JAVA_AGENT } from './terminal/terminal-env-overrides.ts';
+import { logError } from '../error-tracking.ts';
+import { commandExists, canAccess } from '../util/fs.ts';
 
 type JvmTarget = { pid: string, name: string, interceptedByProxy: number | undefined };
 
@@ -147,7 +147,11 @@ export class JvmInterceptor implements Interceptor {
         [pid: string]: number // PID -> proxy port
     } = {};
 
-    constructor(private config: HtkConfig) { }
+    private config: HtkConfig
+
+    constructor(config: HtkConfig) {
+        this.config = config;
+    }
 
     async isActivable(): Promise<boolean> {
         return !!await javaBinPromise;

@@ -3,22 +3,22 @@ import * as path from 'path';
 import { delay } from '@httptoolkit/util';
 import { generateSPKIFingerprint } from 'mockttp';
 
-import { HtkConfig } from '../config';
+import type { HtkConfig } from '../config.d.ts';
 
-import { readFile, deleteFolder } from '../util/fs';
-import { listRunningProcesses, windowsClose, waitForExit } from '../util/process-management';
-import { getSnapConfigPath, isSnap } from '../util/snap';
+import { readFile, deleteFolder } from '../util/fs.ts';
+import { listRunningProcesses, windowsClose, waitForExit } from '../util/process-management.ts';
+import { getSnapConfigPath, isSnap } from '../util/snap.ts';
 
 import {
     getBrowserDetails,
     launchBrowser,
-    BrowserInstance,
-    LaunchOptions
-} from '../browsers';
-import { HideWarningServer } from '../hide-warning-server';
-import { Interceptor } from '.';
-import { logError } from '../error-tracking';
-import { WEBEXTENSION_INSTALL } from '../webextension';
+    type BrowserInstance,
+    type LaunchOptions
+} from '../browsers.ts';
+import { HideWarningServer } from '../hide-warning-server.ts';
+import { type Interceptor } from './index.ts';
+import { logError } from '../error-tracking.ts';
+import { WEBEXTENSION_INSTALL } from '../webextension.ts';
 
 const getChromiumLaunchOptions = async (
     browser: string,
@@ -77,10 +77,16 @@ abstract class FreshChromiumBasedInterceptor implements Interceptor {
 
     private readonly activeBrowsers: _.Dictionary<BrowserInstance> = {};
 
+    private config: HtkConfig;
+    private variantName: string;
+
     constructor(
-        private config: HtkConfig,
-        private variantName: string
-    ) { }
+        config: HtkConfig,
+        variantName: string
+    ) {
+        this.config = config;
+        this.variantName = variantName;
+    }
 
 
     isActive(proxyPort: number | string) {
@@ -194,10 +200,16 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
         browser: BrowserInstance
     } | undefined;
 
+    private config: HtkConfig;
+    private variantName: string;
+
     constructor(
-        private config: HtkConfig,
-        private variantName: string
-    ) { }
+        config: HtkConfig,
+        variantName: string
+    ) {
+        this.config = config;
+        this.variantName = variantName;
+    }
 
     async browserDetails() {
         return getBrowserDetails(this.config.configPath, this.variantName);

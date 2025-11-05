@@ -1,10 +1,10 @@
 import * as path from 'path';
 import * as os from 'os';
 
-import { deleteFile, mkDir, writeFile, copyRecursive, deleteFolder } from "./util/fs";
-import { addShutdownHandler } from './shutdown';
+import { deleteFile, mkDir, writeFile, copyRecursive, deleteFolder } from './util/fs.ts';
+import { addShutdownHandler } from './shutdown.ts';
 
-import { OVERRIDES_DIR } from './interceptors/terminal/terminal-env-overrides';
+import { OVERRIDES_DIR } from './interceptors/terminal/terminal-env-overrides.ts';
 
 const WEBEXTENSION_BASE_PATH = path.join(OVERRIDES_DIR, 'webextension');
 

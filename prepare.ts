@@ -2,7 +2,7 @@ import * as path from 'path';
 import type { Stats } from 'fs';
 import * as fs from 'fs/promises';
 import klaw from 'klaw';
-import { spawn as spawnAsync, SpawnOptions } from 'child_process';
+import { spawn as spawnAsync, type SpawnOptions } from 'child_process';
 
 const spawn = (command: string, args: string[] = [], options: SpawnOptions = {}) => {
     return new Promise<void>((resolve, reject) => {

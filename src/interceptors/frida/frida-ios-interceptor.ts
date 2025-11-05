@@ -3,15 +3,15 @@ import { UsbmuxClient } from 'usbmux-client';
 import * as FridaJs from 'frida-js';
 import { combineParallelCalls } from '@httptoolkit/util';
 
-import { Interceptor } from "..";
-import { HtkConfig } from '../../config';
+import { type Interceptor } from '../index.ts';
+import type { HtkConfig } from '../../config.d.ts';
 
-import { FridaHost, FridaTarget, killProcess } from './frida-integration';
+import { type FridaHost, type FridaTarget, killProcess } from './frida-integration.ts';
 import {
     getIosFridaHosts,
     getIosFridaTargets,
     interceptIosFridaTarget
-} from './frida-ios-integration';
+} from './frida-ios-integration.ts';
 
 export class FridaIosInterceptor implements Interceptor {
 
@@ -20,9 +20,11 @@ export class FridaIosInterceptor implements Interceptor {
 
     private usbmuxClient = new UsbmuxClient();
 
-    constructor(
-        private config: HtkConfig
-    ) {}
+    private config: HtkConfig;
+
+    constructor(config: HtkConfig) {
+        this.config = config;
+    }
 
     getFridaHosts = combineParallelCalls(() => getIosFridaHosts(this.usbmuxClient));
 

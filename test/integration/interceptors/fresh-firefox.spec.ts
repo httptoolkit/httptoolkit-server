@@ -1,5 +1,5 @@
-import { CompletedRequest } from 'mockttp';
-import { setupInterceptor, itIsAvailable } from './interceptor-test-utils';
+import { type CompletedRequest } from 'mockttp';
+import { setupInterceptor, itIsAvailable } from './interceptor-test-utils.ts';
 import { expect } from 'chai';
 
 const interceptorSetup = setupInterceptor('fresh-firefox');

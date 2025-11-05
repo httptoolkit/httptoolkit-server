@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import * as dns2 from 'dns2';
+import dns2 from 'dns2';
 
 const DNS_SERVER_MAP: { [mockServerPort: number]: Promise<DnsServer> | undefined } = {};
 

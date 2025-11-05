@@ -1,6 +1,6 @@
 import _ from 'lodash';
-import { CompletedRequest } from 'mockttp';
-import { setupInterceptor, itIsAvailable, itCanBeActivated } from './interceptor-test-utils';
+import { type CompletedRequest } from 'mockttp';
+import { setupInterceptor, itIsAvailable, itCanBeActivated } from './interceptor-test-utils.ts';
 
 const interceptorSetup = setupInterceptor('fresh-chrome');
 

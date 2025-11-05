@@ -1,12 +1,12 @@
-import _ = require('lodash');
+import * as _ from 'lodash';
 import Docker from 'dockerode';
 import { Mutex } from 'async-mutex';
 import { delay } from '@httptoolkit/util';
 
-import { isImageAvailable } from './docker-commands';
-import { isDockerAvailable } from './docker-interception-services';
-import { logError } from '../../error-tracking';
-import { waitForDockerStream } from './docker-utils';
+import { isImageAvailable } from './docker-commands.ts';
+import { isDockerAvailable } from './docker-interception-services.ts';
+import { logError } from '../../error-tracking.ts';
+import { waitForDockerStream } from './docker-utils.ts';
 
 const DOCKER_TUNNEL_IMAGE = "ghcr.io/httptoolkit/docker-socks-tunnel:v1.2.1";
 const DOCKER_TUNNEL_LABEL = "tech.httptoolkit.docker.tunnel";

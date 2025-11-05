@@ -1,22 +1,22 @@
 import { CustomError } from '@httptoolkit/util';
-import { Client as AdbClient, DeviceClient } from '@devicefarmer/adbkit';
+import { type Client as AdbClient, type DeviceClient } from '@devicefarmer/adbkit';
 import * as FridaJs from 'frida-js';
 
-import { waitUntil, withTimeout } from '../../util/promise';
-import { HtkConfig } from '../../config';
+import { waitUntil, withTimeout } from '../../util/promise.ts';
+import type { HtkConfig } from '../../config.d.ts';
 import {
     EMULATOR_HOST_IPS,
     createPersistentReverseTunnel,
     getConnectedDevices,
     getRootCommand,
     isProbablyRooted
-} from '../android/adb-commands';
-import { buildAndroidFridaScript } from './frida-scripts';
+} from '../android/adb-commands.ts';
+import { buildAndroidFridaScript } from './frida-scripts.ts';
 import {
     FRIDA_ALTERNATE_PORT,
     FRIDA_BINARY_NAME,
     FRIDA_DEFAULT_PORT,
-    FridaHost,
+    type FridaHost,
     getFridaServer,
     killProcess,
     launchScript,
@@ -24,7 +24,7 @@ import {
     createFridaSessionCache,
     clearFridaSessionCache,
     getOrCreateFridaSession
-} from './frida-integration';
+} from './frida-integration.ts';
 
 const ANDROID_DEVICE_HTK_PATH = '/data/local/tmp/.httptoolkit';
 const ANDROID_FRIDA_BINARY_PATH = `${ANDROID_DEVICE_HTK_PATH}/${FRIDA_BINARY_NAME}`;

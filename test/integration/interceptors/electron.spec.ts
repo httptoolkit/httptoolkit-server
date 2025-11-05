@@ -1,8 +1,8 @@
 import _ from 'lodash';
 import * as os from 'os';
 import * as fs from 'fs';
-import { CompletedRequest } from 'mockttp';
-import { setupInterceptor, itIsAvailable, itCanBeActivated } from './interceptor-test-utils';
+import { type CompletedRequest } from 'mockttp';
+import { setupInterceptor, itIsAvailable, itCanBeActivated } from './interceptor-test-utils.ts';
 
 import { expect } from 'chai';
 

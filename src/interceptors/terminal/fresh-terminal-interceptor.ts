@@ -1,18 +1,18 @@
 import _ from 'lodash';
-import { spawn, ChildProcess, SpawnOptions } from 'child_process';
+import { spawn, ChildProcess, type SpawnOptions } from 'child_process';
 import * as GSettings from 'node-gsettings-wrapper';
 
 import { isErrorLike } from '@httptoolkit/util';
 import { findExecutableById } from '@httptoolkit/osx-find-executable';
 
-import { Interceptor } from '..';
-import { HtkConfig } from '../../config';
-import { logError, addBreadcrumb } from '../../error-tracking';
-import { canAccess, commandExists, getRealPath, resolveCommandPath } from '../../util/fs';
-import { spawnToResult } from '../../util/process-management';
+import { type Interceptor } from '../index.ts';
+import type { HtkConfig } from '../../config.d.ts';
+import { logError, addBreadcrumb } from '../../error-tracking.ts';
+import { canAccess, commandExists, getRealPath, resolveCommandPath } from '../../util/fs.ts';
+import { spawnToResult } from '../../util/process-management.ts';
 
-import { getInheritableCurrentEnv, getTerminalEnvVars } from './terminal-env-overrides';
-import { editShellStartupScripts, resetShellStartupScripts } from './terminal-scripts';
+import { getInheritableCurrentEnv, getTerminalEnvVars } from './terminal-env-overrides.ts';
+import { editShellStartupScripts, resetShellStartupScripts } from './terminal-scripts.ts';
 
 const DEFAULT_GIT_BASH_PATH = 'C:/Program Files/git/git-bash.exe';
 
@@ -225,7 +225,13 @@ export class FreshTerminalInterceptor implements Interceptor {
     id = 'fresh-terminal';
     version = '1.0.0';
 
-    constructor(private config: HtkConfig) { }
+    private config: HtkConfig;
+
+    constructor(
+        config: HtkConfig
+    ) {
+        this.config = config;
+    }
 
     async isActivable(): Promise<boolean> {
         return !!(await getTerminalCommand());

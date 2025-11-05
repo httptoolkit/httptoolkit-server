@@ -3,8 +3,8 @@ import { expect } from 'chai';
 import * as mockttp from 'mockttp';
 import { delay } from '@httptoolkit/util';
 
-import { HttpClient } from '../../src/client/http-client';
-import { streamToArray } from '../../src/util/stream';
+import { HttpClient } from '../../src/client/http-client.ts';
+import { streamToArray } from '../../src/util/stream.ts';
 
 describe("The HTTP client API", () => {
 

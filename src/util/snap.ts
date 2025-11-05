@@ -1,8 +1,8 @@
-import os = require('os');
-import path = require('path');
+import * as os from 'os';
+import * as path from 'path';
 
-import fs = require('./fs');
-import { streamToBuffer } from './stream';
+import * as fs from './fs.ts';
+import { streamToBuffer } from './stream.ts';
 
 export async function isSnap(bin: string) {
     if (os.platform() !== 'linux') return false;

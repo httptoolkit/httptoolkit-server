@@ -1,24 +1,26 @@
 import _ from 'lodash';
 import Docker from 'dockerode';
 
-import { Interceptor } from "..";
-import { HtkConfig } from '../../config';
+import { type Interceptor } from '../index.ts';
+import type { HtkConfig } from '../../config.d.ts';
 
-import { DOCKER_CONTAINER_LABEL, restartAndInjectContainer } from './docker-commands';
+import { DOCKER_CONTAINER_LABEL, restartAndInjectContainer } from './docker-commands.ts';
 import {
     isDockerAvailable,
     ensureDockerServicesRunning,
     deleteAllInterceptedDockerData
-} from './docker-interception-services';
+} from './docker-interception-services.ts';
 
 export class DockerContainerInterceptor implements Interceptor {
 
     id: string = "docker-attach";
     version: string = "1.0.0";
 
-    constructor(
-        private config: HtkConfig
-    ) {}
+    private config: HtkConfig;
+
+    constructor(config: HtkConfig) {
+        this.config = config;
+    }
 
     private _docker: Docker | undefined;
     private getDocker() {

@@ -1,12 +1,12 @@
 import * as FridaJs from 'frida-js';
 import { CustomError, delay } from '@httptoolkit/util';
 
-import { withTimeout } from '../../util/promise';
-import { getReachableInterfaces } from '../../util/network';
-import { HtkConfig } from '../../config';
-import * as dynamicDeps from '../../dynamic-dep-store';
+import { withTimeout } from '../../util/promise.ts';
+import { getReachableInterfaces } from '../../util/network.ts';
+import type { HtkConfig } from '../../config.d.ts';
+import * as dynamicDeps from '../../dynamic-dep-store.ts';
 
-import { buildIpTestScript } from './frida-scripts';
+import { buildIpTestScript } from './frida-scripts.ts';
 
 /**
  * Terminology:

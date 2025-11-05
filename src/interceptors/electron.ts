@@ -2,18 +2,18 @@ import _ from 'lodash';
 import { spawn } from 'child_process';
 import * as path from 'path';
 
-import { delay, ErrorLike, isErrorLike } from '@httptoolkit/util';
+import { delay, type ErrorLike, isErrorLike } from '@httptoolkit/util';
 import { getPortPromise as getPort } from 'portfinder';
 import { generateSPKIFingerprint } from 'mockttp';
-import ChromeRemoteInterface = require('chrome-remote-interface');
+import ChromeRemoteInterface from 'chrome-remote-interface';
 
-import { Interceptor } from '.';
+import { type Interceptor } from './index.ts';
 
-import { HtkConfig } from '../config';
-import { canAccess, readFile } from '../util/fs';
-import { windowsClose } from '../util/process-management';
-import { getInheritableCurrentEnv, getTerminalEnvVars, OVERRIDES_DIR } from './terminal/terminal-env-overrides';
-import { logError, addBreadcrumb } from '../error-tracking';
+import type { HtkConfig } from '../config.d.ts';
+import { canAccess, readFile } from '../util/fs.ts';
+import { windowsClose } from '../util/process-management.ts';
+import { getInheritableCurrentEnv, getTerminalEnvVars, OVERRIDES_DIR } from './terminal/terminal-env-overrides.ts';
+import { logError, addBreadcrumb } from '../error-tracking.ts';
 import { findExecutableInApp } from '@httptoolkit/osx-find-executable';
 
 const isAppBundle = (path: string) => {
@@ -36,9 +36,13 @@ export class ElectronInterceptor implements Interceptor {
         [port: string]: Array<ChromeRemoteInterface.Client>
      } = {};
 
-    constructor(private config: HtkConfig) { }
+    private config: HtkConfig;
+    private certData: Promise<string>;
 
-    private certData = readFile(this.config.https.certPath, 'utf8')
+    constructor(config: HtkConfig) {
+        this.config = config;
+        this.certData = readFile(this.config.https.certPath, 'utf8');
+    }
 
     async isActivable(): Promise<boolean> {
         return true;
