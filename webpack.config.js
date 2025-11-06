@@ -115,6 +115,9 @@ module.exports = {
         new webpack.EnvironmentPlugin({ HTK_IS_BUNDLED: true })
     ],
     resolve: {
-        extensions: [ '.tsx', '.ts', '.mjs', '.js' ]
+        extensionAlias: {
+            '.js': ['.ts', '.js']
+        },
+        extensions: [ '.ts', '.mjs', '.js' ]
     }
 };
