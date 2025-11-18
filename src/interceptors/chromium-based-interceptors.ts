@@ -340,8 +340,8 @@ abstract class ExistingChromiumBasedInterceptor implements Interceptor {
             if (process.platform === 'win32') {
                 // Try to cleanly close if we can, rather than killing Chrome directly:
                 try {
-                    await windowsClose(browser!.pid)
-                        .then(() => waitForExit(browser!.pid));
+                    await windowsClose(browser.pid!)
+                        .then(() => waitForExit(browser.pid!));
                     return;
                 } catch (e) {} // If this fails/times out, kill like we do elsewhere:
             }
