@@ -23,136 +23,137 @@
 
 (() => {
     const PATTERNS = {
-    "android/x64": {
-        "dart::bin::SSLCertContext::CertificateCallback": {
-            "signatures": [
-                "41 57 41 56 53 48 83 ec 10 b8 01 00 00 00 83 ff 01 0f 84 ?? ?? ?? ?? 48 89 f3",
-                "41 57 41 56 41 54 53 48 83 ec 18 b8 01 00 00 00 83 ff 01 0f 84 ?? ?? ?? ?? 48 89 f3"
-            ]
+        "android/x64": {
+            "dart::bin::SSLCertContext::CertificateCallback": {
+                "signatures": [
+                    "41 57 41 56 53 48 83 ec 10 b8 01 00 00 00 83 ff 01 0f 84 ?? ?? ?? ?? 48 89 f3",
+                    "41 57 41 56 41 54 53 48 83 ec 18 b8 01 00 00 00 83 ff 01 0f 84 ?? ?? ?? ?? 48 89 f3"
+                ]
+            },
+            "X509_STORE_CTX_get_current_cert": {
+                "signatures": [
+                    "48 8b 47 50 c3",
+                    "48 8b 47 60 c3",
+                    "48 8b 87 a8 00 00 00 c3",
+                    "48 8b 87 b8 00 00 00 c3"
+                ],
+                "anchor": "dart::bin::SSLCertContext::CertificateCallback"
+            },
+            "bssl::x509_to_buffer": {
+                "signatures": [
+                    "41 56 53 50 48 89 f0 48 89 fb 48 89 e6 48 83 26 00 48 89 c7 e8 ?? ?? ?? ?? 85 c0 7e 1b",
+                    "53 48 83 ec 10 48 89 f0 48 89 fb 48 8d 74 24 08 48 83 26 00 48 89 c7 e8 ?? ?? ?? ?? 85 c0",
+                    "41 56 53 48 83 ec 18 48 89 f0 48 89 fb 48 8d 74 24 08 48 83 26 00 48 89 c7 e8",
+                    "41 56 53 48 83 ec 18 48 89 f0 49 89 fe 48 8d 74 24 08 48 83 26 00 48 89 c7 e8",
+                    "41 57 41 56 53 48 83 ec 10 48 89 f0 49 89 fe 48 89 e6 48 83 26 00 48 89 c7 e8"
+                ]
+            },
+            "i2d_X509": {
+                "signatures": [
+                    "55 41 56 53 48 83 ec 70 48 85 ff 0f 84 ?? ?? ?? ?? 48 89 f3 49 89 fe 48 8d 7c 24 40 6a 40",
+                    "48 8d 15 ?? ?? ?? ?? e9"
+                ],
+                "anchor": "bssl::x509_to_buffer"
+            }
         },
-        "X509_STORE_CTX_get_current_cert": {
-            "signatures": [
-                "48 8b 47 50 c3",
-                "48 8b 47 60 c3",
-                "48 8b 87 a8 00 00 00 c3",
-                "48 8b 87 b8 00 00 00 c3"
-            ],
-            "anchor": "dart::bin::SSLCertContext::CertificateCallback"
+        "android/x86": {
+            "dart::bin::SSLCertContext::CertificateCallback": {
+                "signatures": [
+                    "55 89 e5 53 57 56 83 e4 f0 83 ec 30 e8 ?? ?? ?? ?? 5b 81 c3 ?? ?? ?? ?? bf 01 00 00 00 83 7d 08 01 0f 84"
+                ]
+            },
+            "X509_STORE_CTX_get_current_cert": {
+                "signatures": [
+                    "55 89 e5 83 e4 fc 8b 45 08 8b 40 2c 89 ec 5d c3",
+                    "55 89 e5 83 e4 fc 8b 45 08 8b 40 34 89 ec 5d c3",
+                    "55 89 e5 83 e4 fc 8b 45 08 8b 40 5c 89 ec 5d c3",
+                    "55 89 e5 83 e4 fc 8b 45 08 8b 40 64 89 ec 5d c3"
+                ],
+                "anchor": "dart::bin::SSLCertContext::CertificateCallback"
+            },
+            "bssl::x509_to_buffer": {
+                "signatures": [
+                    "55 89 e5 53 57 56 83 e4 f0 83 ec 10 89 ce e8 ?? ?? ?? ?? 5b 81 c3 ?? ?? ?? ?? 8d 44 24 08 83 20 00 83 ec 08 50 52",
+                    "55 89 e5 53 56 83 e4 f0 83 ec 10 89 ce e8 ?? ?? ?? ?? 5b 81 c3 ?? ?? ?? ?? 8d 44 24 0c 83 20 00 83 ec 08 50 52",
+                    "55 89 e5 53 57 56 83 e4 f0 83 ec 20 89 ce e8 ?? ?? ?? ?? 5b 81 c3 ?? ?? ?? ?? 8d 44 24 14 83 20 00 89 44 24 04 89 14 24"
+                ]
+            },
+            "i2d_X509": {
+                "signatures": [
+                    "55 89 e5 53 57 56 83 e4 f0 83 ec 40 e8 ?? ?? ?? ?? 5b 81 c3 ?? ?? ?? ?? 8b 7d 08 85 ff 0f 84 ?? ?? ?? ?? 83 ec 08",
+                    "55 89 e5 53 83 e4 f0 83 ec 10 e8 ?? ?? ?? ?? 5b 81 c3 ?? ?? ?? ?? 83 ec 04 8d 83 ?? ?? ?? ?? 50 ff 75 0c ff 75 08"
+                ],
+                "anchor": "bssl::x509_to_buffer"
+            }
         },
-        "bssl::x509_to_buffer": {
-            "signatures": [
-                "41 56 53 50 48 89 f0 48 89 fb 48 89 e6 48 83 26 00 48 89 c7 e8 ?? ?? ?? ?? 85 c0 7e 1b",
-                "53 48 83 ec 10 48 89 f0 48 89 fb 48 8d 74 24 08 48 83 26 00 48 89 c7 e8 ?? ?? ?? ?? 85 c0",
-                "41 56 53 48 83 ec 18 48 89 f0 48 89 fb 48 8d 74 24 08 48 83 26 00 48 89 c7 e8",
-                "41 56 53 48 83 ec 18 48 89 f0 49 89 fe 48 8d 74 24 08 48 83 26 00 48 89 c7 e8",
-                "41 57 41 56 53 48 83 ec 10 48 89 f0 49 89 fe 48 89 e6 48 83 26 00 48 89 c7 e8"
-            ]
+        "android/arm64": {
+            "dart::bin::SSLCertContext::CertificateCallback": {
+                "signatures": [
+                    "ff c3 00 d1 fe 57 01 a9 f4 4f 02 a9 1f 04 00 71 c0 07 00 54 f3 03 01 aa ?? ?? ?? 94 e0 07 00 b4 e0 03 13 aa",
+                    "ff c3 00 d1 fe 57 01 a9 f4 4f 02 a9 1f 04 00 71 c0 02 00 54 f3 03 01 aa ?? ?? ?? 94 00 0a 00 b4 e0 03 13 aa",
+                    "ff c3 00 d1 fe 57 01 a9 f4 4f 02 a9 1f 04 00 71 c0 02 00 54 f3 03 01 aa ?? ?? ?? 94 c0 09 00 b4 e0 03 13 aa"
+                ]
+            },
+            "X509_STORE_CTX_get_current_cert": {
+                "signatures": [
+                    "00 ?? ?? f9 c0 03 5f d6"
+                ],
+                "anchor": "dart::bin::SSLCertContext::CertificateCallback"
+            },
+            "bssl::x509_to_buffer": {
+                "signatures": [
+                    "fe 0f 1e f8 f4 4f 01 a9 e1 ?? ?? 91 f3 03 08 aa ff 07 00 f9 ?? ?? ?? 97 1f 04 00 71 6b 01 00 54 e8 ?? ?? f9",
+                    "fe 0f 1e f8 f4 4f 01 a9 e8 03 01 aa f3 03 00 aa e1 ?? ?? 91 e0 03 08 aa ff 07 00 f9 ?? ?? ?? 97 1f 04 00 71",
+                    "fe 0f 1e f8 f4 4f 01 a9 e1 ?? ?? 91 f3 03 08 aa ff 07 00 f9 ?? ?? ?? 97 1f 04 00 71 4b 01 00 54 e8 ?? ?? f9",
+                    "ff 83 00 d1 fe 4f 01 a9 e1 ?? ?? 91 f3 03 08 aa ff 07 00 f9 ?? ?? ?? 97 1f 00 00 71 6d 01 00 54 e8 ?? ?? f9",
+                    "ff c3 00 d1 fe 7f 01 a9 f4 4f 02 a9 e1 ?? ?? 91 f3 03 08 aa ?? ?? ?? 97 1f 00 00 71 cd 01 00 54 e8 ?? ?? f9",
+                    "ff c3 00 d1 fe 7f 01 a9 f4 4f 02 a9 e1 ?? ?? 91 f3 03 08 aa ?? ?? ?? 97 1f 04 00 71 ab 01 00 54 e8 ?? ?? f9",
+                    "ff c3 00 d1 fe 7f 01 a9 f4 4f 02 a9 e1 ?? ?? 91 f3 03 08 aa ?? ?? ?? 97 1f 04 00 71 6b 01 00 54 e8 ?? ?? f9"
+                ]
+            },
+            "i2d_X509": {
+                "signatures": [
+                    "ff 43 02 d1 fe 57 07 a9 f4 4f 08 a9 a0 06 00 b4 f4 03 00 aa f3 03 01 aa e0 ?? ?? 91 01 08 80 52 ?? ?? ?? 97",
+                    "?2 ?? ?? ?? 42 ?? ?? 91 ?? ?? ?? 17"
+                ],
+                "anchor": "bssl::x509_to_buffer"
+            }
         },
-        "i2d_X509": {
-            "signatures": [
-                "55 41 56 53 48 83 ec 70 48 85 ff 0f 84 ?? ?? ?? ?? 48 89 f3 49 89 fe 48 8d 7c 24 40 6a 40",
-                "48 8d 15 ?? ?? ?? ?? e9"
-            ],
-            "anchor": "bssl::x509_to_buffer"
+        "android/arm": {
+            "dart::bin::SSLCertContext::CertificateCallback": {
+                "signatures": [
+                    "70 b5 84 b0 01 28 02 d1 01 20 04 b0 70 bd 0c 46 ?? f? ?? f? 00 28 4d d0 20 46 ?? f? ?? f? 05 46 ?? f? ?? f",
+                    "70 b5 84 b0 01 28 02 d1 01 20 04 b0 70 bd 0c 46 ?? f? ?? f? 00 28 52 d0 20 46 ?? f? ?? f? 06 46 ?? f? ?? f",
+                    "70 b5 84 b0 01 28 02 d1 01 20 04 b0 70 bd 0c 46 ?? f? ?? f? 00 28 50 d0 20 46 ?? f? ?? f? 06 46 ?? f? ?? f"
+                ]
+            },
+            "X509_STORE_CTX_get_current_cert": {
+                "signatures": [
+                    "c0 6a 70 47",
+                    "40 6b 70 47",
+                    "c0 6d 70 47",
+                    "40 6e 70 47"
+                ],
+                "anchor": "dart::bin::SSLCertContext::CertificateCallback"
+            },
+            "bssl::x509_to_buffer": {
+                "signatures": [
+                    "bc b5 00 25 0a 46 01 95 01 a9 04 46 10 46 ?? f? ?? f? 01 28 08 db 01 46 01 98 00 22 ?? f? ?? f? 05 46 01 98",
+                    "bc b5 00 25 0a 46 01 95 01 a9 04 46 10 46 ?? f? ?? f? 00 28 09 dd 01 46 01 98 00 22 ?? f? ?? f? 20 60 01 98",
+                    "7c b5 00 26 0a 46 01 96 01 a9 04 46 10 46 ?? f? ?? f? 00 28 0e dd 01 46 01 98 00 22 ?? f? ?? f? 05 46 01 98",
+                    "7c b5 00 26 0a 46 01 96 01 a9 04 46 10 46 ?? f? ?? f? 01 28 0d db 01 46 01 98 00 22 ?? f? ?? f? 05 46 01 98",
+                    "7c b5 00 26 0a 46 01 96 01 a9 04 46 10 46 ?? f? ?? f? 01 28 0e db 01 46 01 98 00 22 ?? f? ?? f? 05 46 00 90"
+                ]
+            },
+            "i2d_X509": {
+                "signatures": [
+                    "70 b5 8e b0 00 28 4f d0 05 46 08 a8 0c 46 40 21 ?? f? ?? f? 00 28 43 d0 2a 4a 08 a8 02 a9 ?? f? ?? f? e8 b3",
+                    "01 4a 7a 44 ?? f? ?? b"
+                ],
+                "anchor": "bssl::x509_to_buffer"
+            }
         }
-    },
-    "android/x86": {
-        "dart::bin::SSLCertContext::CertificateCallback": {
-            "signatures": [
-                "55 89 e5 53 57 56 83 e4 f0 83 ec 30 e8 ?? ?? ?? ?? 5b 81 c3 ?? ?? ?? ?? bf 01 00 00 00 83 7d 08 01 0f 84"
-            ]
-        },
-        "X509_STORE_CTX_get_current_cert": {
-            "signatures": [
-                "55 89 e5 83 e4 fc 8b 45 08 8b 40 2c 89 ec 5d c3",
-                "55 89 e5 83 e4 fc 8b 45 08 8b 40 34 89 ec 5d c3",
-                "55 89 e5 83 e4 fc 8b 45 08 8b 40 5c 89 ec 5d c3",
-                "55 89 e5 83 e4 fc 8b 45 08 8b 40 64 89 ec 5d c3"
-            ],
-            "anchor": "dart::bin::SSLCertContext::CertificateCallback"
-        },
-        "bssl::x509_to_buffer": {
-            "signatures": [
-                "55 89 e5 53 57 56 83 e4 f0 83 ec 10 89 ce e8 ?? ?? ?? ?? 5b 81 c3 ?? ?? ?? ?? 8d 44 24 08 83 20 00 83 ec 08 50 52",
-                "55 89 e5 53 56 83 e4 f0 83 ec 10 89 ce e8 ?? ?? ?? ?? 5b 81 c3 ?? ?? ?? ?? 8d 44 24 0c 83 20 00 83 ec 08 50 52",
-                "55 89 e5 53 57 56 83 e4 f0 83 ec 20 89 ce e8 ?? ?? ?? ?? 5b 81 c3 ?? ?? ?? ?? 8d 44 24 14 83 20 00 89 44 24 04 89 14 24"
-            ]
-        },
-        "i2d_X509": {
-            "signatures": [
-                "55 89 e5 53 57 56 83 e4 f0 83 ec 40 e8 ?? ?? ?? ?? 5b 81 c3 ?? ?? ?? ?? 8b 7d 08 85 ff 0f 84 ?? ?? ?? ?? 83 ec 08",
-                "55 89 e5 53 83 e4 f0 83 ec 10 e8 ?? ?? ?? ?? 5b 81 c3 ?? ?? ?? ?? 83 ec 04 8d 83 ?? ?? ?? ?? 50 ff 75 0c ff 75 08"
-            ],
-            "anchor": "bssl::x509_to_buffer"
-        }
-    },
-
-    "android/arm64": {
-        "dart::bin::SSLCertContext::CertificateCallback": {
-            "signatures": [
-                "ff c3 00 d1 fe 57 01 a9 f4 4f 02 a9 1f 04 00 71 c0 07 00 54 f3 03 01 aa ?? ?? ?? 94",
-                "ff c3 00 d1 fe 57 01 a9 f4 4f 02 a9 1f 04 00 71 c0 02 00 54 f3 03 01 aa ?? ?? ?? 94"
-            ]
-        },
-        "X509_STORE_CTX_get_current_cert": {
-            "signatures": [
-                "00 ?? ?? f9 c0 03 5f d6"
-            ],
-            "anchor": "dart::bin::SSLCertContext::CertificateCallback"
-        },
-        "bssl::x509_to_buffer": {
-            "signatures": [
-                "fe 0f 1e f8 f4 4f 01 a9 e1 ?? ?? 91 f3 03 08 aa ff 07 00 f9 ?? ?? ?? 97 1f 04 00 71",
-                "fe 0f 1e f8 f4 4f 01 a9 e8 03 01 aa f3 03 00 aa e1 ?? ?? 91 e0 03 08 aa ff 07 00 f9",
-                "ff 83 00 d1 fe 4f 01 a9 e1 ?? ?? 91 f3 03 08 aa ff 07 00 f9 ?? ?? ?? 97 1f 00 00 71",
-                "ff c3 00 d1 fe 7f 01 a9 f4 4f 02 a9 e1 ?? ?? 91 f3 03 08 aa ?? ?? ?? 97 1f 00 00 71",
-                "ff c3 00 d1 fe 7f 01 a9 f4 4f 02 a9 e1 ?? ?? 91 f3 03 08 aa ?? ?? ?? 97 1f 04 00 71"
-            ]
-        },
-        "i2d_X509": {
-            "signatures": [
-                "ff 43 02 d1 fe 57 07 a9 f4 4f 08 a9 a0 06 00 b4 f4 03 00 aa f3 03 01 aa e0 ?? ?? 91",
-                "?2 ?? ?? ?? 42 ?? ?? 91 ?? ?? ?? 17"
-            ],
-            "anchor": "bssl::x509_to_buffer"
-        }
-    },
-    "android/arm": {
-        "dart::bin::SSLCertContext::CertificateCallback": {
-            "signatures": [
-                "70 b5 84 b0 01 28 02 d1 01 20 04 b0 70 bd 0c 46 ?? f? ?? f? 00 28 4d d0 20 46 ?? f? ?? f? 05 46 ?? f? ?? f",
-                "70 b5 84 b0 01 28 02 d1 01 20 04 b0 70 bd 0c 46 ?? f? ?? f? 00 28 52 d0 20 46 ?? f? ?? f? 06 46 ?? f? ?? f",
-                "70 b5 84 b0 01 28 02 d1 01 20 04 b0 70 bd 0c 46 ?? f? ?? f? 00 28 50 d0 20 46 ?? f? ?? f? 06 46 ?? f? ?? f"
-            ]
-        },
-        "X509_STORE_CTX_get_current_cert": {
-            "signatures": [
-                "c0 6a 70 47",
-                "40 6b 70 47",
-                "c0 6d 70 47",
-                "40 6e 70 47"
-            ],
-            "anchor": "dart::bin::SSLCertContext::CertificateCallback"
-        },
-        "bssl::x509_to_buffer": {
-            "signatures": [
-                "bc b5 00 25 0a 46 01 95 01 a9 04 46 10 46 ?? f? ?? f? 01 28 08 db 01 46 01 98 00 22 ?? f? ?? f? 05 46 01 98",
-                "bc b5 00 25 0a 46 01 95 01 a9 04 46 10 46 ?? f? ?? f? 00 28 09 dd 01 46 01 98 00 22 ?? f? ?? f? 20 60 01 98",
-                "7c b5 00 26 0a 46 01 96 01 a9 04 46 10 46 ?? f? ?? f? 00 28 0e dd 01 46 01 98 00 22 ?? f? ?? f? 05 46 01 98",
-                "7c b5 00 26 0a 46 01 96 01 a9 04 46 10 46 ?? f? ?? f? 01 28 0d db 01 46 01 98 00 22 ?? f? ?? f? 05 46 01 98",
-                "7c b5 00 26 0a 46 01 96 01 a9 04 46 10 46 ?? f? ?? f? 01 28 0e db 01 46 01 98 00 22 ?? f? ?? f? 05 46 00 90"
-            ]
-        },
-        "i2d_X509": {
-            "signatures": [
-                "70 b5 8e b0 00 28 4f d0 05 46 08 a8 0c 46 40 21 ?? f? ?? f? 00 28 43 d0 2a 4a 08 a8 02 a9 ?? f? ?? f? e8 b3",
-                "01 4a 7a 44 ?? f? ?? b"
-            ],
-            "anchor": "bssl::x509_to_buffer"
-        }
-    }
-    }
-
+    };
 
     const MAX_ANCHOR_INSTRUCTIONS_TO_SCAN = 100;
 
