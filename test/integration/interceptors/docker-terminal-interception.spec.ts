@@ -385,6 +385,8 @@ Successfully built <hash>
         // Then shut everything down:
         await stopDockerInterceptionServices(server.port, ruleParams);
 
+        await delay(100);
+
         // Tunnel is automatically removed:
         tunnel = await docker.getContainer(`httptoolkit-docker-tunnel-${server.port}`).inspect().catch(e => e);
         expect(tunnel).to.be.instanceOf(Error)
