@@ -31,7 +31,7 @@ export interface FridaTarget {
     name: string;
 }
 
-export const FRIDA_VERSION = '17.2.14';
+export const FRIDA_VERSION = '17.5.1';
 
 export const FRIDA_DEFAULT_PORT = 27042;
 export const FRIDA_ALTERNATE_PORT = 24072; // Reversed to mildly inconvenience detection
@@ -41,10 +41,10 @@ export const FRIDA_BINARY_NAME = `adirf-server-${FRIDA_VERSION}`; // Reversed to
 // To update this, run `await require('frida-js').calculateFridaSRI({ version, arch, platform })`
 export const FRIDA_SRIS = {
     'android': {
-        'arm': 'sha512-LMjY+U0vtGg36QMCLTY6aJ6N8DSipBtsZcimj2HmYA9v+ANu4MsrHfccbCmp/caLDadCeZ51NtnL1EWZGJLi0w==',
-        'arm64': 'sha512-Y0TrqHsv2eb4NApCzcDAKG4CjIih/LyysKokFCRDkcmvF5qbDJd5dvgXzm/ypFxcA/X0EpnAqZGYWWjfZJw7WQ==',
-        'x86': 'sha512-DOvopRoAh+qfpgeIKpc+H4E8xURqy6YX8IrJO0iQB6aggOo+HyctS2caorNpuSQSbOqD3wmEmZoAd62RfqWPdw==',
-        'x86_64': 'sha512-YzoBZvY9EXtk/kRmmqRVrkxXUUF9nU1g+Reu900DKylcArvtwoM8HEEc+t05bvnLWARq66uylIBzrCvMbpkr+Q=='
+        'arm': 'sha512-MEfmAabQzrZFRmgC+TcAht7vSa+43X5nWwOU0vZf8E1xFD1IO5mHHapCmxjeOTTa/M3EVmtuH+bfAFaR+ZAPBg==',
+        'arm64': 'sha512-x914zjMkQJMlfaQ5+DtO4cG8Q9+Jx/geudjAI/SmUYAP6nycNq0oY5fpOzIwrUkoy0WNy9nE42FvuXgcF61DUA==',
+        'x86': 'sha512-pdCEABZspB9pDejfU5YTHFL7V3BxDuIeyVq6eH1pZL0zb4mlNW3BwSgJ2Ts1zu+rR1KULIp10klHFlFYo3Z61g==',
+        'x86_64': 'sha512-ZTMGMZGdoR/NqPZJQlbBhUBaXetzdlxnFdeBDfLNAvek7WP6F6yVOQskD2r3SGSNlUfDA6RPmbj07IV2I6lBuA=='
     }
 } as const;
 
