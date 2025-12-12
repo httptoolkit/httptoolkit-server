@@ -246,11 +246,22 @@ export async function pushFile(
 }
 
 export async function isProbablyRooted(deviceClient: Adb.DeviceClient) {
-    return run(deviceClient, ['command', '-v', 'su'], {
+    let hasSu = await run(deviceClient, ['command', '-v', 'su'], {
             timeout: 500,
             skipLogging: true
         })
         .then((result) => result.includes('/su'))
+        .catch(() => false);
+
+    if (hasSu) return true;
+
+    // Check if we're currently running commands as root.
+    // Requires the user to have run `adb root` beforehand
+    return run(deviceClient, ['id'], {
+            timeout: 500,
+            skipLogging: true
+        })
+        .then((result) => result.includes('uid=0(root)'))
         .catch(() => false);
 }
 
