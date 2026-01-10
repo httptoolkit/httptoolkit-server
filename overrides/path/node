@@ -38,7 +38,7 @@ PREPEND_PATH="$SCRIPT_DIR/../js/prepend-node.js"
 
 # Call node with the given arguments, prefixed with our extra logic
 if command -v winpty >/dev/null 2>&1; then
-    winpty "$real_node" -r "$PREPEND_PATH" "$@"
+    winpty "$real_node" "$@"
 else
-    "$real_node" -r "$PREPEND_PATH" "$@"
+    "$real_node" "$@"
 fi

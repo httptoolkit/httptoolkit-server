@@ -13,4 +13,4 @@ REM Reset PATH, so its visible to node & subprocesses
 set PATH=%ORIGINALPATH%
 
 REM Start Node for real, with an extra arg to inject our logic
-"%REAL_NODE%" -r "%WRAPPER_FOLDER%\..\js\prepend-node.js" %*
+"%REAL_NODE%" %*
