@@ -17,8 +17,11 @@ REM Reset PATH, so its visible to node & subprocesses
 set PATH=%ORIGINALPATH%
 
 REM Check if our config is already inside NODE_OPTIONS, if so then we don't actually
-REM need to do anything:
-echo "%NODE_OPTIONS%" | findstr /C:"%HTTP_TOOLKIT_OVERRIDE_PATH%" >nul 2>&1
+REM need to do anything.
+REM NODE_OPTIONS includes forward slash paths even on Windows for some reason, so
+REM check for that instead.
+set "OVERRIDE_PATH_POSIX=%HTTP_TOOLKIT_OVERRIDE_PATH:\=/%"
+echo "%NODE_OPTIONS%" | findstr /C:"%OVERRIDE_PATH_POSIX%" >nul 2>&1
 if %errorlevel% equ 0 (
     "%REAL_NODE%" %*
 ) else (
