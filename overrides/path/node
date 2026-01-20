@@ -36,9 +36,21 @@ PATH="$SCRIPT_DIR:$PATH"
 # Define the path to our helper script using the reliable SCRIPT_DIR
 PREPEND_PATH="$SCRIPT_DIR/../js/prepend-node.js"
 
-# Call node with the given arguments, prefixed with our extra logic
-if command -v winpty >/dev/null 2>&1; then
-    winpty "$real_node" "$@"
-else
-    "$real_node" "$@"
-fi
+case "$NODE_OPTIONS" in
+  *"$HTTP_TOOLKIT_OVERRIDE_PATH"*)
+    # If our config is already inside NODE_OPTIONS, we don't need to do anything:
+    if command -v winpty >/dev/null 2>&1; then
+        winpty "$real_node" "$@"
+    else
+        "$real_node" "$@"
+    fi
+    ;;
+  *)
+    # Otherwise, we need to inject --require $PREPEND into the node CLI:
+    if command -v winpty >/dev/null 2>&1; then
+        winpty "$real_node" --require "$PREPEND_PATH" "$@"
+    else
+        "$real_node" --require "$PREPEND_PATH" "$@"
+    fi
+    ;;
+esac

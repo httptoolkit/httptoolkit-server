@@ -7,10 +7,20 @@ set WRAPPER_FOLDER=%HTTP_TOOLKIT_OVERRIDE_PATH%\path
 call set PATH=%%PATH:%WRAPPER_FOLDER%;=%%
 
 REM Get the real node path, store it in %REAL_NODE%
-FOR /F "tokens=*" %%g IN ('where node') do (SET REAL_NODE=%%g)
+FOR /F "tokens=*" %%g IN ('where node') do (
+    SET REAL_NODE=%%g
+    GOTO :Break
+)
+:Break
 
 REM Reset PATH, so its visible to node & subprocesses
 set PATH=%ORIGINALPATH%
 
-REM Start Node for real, with an extra arg to inject our logic
-"%REAL_NODE%" %*
+REM Check if our config is already inside NODE_OPTIONS, if so then we don't actually
+REM need to do anything:
+echo "%NODE_OPTIONS%" | findstr /C:"%HTTP_TOOLKIT_OVERRIDE_PATH%" >nul 2>&1
+if %errorlevel% equ 0 (
+    "%REAL_NODE%" %*
+) else (
+    "%REAL_NODE%" --require "%WRAPPER_FOLDER%\..\js\prepend-node.js" %*
+)
