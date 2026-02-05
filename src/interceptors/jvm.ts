@@ -1,5 +1,6 @@
 import _ from 'lodash';
 import * as path from 'path';
+import * as os from 'os';
 
 import { delay, ErrorLike } from '@httptoolkit/util';
 
@@ -13,25 +14,35 @@ import { commandExists, canAccess } from '../util/fs';
 
 type JvmTarget = { pid: string, name: string, interceptedByProxy: number | undefined };
 
+const sdkmanJvmPath = path.join(os.homedir(), '.sdkman', 'candidates', 'java', 'current', 'bin', 'java');
+
 // Check that Java is present, and that it's compatible with agent attachment:
 const javaBinPromise: Promise<string | false> = (async () => {
     // Check what Java binaries might exist:
-    const javaBinPaths = [
+    const javaBinPaths = (await Promise.all([
         // $JAVA_HOME/bin/java is the way to explicitly configure this
         !!process.env.JAVA_HOME &&
             path.join(process.env.JAVA_HOME!!, 'bin', 'java'),
 
         // Magic Mac helper for exactly this, used if available
-        await getMacJavaHome(),
+        getMacJavaHome(),
 
         // Fallback to $PATH, but not on Mac, where by default this is a "Install Java" dialog warning
-        (await commandExists('java')) && process.platform !== "darwin" &&
-            'java'
+        (async () => (
+            (await commandExists('java')) && process.platform !== "darwin" &&
+                'java'
+        ))(),
+
+        // The default JVM when using Sdkman:
+        (async () => (
+            (await canAccess(sdkmanJvmPath)) &&
+                sdkmanJvmPath
+        ))(),
 
         // In future, we could improve this by also finding & using the JVM from Android Studio. See
         // Flutter's implementation of logic required to do this:
         // https://github.com/flutter/flutter/blob/master/packages/flutter_tools/lib/src/android/android_studio.dart
-    ].filter(p => !!p) as string[];
+    ])).filter(p => !!p) as string[];
 
     // Run a self test in parallel with each of them:
     const javaTestResults = await Promise.all(javaBinPaths.map(async (possibleJavaBin) => ({
@@ -89,9 +100,11 @@ const javaBinPromise: Promise<string | false> = (async () => {
         }
         return false;
     } else if (bestJava) {
+        console.log(`Found JVM: '${bestJava.javaBin}'`);
         return bestJava.javaBin;
     } else {
         // No Java available anywhere - we just give up
+        console.log('No JVM detected');
         return false;
     }
 })().catch((e) => {
