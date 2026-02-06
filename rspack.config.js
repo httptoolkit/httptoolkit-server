@@ -85,6 +85,13 @@ module.exports = {
         }
     ],
     plugins: [
+        // Convert ESM import.meta.dirname/filename to CommonJS equivalents.
+        // Required because @httptoolkit/browser-launcher is ESM and uses import.meta.dirname,
+        // but we output CommonJS where import.meta isn't available.
+        new rspack.DefinePlugin({
+            'import.meta.dirname': '__dirname',
+            'import.meta.filename': '__filename'
+        }),
         // Optimistic require for 'iconv' in 'encoding', falls back to 'iconv-lite'
         new rspack.NormalModuleReplacementPlugin(/\/iconv-loader$/, 'node-noop'),
         // Optimistically required in (various) ws versions, with fallback
