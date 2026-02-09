@@ -15,7 +15,8 @@ import { readFile, deleteFile } from './util/fs';
 
 const browserConfigPath = (configPath: string) => path.join(configPath, 'browsers.json');
 
-export { BrowserInstance, Browser };
+export { BrowserInstance };
+export type { Browser };
 
 export async function checkBrowserConfig(configPath: string) {
     // It's not clear why, but sometimes the browser config can become corrupted, so it's not valid JSON
@@ -83,7 +84,7 @@ export const getBrowserDetails = async (configPath: string, variant: string): Pr
     return browsers.find(b => b.name === variant);
 };
 
-export { LaunchOptions };
+export type { LaunchOptions };
 
 export const launchBrowser = async (url: string, options: LaunchOptions, configPath: string) => {
     const launcher = await getBrowserLauncher(configPath);
