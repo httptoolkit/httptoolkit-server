@@ -586,17 +586,17 @@ export async function bringToFront(
 ) {
     // Wake the device up, so it's at least obviously locked if locked.
     // It's not possible to unlock the device over ADB. Does nothing if already awake.
-    await adbClient.shell([
+    await run(adbClient, [
         "input", "keyevent", "KEYCODE_WAKEUP"
-    ]);
+    ], { skipLogging: true });
 
     await delay(10);
 
     // Bring the activity to the front, so we can interact with it (this will
     // silently fail if the device is locked, but we're ok with that).
-    await adbClient.shell([
+    await run(adbClient, [
         "am", "start", "--activity-single-top", activityName
-    ]);
+    ], { skipLogging: true });
 }
 
 export async function startActivity(
