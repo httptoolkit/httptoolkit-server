@@ -141,6 +141,9 @@ export async function launchAndroidHost(adbClient: AdbClient, hostId: string) {
     const fridaServerStream = await deviceClient.shell(
         runAsRoot(ANDROID_FRIDA_BINARY_PATH, '-l', `127.0.0.1:${FRIDA_ALTERNATE_PORT}`)
     );
+    fridaServerStream.on('error', (e) => {
+        console.log('Frida server error:', e);
+    });
     fridaServerStream.pipe(process.stdout);
 
     // Wait until the server becomes accessible
@@ -159,10 +162,18 @@ export async function launchAndroidHost(adbClient: AdbClient, hostId: string) {
         const errorMessage = e?.code === 'wait-loop-failed'
             ? 'Frida server did not startup before timeout'
             : e.message ?? e;
-        console.log('Fride launch failed:', errorMessage);
+        console.log('Frida launch failed:', errorMessage);
 
         // Try cleaning up the Frida server (async) just in case it's corrupted somehow:
-        deviceClient.shell(runAsRoot('rm', '-f', ANDROID_FRIDA_BINARY_PATH)).catch((e) => {
+        deviceClient.shell(runAsRoot('rm', '-f', ANDROID_FRIDA_BINARY_PATH))
+        .then((stream) => {
+            return new Promise<void>((resolve, reject) => {
+                stream.on('close', resolve);
+                stream.on('error', reject);
+                stream.resume();
+            });
+        })
+        .catch((e) => {
             console.warn(
                 `Failed to clean up broken Frida server on ${hostId} at ${ANDROID_FRIDA_BINARY_PATH}: ${
                     e.message ?? e
@@ -182,6 +193,14 @@ const getFridaStream = (hostId: string, deviceClient: DeviceClient) =>
         throw new CustomError(`Couldn't connect to Frida for ${hostId}`, {
             statusCode: 502
         });
+    })
+    .then((stream) => {
+        // Handle errors on this stream - the Frida session will expose them properly,
+        // but we want to make sure nothing hard-crashes in the meantime.
+        stream.on('error', (e) => {
+            console.warn(`Frida stream error for ${hostId}:`, e);
+        });
+        return stream;
     });
 
 // Frida session cache for Android hosts
