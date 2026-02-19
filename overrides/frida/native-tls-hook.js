@@ -106,6 +106,10 @@ function patchTargetLib(targetModule, targetName) {
             let pendingCheckThreads = new Set();
 
             const hookedCallback = new NativeCallback(function (ssl, out_alert) {
+                if (!ssl || ssl.isNull()) {
+                    return SSL_VERIFY_INVALID;
+                }
+
                 let realResult = false; // False = not yet called, 0/1 = call result
 
                 const threadId = Process.getCurrentThreadId();
@@ -123,7 +127,11 @@ function patchTargetLib(targetModule, targetName) {
                     // meanwhile seems to use some negative checks in its callback, and rejects the
                     // connection independently of the return value here if it's called with a bad cert.
                     // End result: we *only sometimes* proactively call the callback.
-                    realResult = realCallback(ssl, out_alert);
+                    try {
+                        realResult = realCallback(ssl, out_alert);
+                    } catch (e) {
+                        realResult = SSL_VERIFY_INVALID;
+                    }
                 }
 
                 // Extremely dumb certificate validation: we accept any chain where the *exact* CA cert
@@ -136,17 +144,36 @@ function patchTargetLib(targetModule, targetName) {
                 // or leaf certs, and lots of other issues. This is significantly better than nothing,
                 // but it is not production-ready TLS verification for general use in untrusted envs!
 
-                const peerCerts = SSL_get0_peer_certificates(ssl);
+                let peerCerts;
+                try {
+                    peerCerts = SSL_get0_peer_certificates(ssl);
+                } catch (e) {
+                    if (!alreadyHaveLock) pendingCheckThreads.delete(threadId);
+                    return (realResult !== false) ? realResult : SSL_VERIFY_INVALID;
+                }
+
+                if (!peerCerts || peerCerts.isNull()) {
+                    if (!alreadyHaveLock) pendingCheckThreads.delete(threadId);
+                    return (realResult !== false) ? realResult : SSL_VERIFY_INVALID;
+                }
 
                 // Loop through every cert in the chain:
                 for (let i = 0; i < sk_num(peerCerts); i++) {
                     // For each cert, check if it *exactly* matches our configured CA cert:
                     const cert = sk_value(peerCerts, i);
-                    const certDataLength = crypto_buffer_len(cert).toNumber();
+
+                    let certDataLength;
+                    try {
+                        certDataLength = crypto_buffer_len(cert).toNumber();
+                    } catch (e) { continue; }
 
                     if (certDataLength !== CERT_DER.byteLength) continue;
 
-                    const certPointer = crypto_buffer_data(cert);
+                    let certPointer;
+                    try {
+                        certPointer = crypto_buffer_data(cert);
+                    } catch (e) { continue; }
+
                     const certData = new Uint8Array(certPointer.readByteArray(certDataLength));
 
                     if (certData.every((byte, j) => CERT_DER[j] === byte)) {
@@ -157,7 +184,11 @@ function patchTargetLib(targetModule, targetName) {
 
                 // No matched peer - fallback to the provided callback instead:
                 if (realResult === false) { // Haven't called it yet
-                    realResult = realCallback(ssl, out_alert);
+                    try {
+                        realResult = realCallback(ssl, out_alert);
+                    } catch (e) {
+                        realResult = SSL_VERIFY_INVALID;
+                    }
                 }
 
                 if (!alreadyHaveLock) pendingCheckThreads.delete(threadId);

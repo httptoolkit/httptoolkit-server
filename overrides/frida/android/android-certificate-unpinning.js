@@ -130,6 +130,23 @@ const PINNING_FIXES = {
         }
     ],
 
+    // --- Native Conscrypt Certificate Transparency (Android 16+ / API 36+)
+    // Android 16 enforces CT verification for all certificates. Proxy-generated
+    // MITM certs lack SCTs, causing NOT_ENOUGH_SCTS failures. Since all traffic
+    // is routed through the local proxy, CT checks are unnecessary.
+
+    'com.android.org.conscrypt.ct.CertificateTransparency': [
+        {
+            methodName: 'isCTVerificationRequired',
+            replacement: () => () => false
+        },
+        {
+            methodName: 'checkCT',
+            overload: '*',
+            replacement: () => NO_OP
+        }
+    ],
+
     // --- Native pinning configuration loading (used for configuration by many libraries)
 
     'android.security.net.config.NetworkSecurityConfig': [

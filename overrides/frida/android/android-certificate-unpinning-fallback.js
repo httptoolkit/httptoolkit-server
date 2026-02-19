@@ -210,6 +210,30 @@ Java.perform(function () {
                                     callingClass.class.getName()
                                 }`);
                             }
+                        } else if (
+                            className === 'com.android.org.conscrypt.TrustManagerImpl' &&
+                            (methodName === 'verifyChain' || methodName === 'checkTrustedRecursive')
+                        ) {
+                            const returnType = failingMethod.returnType.className;
+                            const argTypes = failingMethod.argumentTypes.map(t => t.className);
+                            const x509Idx = argTypes.findIndex(t => t === '[Ljava.security.cert.X509Certificate;');
+
+                            if (x509Idx >= 0 && returnType === 'java.util.List') {
+                                failingMethod.implementation = function () {
+                                    try {
+                                        const x509Chain = arguments[x509Idx];
+                                        const first = x509Chain && x509Chain[0];
+                                        const alg = first?.getPublicKey?.()?.getAlgorithm?.() || 'RSA';
+                                        defaultTrustManager.checkServerTrusted(x509Chain, alg);
+                                        return Java.use('java.util.Arrays').asList(x509Chain);
+                                    } catch (e) {
+                                        return failingMethod.call(this, ...arguments);
+                                    }
+                                };
+                                console.log(`      [+] ${className}->${methodName} (fallback Conscrypt trust patch)`);
+                            } else {
+                                console.error(`      [ ] ${className}->${methodName} signature mismatch - cannot auto-patch`);
+                            }
                         } else if (isMetaPinningMethod(errorMessage, failingMethod)) {
                             failingMethod.implementation = function (certs) {
                                 if (DEBUG_MODE) console.log(` => Fallback patch for meta proxygen pinning`);
