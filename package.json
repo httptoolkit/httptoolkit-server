@@ -43,6 +43,7 @@
     "@graphql-tools/schema": "^8.5.0",
     "@graphql-tools/utils": "^8.8.0",
     "@httptoolkit/browser-launcher": "^3.0.1",
+    "@httptoolkit/dbus-native": "^0.1.4",
     "@httptoolkit/osx-find-executable": "^2.0.1",
     "@httptoolkit/util": "^0.1.5",
     "@oclif/command": "^1.5.4",
