@@ -120,13 +120,20 @@ describe('Docker single-container interceptor', function () {
         it(`should intercept external ${target} requests`, async function () {
             this.timeout(60000);
             const { interceptor, server } = await interceptorSetup;
-            const mainRule = await server.forGet('https://example.com').thenReply(404);
+            const mainRule = await server.forGet('https://example.testserver.host').thenReply(404);
 
             const containerId = await buildAndRun(target.toLowerCase(), {
-                arguments: ['https://example.com']
+                arguments: ['https://example.testserver.host']
             });
 
-            await delay(500);
+            // Wait up to 5 seconds for the interceptor to detect the container.
+            // Should be much faster, can be slow in CI:
+            for (let i = 0; i < 50; i++) {
+                await delay(100);
+                const { targets } = await interceptor.getMetadata!('summary');
+                if (targets.length) break;
+            }
+
             expect(
                 _.map(((await interceptor.getMetadata!('summary')).targets), ({ id }: any) => id)
             ).to.include(containerId);
@@ -136,7 +143,7 @@ describe('Docker single-container interceptor', function () {
             await new Promise((resolve) => server.on('response', resolve));
 
             const seenRequests = await mainRule.getSeenRequests();
-            expect(seenRequests.map(r => r.url)).to.include('https://example.com/');
+            expect(seenRequests.map(r => r.url)).to.include('https://example.testserver.host/');
         });
     });
 
