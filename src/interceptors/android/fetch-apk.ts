@@ -1,7 +1,6 @@
 import * as path from 'path';
 import * as stream from 'stream';
 import * as semver from 'semver';
-import fetch from 'node-fetch';
 
 import * as fs from '../../util/fs';
 import { HtkConfig } from '../../config';
@@ -144,7 +143,7 @@ export async function streamLatestApk(config: HtkConfig): Promise<stream.Readabl
             if (!apkResponse.ok) {
                 throw new Error(`APK download failed with ${apkResponse.status}`);
             }
-            const apkStream = apkResponse.body;
+            const apkStream = stream.Readable.fromWeb(apkResponse.body as any);
 
             // We buffer output into two passthrough streams, so both file & install
             // stream usage can be set up async independently. Buffers are 10MB, to
@@ -177,7 +176,7 @@ export async function streamLatestApk(config: HtkConfig): Promise<stream.Readabl
     // We have a local APK & a remote APK, and the remote is newer.
     // Try to update it async, and use the local APK in the meantime.
     fetch(latestApkRelease.url).then((apkResponse) => {
-        const apkStream = apkResponse.body;
+        const apkStream = stream.Readable.fromWeb(apkResponse.body as any);
         return updateLocalApk(latestApkRelease.version, apkStream, config);
     }).catch(logError);
 
