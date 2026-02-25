@@ -149,10 +149,7 @@
     "xhr2": "^0.2.0"
   },
   "overrides": {
-    "prebuild-install": "^7.0.0",
-    "@devicefarmer/adbkit": {
-      "node-forge": "^1.0.0"
-    }
+    "prebuild-install": "^7.0.0"
   },
   "engines": {
     "node": "v22.20.0"
