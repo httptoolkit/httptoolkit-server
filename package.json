@@ -144,7 +144,7 @@
     "tsx": "^4.20.6",
     "typescript": "~4.7",
     "umd-compat-loader": "^2.1.2",
-    "undici": "^5.29.0",
+    "undici": "^6.24.0",
     "unirest": "^0.6.0",
     "xhr2": "^0.2.0"
   },
