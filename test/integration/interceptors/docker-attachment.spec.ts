@@ -131,7 +131,7 @@ describe('Docker single-container interceptor', function () {
             for (let i = 0; i < 50; i++) {
                 await delay(100);
                 const { targets } = await interceptor.getMetadata!('summary');
-                if (targets.length) break;
+                if (Object.keys(targets).length) break;
             }
 
             expect(
