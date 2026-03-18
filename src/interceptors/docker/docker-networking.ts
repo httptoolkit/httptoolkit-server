@@ -104,15 +104,17 @@ export async function monitorDockerNetworkAliases(proxyPort: number): Promise<Do
         const networkMonitor = new DockerNetworkMonitor(docker, proxyPort, stream);
 
         // We update DNS immediately, and on all changes:
-        mobx.autorun(() => dnsServer.setHosts(networkMonitor.aliasIpMap));
+        const dnsDisposer = mobx.autorun(() => dnsServer.setHosts(networkMonitor.aliasIpMap));
+        networkMonitor.addDisposer(dnsDisposer);
 
         // We update tunnel _only_ once something is actually intercepted - once interceptedNetworks changes.
         // We don't want to create the tunnel container unless Docker interception is actually used.
-        mobx.reaction(
+        const tunnelDisposer = mobx.reaction(
             () => networkMonitor.interceptedNetworks,
             (interceptedNetworks) => updateDockerTunnelledNetworks(proxyPort, interceptedNetworks)
                 .catch(console.warn)
         );
+        networkMonitor.addDisposer(tunnelDisposer);
 
         dockerNetworkMonitors[proxyPort] = networkMonitor;
 
@@ -194,8 +196,15 @@ class DockerNetworkMonitor {
         this.refreshAllNetworks();
     }
 
+    private disposers: Array<() => void> = [];
+
+    addDisposer(disposer: () => void) {
+        this.disposers.push(disposer);
+    }
+
     async stop() {
         this.dockerEventStream.removeListener('data', this.onEvent);
+        this.disposers.forEach(d => d());
     }
 
     private readonly networkTargets: {
