@@ -83,9 +83,9 @@ export class DockerContainerInterceptor implements Interceptor {
     async isActive(proxyPort: number): Promise<boolean> {
         if (!await this.isActivable()) return false;
 
-        return Object.values((await this.getContainers())).some((target) => {
+        return Object.values((await this.getContainers())).some((target) =>
             target.Labels?.[DOCKER_CONTAINER_LABEL] === proxyPort.toString()
-        });
+        );
     }
 
     async deactivate(proxyPort: number): Promise<void | {}> {
