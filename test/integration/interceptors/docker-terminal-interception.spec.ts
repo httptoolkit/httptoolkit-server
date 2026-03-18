@@ -8,7 +8,7 @@ import { expect } from 'chai';
 import { delay } from '@httptoolkit/util';
 
 import { setupTest } from './interceptor-test-utils';
-import { FIXTURES_DIR } from '../../test-util';
+import { FIXTURES_DIR, TEST_CONTAINER_LABEL, removeTestContainers } from '../../test-util';
 import { spawnToResult } from '../../../src/util/process-management';
 
 import { getTerminalEnvVars } from '../../../src/interceptors/terminal/terminal-env-overrides';
@@ -17,6 +17,7 @@ import {
     startDockerInterceptionServices,
     stopDockerInterceptionServices
 } from '../../../src/interceptors/docker/docker-interception-services';
+import { DOCKER_CONTAINER_LABEL } from '../../../src/interceptors/docker/docker-commands';
 
 const testSetup = setupTest();
 
@@ -37,6 +38,13 @@ describe('Docker CLI interception', function () {
     afterEach(async () => {
         const { server } = await testSetup;
         await stopDockerInterceptionServices(server.port, ruleParams);
+
+        // Make sure all relevant containers are fully gone, so the next test
+        // definitely starts clean:
+        const docker = new Docker();
+        await removeTestContainers(docker, TEST_CONTAINER_LABEL);
+        await removeTestContainers(docker, DOCKER_CONTAINER_LABEL);
+
         await server.stop();
     });
 
@@ -318,7 +326,7 @@ Successfully built <hash>
 
         const terminalEnvOverrides = getTerminalEnvVars(server.port, httpsConfig, process.env);
 
-        const uninterceptedResult = await spawnToResult('docker', ['create', 'node:14']);
+        const uninterceptedResult = await spawnToResult('docker', ['create', '--label', TEST_CONTAINER_LABEL, 'node:14']);
 
         expect(uninterceptedResult.exitCode).to.equal(0);
         expect(uninterceptedResult.stderr).to.equal('');

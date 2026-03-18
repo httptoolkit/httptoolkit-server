@@ -8,9 +8,10 @@ import { delay } from '@httptoolkit/util';
 import Docker from 'dockerode';
 import fetch from 'node-fetch';
 
-import { FIXTURES_DIR } from '../../test-util';
+import { FIXTURES_DIR, TEST_CONTAINER_LABEL, removeTestContainers } from '../../test-util';
 import { setupInterceptor, itIsAvailable } from './interceptor-test-utils';
 import { waitForDockerStream } from '../../../src/interceptors/docker/docker-utils';
+import { DOCKER_CONTAINER_LABEL } from '../../../src/interceptors/docker/docker-commands';
 
 const docker = new Docker();
 const DOCKER_FIXTURES = path.join(FIXTURES_DIR, 'docker');
@@ -49,6 +50,7 @@ async function buildAndRun(dockerFolder: string, options: {
     // Run the container, using its default entrypoint
     const container = await docker.createContainer({
         Image: imageName,
+        Labels: { [TEST_CONTAINER_LABEL]: '' },
         HostConfig: {
             AutoRemove: true,
             PortBindings: portBindings
@@ -86,10 +88,15 @@ async function buildAndRun(dockerFolder: string, options: {
 }
 
 async function killAllContainers() {
-    const containers = await docker.listContainers()
+    const containers = await docker.listContainers({
+        filters: JSON.stringify({ label: [TEST_CONTAINER_LABEL] })
+    });
     await Promise.all(containers.map(c =>
-        docker.getContainer(c.Id).stop({ t: 0 })
+        docker.getContainer(c.Id).stop({ t: 0 }).catch(() => {})
     ));
+
+    // Wait until containers are fully gone (AutoRemove may be async):
+    await removeTestContainers(docker, TEST_CONTAINER_LABEL);
 }
 
 const interceptorSetup = setupInterceptor('docker-attach');
@@ -105,6 +112,7 @@ describe('Docker single-container interceptor', function () {
         const { server, interceptor } = await interceptorSetup;
         await killAllContainers();
         await interceptor.deactivate(server.port);
+        await removeTestContainers(docker, DOCKER_CONTAINER_LABEL);
         await server.stop();
     });
 
