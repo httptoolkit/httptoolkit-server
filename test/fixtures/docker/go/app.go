@@ -17,12 +17,11 @@ func main() {
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+		} else {
+			fmt.Printf("Got %v response\n", resp.StatusCode)
 		}
 
-		fmt.Printf("Got %v response\n", resp.StatusCode)
-
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(250 * time.Millisecond)
 	}
 
 }

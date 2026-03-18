@@ -8,13 +8,17 @@ const targetUrl = process.argv[2];
     console.log('Starting JS container');
 
     while (true) {
-        const response = await new Promise((resolve, reject) => {
-            const req = https.get(targetUrl);
-            req.on('response', resolve);
-            req.on('error', reject);
-        });
-        console.log(`Got ${response.statusCode} response`);
+        try {
+            const response = await new Promise((resolve, reject) => {
+                const req = https.get(targetUrl);
+                req.on('response', resolve);
+                req.on('error', reject);
+            });
+            console.log(`Got ${response.statusCode} response`);
+        } catch (e) {
+            console.error(`Error: ${e.message}`);
+        }
 
-        await delay(500);
+        await delay(250);
     }
 })();

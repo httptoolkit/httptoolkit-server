@@ -138,8 +138,13 @@ describe('Docker single-container interceptor', function () {
                 _.map(((await interceptor.getMetadata!('summary')).targets), ({ id }: any) => id)
             ).to.include(containerId);
 
+            expect(await interceptor.isActive(server.port)).to.equal(false);
+
             await interceptor.activate(server.port, { containerId });
             console.log('Container intercepted');
+
+            expect(await interceptor.isActive(server.port)).to.equal(true);
+
             await new Promise((resolve) => server.on('response', resolve));
 
             const seenRequests = await mainRule.getSeenRequests();

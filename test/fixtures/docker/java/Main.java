@@ -9,12 +9,16 @@ public class Main {
 
         System.out.println("Starting Java container");
         while (true) {
-            HttpURLConnection con = (HttpURLConnection) url.openConnection();
-            con.setRequestMethod("GET");
-            int status = con.getResponseCode();
-            System.out.println("Got " + status + " response");
+            try {
+                HttpURLConnection con = (HttpURLConnection) url.openConnection();
+                con.setRequestMethod("GET");
+                int status = con.getResponseCode();
+                System.out.println("Got " + status + " response");
+            } catch (IOException e) {
+                System.err.println("Error: " + e.getMessage());
+            }
 
-            Thread.sleep(500);
+            Thread.sleep(250);
         }
     }
 }
