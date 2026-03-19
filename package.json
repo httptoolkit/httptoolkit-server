@@ -98,7 +98,8 @@
     "tmp": "0.2.4",
     "tslib": "^1.9.3",
     "usbmux-client": "^0.2.1",
-    "win-version-info": "^5.0.1"
+    "win-version-info": "^5.0.1",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@oclif/dev-cli": "^1.19.4",
@@ -119,7 +120,7 @@
     "@types/node-forge": "^0.9.9",
     "@types/request-promise-native": "^1.0.15",
     "@types/rimraf": "^2.0.2",
-    "@types/ws": "^6.0.1",
+    "@types/ws": "^8.5.0",
     "axios": "^1.8.2",
     "bent": "^1.5.13",
     "chai": "^4.2.0",
