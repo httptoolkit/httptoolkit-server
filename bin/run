@@ -1,4 +1,17 @@
 #!/usr/bin/env node
 
+// The ctl and mcp commands handle --help themselves with dynamic content.
+// Oclif's Main class intercepts --help before dispatching to any command,
+// so we remap it to --show-help to bypass that interception.
+const cmd = process.argv[2];
+if (cmd === 'ctl' || cmd === 'mcp') {
+  for (let i = 3; i < process.argv.length; i++) {
+    if (process.argv[i] === '--help' || process.argv[i] === '-h') {
+      process.argv[i] = '--show-help';
+    }
+    if (process.argv[i] === '--') break;
+  }
+}
+
 require('@oclif/command').run()
 .catch(require('@oclif/errors/handle'))

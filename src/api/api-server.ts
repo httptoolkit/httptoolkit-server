@@ -1,8 +1,10 @@
+import * as http from 'http';
 import _ from 'lodash';
 import * as events from 'events';
 import express from 'express';
 import cors from 'cors';
 import corsGate from 'cors-gate';
+import WebSocket, { WebSocketServer } from 'ws';
 
 import { HtkConfig } from '../config';
 import { buildInterceptors } from '../interceptors';
@@ -13,6 +15,7 @@ import { ApiModel } from './api-model';
 import { exposeGraphQLAPI } from './graphql-api';
 import { exposeRestAPI } from './rest-api';
 import { HttpClient } from '../client/http-client';
+import { UiOperationBridge, getSocketPath } from './ui-operation-bridge';
 
 /**
  * This file contains the core server API, used by the UI to query
@@ -39,6 +42,8 @@ import { HttpClient } from '../client/http-client';
 export class HttpToolkitServerApi extends events.EventEmitter {
 
     private server: express.Application;
+    private bridge: UiOperationBridge;
+    private authToken: string | undefined;
 
     constructor(
         config: HtkConfig,
@@ -46,6 +51,9 @@ export class HttpToolkitServerApi extends events.EventEmitter {
         getRuleParamKeys: () => string[]
     ) {
         super();
+
+        this.bridge = new UiOperationBridge();
+        this.authToken = config.authToken;
 
         const interceptors = buildInterceptors(config);
 
@@ -134,8 +142,64 @@ export class HttpToolkitServerApi extends events.EventEmitter {
 
     start() {
         return new Promise<void>((resolve, reject) => {
-            this.server.listen(45457, '127.0.0.1', resolve); // Localhost only
-            this.server.once('error', reject);
+            const httpServer: http.Server = this.server.listen(45457, '127.0.0.1', resolve);
+            httpServer.once('error', reject);
+
+            this.attachWebSocketBridge(httpServer);
+            this.startBridgeApiServer();
         });
     }
+
+    private attachWebSocketBridge(httpServer: http.Server) {
+        const wss = new WebSocketServer({ noServer: true });
+
+        httpServer.on('upgrade', (req: http.IncomingMessage, socket, head) => {
+            const url = new URL(req.url!, `http://localhost`);
+
+            if (url.pathname !== '/ui-operations') {
+                socket.destroy();
+                return;
+            }
+
+            // Enforce the same origin restrictions as the REST/GraphQL API
+            const origin = req.headers['origin'] || '';
+            if (!ALLOWED_ORIGINS.some(pattern => pattern.test(origin))) {
+                socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            // Check auth token if configured. Browser WebSocket can't send
+            // headers, so accept token via query param or Authorization header.
+            if (this.authToken) {
+                const authHeader = req.headers['authorization'] || '';
+                const tokenMatch = authHeader.match(/Bearer (\S+)/) || [];
+                const headerToken = tokenMatch[1];
+                const queryToken = url.searchParams.get('token');
+
+                if (headerToken !== this.authToken && queryToken !== this.authToken) {
+                    socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+                    socket.destroy();
+                    return;
+                }
+            }
+
+            wss.handleUpgrade(req, socket as any, head, (ws) => {
+                this.bridge.setWebSocket(ws as any);
+            });
+        });
+    }
+
+    private startBridgeApiServer() {
+        try {
+            const socketPath = getSocketPath();
+            this.bridge.startApiServer(socketPath);
+        } catch (err: any) {
+            console.warn(
+                `Failed to start UI Bridge socket server: ${err.message}. ` +
+                `MCP & remote control will not be available.`
+            );
+        }
+    }
+
 };

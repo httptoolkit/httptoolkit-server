@@ -1,5 +1,5 @@
 import * as _ from 'lodash';
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, execFile, ChildProcess } from 'child_process';
 import * as path from 'path';
 
 import { delay } from '@httptoolkit/util';
@@ -62,12 +62,13 @@ describe('End-to-end server API test', function () {
     // fresh certificates, which can take a little while.
     this.timeout(30000);
 
+    let serverRunPath: string;
     let serverProcess: ChildProcess;
     let stdout = '';
     let stderr = '';
 
     beforeEach(async () => {
-        const serverRunPath = await setupServerPath();
+        serverRunPath = await setupServerPath();
 
         serverProcess = spawn(serverRunPath, ['start'], {
             stdio: 'pipe'
@@ -311,6 +312,91 @@ describe('End-to-end server API test', function () {
                     "port": 8001
                 },
                 "success": true
+            }
+        });
+    });
+
+    describe("ctl command", () => {
+
+        function runCtl(...args: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+            return new Promise((resolve) => {
+                execFile(serverRunPath, ['ctl', ...args], {
+                    timeout: 10000
+                }, (error, stdout, stderr) => {
+                    resolve({
+                        stdout: stdout.toString(),
+                        stderr: stderr.toString(),
+                        exitCode: error ? (error as any).code ?? 1 : 0
+                    });
+                });
+            });
+        }
+
+        it("shows help with --help", async () => {
+            const result = await runCtl('--help');
+            expect(result.stdout).to.contain('HTTP Toolkit Remote Control');
+            expect(result.stdout).to.contain('httptoolkit-ctl');
+            expect(result.exitCode).to.equal(0);
+        });
+
+        it("shows help with 'help' subcommand", async () => {
+            const result = await runCtl('help');
+            expect(result.stdout).to.contain('HTTP Toolkit Remote Control');
+            expect(result.exitCode).to.equal(0);
+        });
+
+        it("returns status from a running server", async () => {
+            const result = await runCtl('status');
+            const status = JSON.parse(result.stdout.trim());
+            expect(status.running).to.equal(true);
+            expect(status.ready).to.equal(false); // No UI connected
+            expect(result.exitCode).to.equal(0);
+        });
+    });
+
+    describe("mcp command", () => {
+
+        it("responds to an initialize request", async function () {
+            this.timeout(10000);
+
+            const mcpProcess = spawn(serverRunPath, ['mcp'], {
+                stdio: ['pipe', 'pipe', 'pipe']
+            });
+
+            const initMessage = JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'initialize',
+                params: {
+                    protocolVersion: '2024-11-05',
+                    capabilities: {},
+                    clientInfo: { name: 'test', version: '1.0' }
+                }
+            });
+
+            const responsePromise = new Promise<string>((resolve, reject) => {
+                let data = '';
+                mcpProcess.stdout!.on('data', (chunk) => {
+                    data += chunk.toString();
+                    // MCP responses are newline-delimited JSON
+                    if (data.includes('\n')) resolve(data);
+                });
+                mcpProcess.on('error', reject);
+                setTimeout(() => reject(new Error('MCP response timeout')), 5000);
+            });
+
+            mcpProcess.stdin!.write(initMessage + '\n');
+
+            try {
+                const raw = await responsePromise;
+                const response = JSON.parse(raw.trim());
+                expect(response.jsonrpc).to.equal('2.0');
+                expect(response.id).to.equal(1);
+                expect(response.result).to.have.property('protocolVersion');
+                expect(response.result).to.have.property('serverInfo');
+                expect(response.result.serverInfo.name).to.equal('httptoolkit');
+            } finally {
+                mcpProcess.kill();
             }
         });
     });

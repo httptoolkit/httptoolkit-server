@@ -194,6 +194,8 @@ export function getInheritableCurrentEnv() {
         'NODE_SKIP_PLATFORM_CHECK',
         // Set by Oclif:
         'HTTPTOOLKIT_SERVER_BINPATH',
+        // Set by the desktop app:
+        'HTK_TOOLS_PATH',
         // Set by Electron:
         'NO_AT_BRIDGE',
         'ORIGINAL_XDG_CURRENT_DESKTOP',
