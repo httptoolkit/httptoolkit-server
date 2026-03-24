@@ -140,7 +140,7 @@ export class UiOperationBridge extends EventEmitter {
         });
     }
 
-    startApiServer(socketPath: string): http.Server {
+    startApiServer(socketPath: string): Promise<void> {
         // Clean up stale socket file if it exists (Unix only)
         if (process.platform !== 'win32') {
             try { fs.unlinkSync(socketPath); } catch {}
@@ -170,15 +170,22 @@ export class UiOperationBridge extends EventEmitter {
             }
         });
 
-        server.listen(socketPath, () => {
-            if (process.platform !== 'win32') {
-                fs.chmodSync(socketPath, 0o600);
-            }
-            console.log(`UI Bridge API server listening on ${socketPath}`);
-        });
-
         this.socketServer = server;
-        return server;
+
+        return new Promise<void>((resolve, reject) => {
+            server.once('error', reject);
+            server.listen(socketPath, () => {
+                server.removeListener('error', reject);
+                server.on('error', (err) => {
+                    console.warn(`UI Bridge socket server error: ${err.message}`);
+                });
+                if (process.platform !== 'win32') {
+                    fs.chmodSync(socketPath, 0o600);
+                }
+                console.log(`UI Bridge API server listening on ${socketPath}`);
+                resolve();
+            });
+        });
     }
 
     private handleApiStatus(res: http.ServerResponse): void {

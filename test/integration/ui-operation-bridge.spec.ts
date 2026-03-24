@@ -122,11 +122,10 @@ describe("UiOperationBridge", () => {
     let bridge: UiOperationBridge;
     const activePairs: { clientWs: WebSocket; wss: WebSocketServer }[] = [];
 
-    beforeEach((done) => {
+    beforeEach(async () => {
         bridge = new UiOperationBridge();
         testSocketPath = getTempSocketPath();
-        const server = bridge.startApiServer(testSocketPath);
-        server.on('listening', done);
+        await bridge.startApiServer(testSocketPath);
     });
 
     afterEach((done) => {

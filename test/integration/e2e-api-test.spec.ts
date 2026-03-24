@@ -323,11 +323,13 @@ describe('End-to-end server API test', function () {
                 execFile(serverRunPath, ['ctl', ...args], {
                     timeout: 10000
                 }, (error, stdout, stderr) => {
-                    resolve({
+                    const result = {
                         stdout: stdout.toString(),
                         stderr: stderr.toString(),
                         exitCode: error ? (error as any).code ?? 1 : 0
-                    });
+                    };
+                    if (result.stderr) console.warn(`[ctl ${args.join(' ')}] stderr: ${result.stderr}`);
+                    resolve(result);
                 });
             });
         }
@@ -361,6 +363,13 @@ describe('End-to-end server API test', function () {
 
             const mcpProcess = spawn(serverRunPath, ['mcp'], {
                 stdio: ['pipe', 'pipe', 'pipe']
+            });
+
+            let mcpStderr = '';
+            mcpProcess.stderr!.on('data', (d) => { mcpStderr += d.toString(); });
+            mcpProcess.on('exit', (code) => {
+                if (mcpStderr) console.warn(`[mcp] stderr: ${mcpStderr}`);
+                if (code !== null && code !== 0) console.warn(`[mcp] exited with code ${code}`);
             });
 
             const initMessage = JSON.stringify({

@@ -140,14 +140,17 @@ export class HttpToolkitServerApi extends events.EventEmitter {
         exposeGraphQLAPI(this.server, apiModel);
     }
 
-    start() {
-        return new Promise<void>((resolve, reject) => {
+    async start() {
+        const socketReady = this.startBridgeApiServer();
+
+        await new Promise<void>((resolve, reject) => {
             const httpServer: http.Server = this.server.listen(45457, '127.0.0.1', resolve);
             httpServer.once('error', reject);
 
             this.attachWebSocketBridge(httpServer);
-            this.startBridgeApiServer();
         });
+
+        await socketReady;
     }
 
     private attachWebSocketBridge(httpServer: http.Server) {
@@ -190,10 +193,10 @@ export class HttpToolkitServerApi extends events.EventEmitter {
         });
     }
 
-    private startBridgeApiServer() {
+    private async startBridgeApiServer(): Promise<void> {
         try {
             const socketPath = getSocketPath();
-            this.bridge.startApiServer(socketPath);
+            await this.bridge.startApiServer(socketPath);
         } catch (err: any) {
             console.warn(
                 `Failed to start UI Bridge socket server: ${err.message}. ` +

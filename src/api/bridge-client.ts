@@ -17,7 +17,8 @@ export function apiRequest(
         socketPath: getSocketPath(),
         headers: {
             'Content-Type': 'application/json'
-        }
+        },
+        timeout: 5000
     }, (res) => {
         const chunks: Buffer[] = [];
         res.on('error', (err) => result.reject(err));
@@ -39,6 +40,10 @@ export function apiRequest(
                 result.reject(new Error(`Unparseable response: ${raw}`));
             }
         });
+    });
+
+    req.on('timeout', () => {
+        req.destroy(new Error('Request timed out'));
     });
 
     req.on('error', (err: any) => {
