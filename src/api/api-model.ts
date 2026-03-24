@@ -25,18 +25,18 @@ const INTERCEPTOR_TIMEOUT = 1000;
 /**
  * Returns the command + args needed to invoke the ctl and mcp tools.
  *
- * If HTK_TOOLS_PATH is set (by the desktop app), wrapper scripts in that
- * directory are used. Otherwise the server's own binary is used with ctl/mcp
- * subcommands, stabilized via the oclif 'current' symlink when available.
+ * If HTK_DESKTOP_RESOURCES is set (by the desktop app or wrapper scripts),
+ * wrapper scripts in that directory are used. Otherwise the server's own
+ * binary is used with ctl/mcp subcommands, stabilized via the oclif
+ * 'current' symlink when available.
  */
 function getToolPaths(): { ctl: string[]; mcp: string[] } {
-    // If we're running via a modern desktop app, we can use the path provided directly:
-    const toolsPath = process.env.HTK_TOOLS_PATH;
-    if (toolsPath) {
+    const resourcesPath = process.env.HTK_DESKTOP_RESOURCES;
+    if (resourcesPath) {
         const ext = process.platform === 'win32' ? '.cmd' : '';
         return {
-            ctl: [path.join(toolsPath, `httptoolkit-ctl${ext}`)],
-            mcp: [path.join(toolsPath, `httptoolkit-mcp${ext}`)]
+            ctl: [path.join(resourcesPath, `httptoolkit-ctl${ext}`)],
+            mcp: [path.join(resourcesPath, `httptoolkit-mcp${ext}`)]
         };
     }
 

@@ -195,7 +195,8 @@ export function getInheritableCurrentEnv() {
         // Set by Oclif:
         'HTTPTOOLKIT_SERVER_BINPATH',
         // Set by the desktop app:
-        'HTK_TOOLS_PATH',
+        'HTK_DESKTOP_EXE',
+        'HTK_DESKTOP_RESOURCES',
         // Set by Electron:
         'NO_AT_BRIDGE',
         'ORIGINAL_XDG_CURRENT_DESKTOP',

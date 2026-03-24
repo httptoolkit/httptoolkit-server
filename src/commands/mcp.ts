@@ -1,6 +1,8 @@
 import * as readline from 'readline';
+import { execFile } from 'child_process';
 
 import { Command, flags } from '@oclif/command';
+import { delay } from '@httptoolkit/util';
 
 import { SERVER_VERSION } from '../constants';
 import { apiRequest } from '../api/bridge-client';
@@ -51,6 +53,61 @@ function operationsToMcpTools(operations: HtkOperation[]): any[] {
 }
 
 const POLL_INTERVAL_MS = 5_000;
+const LAUNCH_TIMEOUT_MS = 30_000;
+const LAUNCH_POLL_MS = 500;
+
+function launchDesktopApp(): boolean {
+    const exePath = process.env.HTK_DESKTOP_EXE;
+    if (!exePath) return false;
+
+    execFile(exePath, [], () => {});
+    return true;
+}
+
+async function startHttpToolkit(
+    log: (msg: string) => void,
+    refreshOperations: () => Promise<void>
+): Promise<{ content: any[]; isError?: boolean }> {
+    // Check if it's already running (maybe it just connected since the last poll)
+    await refreshOperations();
+    if ((await apiRequest('GET', '/api/status').catch(() => null))?.ready) {
+        await refreshOperations();
+        return {
+            content: [{ type: 'text', text: 'HTTP Toolkit is already running and ready.' }]
+        };
+    }
+
+    log('Launching HTTP Toolkit desktop app...');
+    if (!launchDesktopApp()) {
+        return {
+            content: [{ type: 'text', text: 'Cannot launch HTTP Toolkit: desktop app path not detected.' }],
+            isError: true
+        };
+    }
+
+    // Wait for the UI to connect and send operations
+    const deadline = Date.now() + LAUNCH_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+        await delay(LAUNCH_POLL_MS);
+        await refreshOperations();
+        try {
+            const status = await apiRequest('GET', '/api/status');
+            if (status?.ready) {
+                log('HTTP Toolkit is ready');
+                return {
+                    content: [{ type: 'text', text: 'HTTP Toolkit has been launched and is ready.' }]
+                };
+            }
+        } catch {
+            // Server not yet available, keep waiting
+        }
+    }
+
+    return {
+        content: [{ type: 'text', text: 'HTTP Toolkit was launched but is not yet ready. It may still be starting up — try again in a moment.' }],
+        isError: true
+    };
+}
 
 async function runMcpServer(): Promise<void> {
     const log = (msg: string) => process.stderr.write(`[MCP] ${msg}\n`);
@@ -68,20 +125,18 @@ async function runMcpServer(): Promise<void> {
 
     function getToolsList(): any[] {
         if (cachedOperations.length > 0) return operationsToMcpTools(cachedOperations);
-        // No running instance — offer a placeholder tool
+        // No running instance — the only available action is to launch it.
+        // This tool disappears once HTTP Toolkit is running and real tools become available.
         return [{
             name: 'start_httptoolkit',
-            description: 'HTTP Toolkit is not running or the UI is not connected. Please start HTTP Toolkit and try again.',
+            description: 'HTTP Toolkit is not currently running. Call this to launch it — once started, more tools will become available.',
             inputSchema: { type: 'object', properties: {} }
         }];
     }
 
     async function handleToolCall(name: string, args: Record<string, unknown>): Promise<{ content: any[]; isError?: boolean }> {
         if (name === 'start_httptoolkit') {
-            return {
-                content: [{ type: 'text', text: 'HTTP Toolkit is not running or the UI is not connected. Please start HTTP Toolkit and try again.' }],
-                isError: true
-            };
+            return startHttpToolkit(log, refreshOperations);
         }
 
         // Map MCP tool name back to operation name
