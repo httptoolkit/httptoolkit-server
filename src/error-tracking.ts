@@ -27,6 +27,7 @@ export function initErrorTracking() {
             dsn: SENTRY_DSN,
             release: packageJson.version,
             sendDefaultPii: false,
+            tracePropagationTargets: [],
             integrations: [
                 Sentry.rewriteFramesIntegration({
                     // We're one dir down: either /bundle, or /src
