@@ -1,12 +1,22 @@
+type BridgeClientModule = typeof import('../api/bridge-client');
+
 import * as readline from 'readline';
 import { execFile } from 'child_process';
 
 import { Command, flags } from '@oclif/command';
-import { delay } from '@httptoolkit/util';
 
-import { SERVER_VERSION } from '../constants';
-import { apiRequest } from '../api/bridge-client';
-import { HtkOperation } from '../api/ui-operation-bridge';
+import { IS_PROD_BUILD, SERVER_VERSION } from '../constants';
+import type { HtkOperation } from '../api/ui-operation-bridge';
+
+function maybeBundleImport<T>(moduleName: string): T {
+    if (IS_PROD_BUILD || process.env.OCLIF_TS_NODE === '0') {
+        return require('../../bundle/' + moduleName);
+    } else {
+        return require('../' + moduleName);
+    }
+}
+
+const { apiRequest } = maybeBundleImport<BridgeClientModule>('api/bridge-client');
 
 interface JsonRpcRequest {
     jsonrpc: '2.0';
@@ -88,7 +98,7 @@ async function startHttpToolkit(
     // Wait for the UI to connect and send operations
     const deadline = Date.now() + LAUNCH_TIMEOUT_MS;
     while (Date.now() < deadline) {
-        await delay(LAUNCH_POLL_MS);
+        await new Promise(resolve => setTimeout(resolve, LAUNCH_POLL_MS));
         await refreshOperations();
         try {
             const status = await apiRequest('GET', '/api/status');

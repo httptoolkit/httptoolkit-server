@@ -15,7 +15,8 @@ console.log(
 module.exports = {
     entry: {
         index: './src/index.ts',
-        'error-tracking': './src/error-tracking.ts'
+        'error-tracking': './src/error-tracking.ts',
+        'api/bridge-client': './src/api/bridge-client.ts'
     },
     output: {
         path: OUTPUT_DIR,
