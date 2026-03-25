@@ -1,9 +1,21 @@
+type BridgeClientModule = typeof import('../api/bridge-client');
+
 import { parseArgs } from 'util';
 
 import { Command } from '@oclif/command';
 
-import { apiRequest } from '../api/bridge-client';
-import { HtkOperation } from '../api/ui-operation-bridge';
+import { IS_PROD_BUILD } from '../constants';
+import type { HtkOperation } from '../api/ui-operation-bridge';
+
+function maybeBundleImport<T>(moduleName: string): T {
+    if (IS_PROD_BUILD || process.env.OCLIF_TS_NODE === '0') {
+        return require('../../bundle/' + moduleName);
+    } else {
+        return require('../' + moduleName);
+    }
+}
+
+const { apiRequest } = maybeBundleImport<BridgeClientModule>('api/bridge-client');
 
 // Custom argument parsing setup. Included here as Oclif's parsing can't handle the dynamic command
 // config (commands defined by the UI itself) and the logic isn't quite complex enough for a separate dep.
