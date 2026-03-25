@@ -3,7 +3,7 @@ import { spawn } from 'child_process';
 import * as path from 'path';
 
 import { delay, ErrorLike, isErrorLike } from '@httptoolkit/util';
-import { getPortPromise as getPort } from 'portfinder';
+import getPort from 'get-port';
 import { generateSPKIFingerprint } from 'mockttp';
 import ChromeRemoteInterface = require('chrome-remote-interface');
 
