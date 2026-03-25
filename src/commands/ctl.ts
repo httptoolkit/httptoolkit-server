@@ -149,11 +149,6 @@ function getTerminalWidth(): number {
     return process.stdout.columns || 80;
 }
 
-function truncateToWidth(text: string, maxWidth: number): string {
-    if (text.length <= maxWidth) return text;
-    return text.slice(0, maxWidth - 3) + '...';
-}
-
 function generateGeneralHelp(operations: HtkOperation[]): string {
     const termWidth = getTerminalWidth();
     const indent = 2;
@@ -181,7 +176,11 @@ function generateGeneralHelp(operations: HtkOperation[]): string {
         for (const op of ops) {
             const cmd = op.name.replace(/\./g, ' ');
             const padded = cmd.padEnd(27);
-            const desc = truncateToWidth(op.description, descWidth);
+            // Use first line only, truncated to fit in terminal
+            const firstLine = op.description.split('\n')[0];
+            const desc = firstLine.length > descWidth
+                ? firstLine.slice(0, descWidth - 3) + '...'
+                : firstLine;
             lines.push(`  ${padded}${desc}`);
         }
     }
@@ -219,7 +218,7 @@ function generateOperationHelp(op: HtkOperation): string {
                 const desc = prop?.description || '';
                 const enumStr = prop?.enum ? ` [${prop.enum.join('|')}]` : '';
                 const defaultStr = prop?.default !== undefined ? ` (default: ${JSON.stringify(prop.default)})` : '';
-                lines.push(`  ${(`<${name}>`).padEnd(35)}${desc}${enumStr}${defaultStr}`);
+                lines.push(`  ${(`<${name}>`).padEnd(35)}${indentMultilineDesc(desc + enumStr + defaultStr, 37)}`);
             }
         }
 
@@ -231,6 +230,13 @@ function generateOperationHelp(op: HtkOperation): string {
     }
 
     return lines.join('\n');
+}
+
+function indentMultilineDesc(desc: string, indent: number): string {
+    const descLines = desc.split('\n');
+    if (descLines.length <= 1) return desc;
+    const pad = ' '.repeat(indent);
+    return descLines[0] + '\n' + descLines.slice(1).map(l => pad + l).join('\n');
 }
 
 function formatHelpParams(schema: any, lines: string[], prefix = ''): void {
@@ -258,7 +264,8 @@ function formatHelpParams(schema: any, lines: string[], prefix = ''): void {
         const padded = flag.padEnd(35);
         const desc = prop.description || '';
         const defaultStr = prop.default !== undefined ? ` (default: ${JSON.stringify(prop.default)})` : '';
-        lines.push(`  ${padded}${desc}${defaultStr}`);
+        // 2 leading spaces + 35 padded flag = 37 char indent for continuation lines
+        lines.push(`  ${padded}${indentMultilineDesc(desc + defaultStr, 37)}`);
 
         if (prop.type === 'object' && prop.properties) {
             formatHelpParams(prop, lines, fullKey);
