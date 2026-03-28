@@ -96,6 +96,11 @@ function manageBackgroundServices(
             shutdownTimer = undefined;
         }
 
+        if (!http) {
+            console.log(`Mock session started without http plugin, skipping background services`);
+            return;
+        }
+
         const httpProxyPort = http.getMockServer().port;
 
         console.log(`Mock session started, http on port ${
@@ -117,6 +122,9 @@ function manageBackgroundServices(
 
     standalone.on('mock-session-stopping', ({ http }) => {
         activeSessions -= 1;
+
+        if (!http) return;
+
         const httpProxyPort = http.getMockServer().port;
 
         stopDockerInterceptionServices(httpProxyPort, ruleParameters)
