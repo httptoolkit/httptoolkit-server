@@ -128,7 +128,7 @@ const buildResolvers = (apiModel: ApiModel) => {
             name: 'Json',
             description: 'A JSON entity, serialized as a raw object',
             serialize: (value: any) => value,
-            parseValue: (input: string): any => input,
+            parseValue: (input: unknown): any => input,
             parseLiteral: (): any => { throw new Error('JSON literals are not supported') }
         }),
 
@@ -136,20 +136,23 @@ const buildResolvers = (apiModel: ApiModel) => {
             name: 'Void',
             description: 'Nothing at all',
             serialize: (value: any) => null,
-            parseValue: (input: string): any => null,
+            parseValue: (input: unknown): any => null,
             parseLiteral: (): any => { throw new Error('Void literals are not supported') }
         }),
 
         Error: new GraphQLScalarType({
             name: 'Error',
             description: 'An error',
-            serialize: (value: Error) => JSON.stringify({
-                name: value.name,
-                message: value.message,
-                stack: value.stack
-            }),
-            parseValue: (input: string): any => {
-                let data = JSON.parse(input);
+            serialize: (value: unknown) => {
+                const err = value as Error;
+                return JSON.stringify({
+                    name: err.name,
+                    message: err.message,
+                    stack: err.stack
+                });
+            },
+            parseValue: (input: unknown): any => {
+                let data = JSON.parse(input as string);
                 let error = new Error();
                 error.name = data.name;
                 error.message = data.message;
