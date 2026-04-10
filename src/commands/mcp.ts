@@ -156,10 +156,11 @@ async function runMcpServer(): Promise<void> {
         try {
             const result = await apiRequest('POST', '/api/execute', {
                 name: operationName,
-                args
+                args,
+                source: 'mcp'
             });
 
-            if (result && !result.success && result.error?.code === 'PRO_REQUIRED') {
+            if (result && !result.success && result.error) {
                 return {
                     content: [{ type: 'text', text: result.error.message }],
                     isError: true

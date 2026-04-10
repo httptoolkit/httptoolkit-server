@@ -58,6 +58,7 @@ const TEST_OPERATIONS: HtkOperation[] = [
         name: 'proxy.get-config',
         description: 'Get the proxy configuration',
         category: 'proxy',
+        tiers: ['free', 'pro'],
         inputSchema: { type: 'object', properties: {} },
         outputSchema: { type: 'object' },
         annotations: { readOnlyHint: true }
@@ -66,12 +67,25 @@ const TEST_OPERATIONS: HtkOperation[] = [
         name: 'events.list',
         description: 'List captured HTTP events',
         category: 'events',
+        tiers: ['free', 'pro'],
         inputSchema: {
             type: 'object',
             properties: {
                 limit: { type: 'number', description: 'Max events to return' }
             }
         },
+        outputSchema: { type: 'object' }
+    }
+];
+
+const PRO_ONLY_OPERATIONS: HtkOperation[] = [
+    ...TEST_OPERATIONS,
+    {
+        name: 'interceptors.activate',
+        description: 'Activate an interceptor',
+        category: 'interceptors',
+        tiers: ['pro'],
+        inputSchema: { type: 'object', properties: {} },
         outputSchema: { type: 'object' }
     }
 ];
@@ -94,13 +108,40 @@ function createWsPair(bridge: UiOperationBridge): Promise<{ clientWs: WebSocket;
     });
 }
 
-// Creates a connected pair and sends the operations message, waiting for bridge to be ready.
+// Helper to wait for a specific message type from the server
+function waitForMessage(ws: WebSocket, type: string): Promise<any> {
+    return new Promise((resolve) => {
+        const handler = (data: WebSocket.Data) => {
+            const msg = JSON.parse(data.toString());
+            if (msg.type === type) {
+                ws.removeListener('message', handler);
+                resolve(msg);
+            }
+        };
+        ws.on('message', handler);
+    });
+}
+
+// Creates a connected pair, authenticates, sends the operations message, and
+// waits for the bridge to be ready. The server always requires an auth message
+// before processing operations (even without a configured token), so every
+// connecting client must authenticate.
 async function connectMockUi(
     bridge: UiOperationBridge,
-    ops: HtkOperation[] = TEST_OPERATIONS
+    ops: HtkOperation[] = TEST_OPERATIONS,
+    authToken?: string
 ): Promise<{ clientWs: WebSocket; wss: WebSocketServer }> {
     const pair = await createWsPair(bridge);
     const wasReady = bridge.isReady;
+
+    // Always send auth first and wait for auth-result, matching real UI behavior.
+    const authResultPromise = waitForMessage(pair.clientWs, 'auth-result');
+    pair.clientWs.send(JSON.stringify({
+        type: 'auth',
+        token: authToken,
+        jwt: false
+    }));
+    await authResultPromise;
 
     pair.clientWs.send(JSON.stringify({
         type: 'operations',
@@ -142,8 +183,8 @@ describe("UiOperationBridge", () => {
         done();
     });
 
-    async function setupMockUi(ops: HtkOperation[] = TEST_OPERATIONS) {
-        const pair = await connectMockUi(bridge, ops);
+    async function setupMockUi(ops: HtkOperation[] = TEST_OPERATIONS, authToken?: string) {
+        const pair = await connectMockUi(bridge, ops, authToken);
         activePairs.push(pair);
         return pair;
     }
@@ -286,9 +327,283 @@ describe("UiOperationBridge", () => {
         });
     });
 
+    describe("Authentication", () => {
+
+        it("should require an auth message even when no auth token is configured", async () => {
+            const pair = await createWsPair(bridge);
+            activePairs.push(pair);
+
+            pair.clientWs.send(JSON.stringify({
+                type: 'operations',
+                operations: TEST_OPERATIONS
+            }));
+
+            await new Promise(r => setTimeout(r, 100));
+            expect(bridge.isReady).to.be.false;
+
+            // After sending auth, the buffered operations are applied.
+            const readyPromise = new Promise<void>(resolve => bridge.once('ready', resolve));
+            pair.clientWs.send(JSON.stringify({ type: 'auth', jwt: false }));
+            await readyPromise;
+
+            expect(bridge.isReady).to.be.true;
+        });
+
+        it("should require auth message before processing operations when token configured", async () => {
+            bridge.destroy();
+            bridge = new UiOperationBridge('test-secret');
+            testSocketPath = getTempSocketPath();
+            await bridge.startApiServer(testSocketPath);
+
+            const pair = await createWsPair(bridge);
+            activePairs.push(pair);
+
+            // Send operations without auth — should be ignored
+            pair.clientWs.send(JSON.stringify({
+                type: 'operations',
+                operations: TEST_OPERATIONS
+            }));
+
+            await new Promise(r => setTimeout(r, 100));
+            expect(bridge.isReady).to.be.false;
+        });
+
+        it("should authenticate and become ready with correct token", async () => {
+            bridge.destroy();
+            bridge = new UiOperationBridge('test-secret');
+            testSocketPath = getTempSocketPath();
+            await bridge.startApiServer(testSocketPath);
+
+            await setupMockUi(TEST_OPERATIONS, 'test-secret');
+            expect(bridge.isReady).to.be.true;
+        });
+
+        it("should send auth-result success on valid token", async () => {
+            bridge.destroy();
+            bridge = new UiOperationBridge('test-secret');
+            testSocketPath = getTempSocketPath();
+            await bridge.startApiServer(testSocketPath);
+
+            const pair = await createWsPair(bridge);
+            activePairs.push(pair);
+
+            const authResultPromise = waitForMessage(pair.clientWs, 'auth-result');
+
+            pair.clientWs.send(JSON.stringify({
+                type: 'auth',
+                token: 'test-secret',
+                jwt: false
+            }));
+
+            const result = await authResultPromise;
+            expect(result.success).to.be.true;
+        });
+
+        it("should send auth-result failure and close on invalid token", async () => {
+            bridge.destroy();
+            bridge = new UiOperationBridge('test-secret');
+            testSocketPath = getTempSocketPath();
+            await bridge.startApiServer(testSocketPath);
+
+            const pair = await createWsPair(bridge);
+            activePairs.push(pair);
+
+            const authResultPromise = waitForMessage(pair.clientWs, 'auth-result');
+
+            pair.clientWs.send(JSON.stringify({
+                type: 'auth',
+                token: 'wrong-token',
+                jwt: false
+            }));
+
+            const result = await authResultPromise;
+            expect(result.success).to.be.false;
+            expect(result.error).to.include('Invalid');
+        });
+
+        it("should accept jwt: false to indicate logged out", async () => {
+            const pair = await createWsPair(bridge);
+            activePairs.push(pair);
+
+            const authResultPromise = waitForMessage(pair.clientWs, 'auth-result');
+
+            pair.clientWs.send(JSON.stringify({
+                type: 'auth',
+                jwt: false
+            }));
+
+            const result = await authResultPromise;
+            expect(result.success).to.be.true;
+        });
+
+        it("should buffer operations sent before auth and apply them on auth success", async () => {
+            bridge.destroy();
+            bridge = new UiOperationBridge('test-secret');
+            testSocketPath = getTempSocketPath();
+            await bridge.startApiServer(testSocketPath);
+
+            const pair = await createWsPair(bridge);
+            activePairs.push(pair);
+
+            // Send operations BEFORE auth — these should be buffered, not processed
+            pair.clientWs.send(JSON.stringify({
+                type: 'operations',
+                operations: TEST_OPERATIONS
+            }));
+
+            // Give the bridge a chance to process the message
+            await new Promise(r => setTimeout(r, 50));
+            expect(bridge.isReady).to.be.false;
+
+            // Verify external clients see no operations
+            try {
+                await makeApiRequest('GET', '/api/operations');
+                expect.fail('Should have thrown');
+            } catch (err: any) {
+                expect(err.statusCode).to.equal(503);
+            }
+
+            // Now send auth — buffered operations should be applied and bridge should become ready
+            const readyPromise = new Promise<void>(resolve => bridge.once('ready', resolve));
+            pair.clientWs.send(JSON.stringify({
+                type: 'auth',
+                token: 'test-secret',
+                jwt: false
+            }));
+            await readyPromise;
+
+            expect(bridge.isReady).to.be.true;
+            const result = await makeApiRequest('GET', '/api/operations');
+            expect(result).to.have.length(2);
+        });
+
+        it("should discard buffered operations if initial auth fails", async () => {
+            bridge.destroy();
+            bridge = new UiOperationBridge('test-secret');
+            testSocketPath = getTempSocketPath();
+            await bridge.startApiServer(testSocketPath);
+
+            const pair = await createWsPair(bridge);
+            activePairs.push(pair);
+
+            // Send operations first — will be buffered
+            pair.clientWs.send(JSON.stringify({
+                type: 'operations',
+                operations: TEST_OPERATIONS
+            }));
+
+            // Send auth with invalid token — connection should close
+            const closedPromise = new Promise<void>(resolve =>
+                pair.clientWs.on('close', () => resolve())
+            );
+            pair.clientWs.send(JSON.stringify({
+                type: 'auth',
+                token: 'wrong-token',
+                jwt: false
+            }));
+
+            await closedPromise;
+            expect(bridge.isReady).to.be.false;
+        });
+
+        it("should not process execute requests during pending authentication", async () => {
+            bridge.destroy();
+            bridge = new UiOperationBridge('test-secret');
+            testSocketPath = getTempSocketPath();
+            await bridge.startApiServer(testSocketPath);
+
+            const pair = await createWsPair(bridge);
+            activePairs.push(pair);
+
+            // Send operations before auth — buffered
+            pair.clientWs.send(JSON.stringify({
+                type: 'operations',
+                operations: TEST_OPERATIONS
+            }));
+            await new Promise(r => setTimeout(r, 50));
+
+            // Execute should be rejected because the bridge isn't ready
+            try {
+                await makeApiRequest('POST', '/api/execute', {
+                    name: 'proxy.get-config',
+                    args: {}
+                });
+                expect.fail('Should have thrown');
+            } catch (err: any) {
+                expect(err.statusCode).to.equal(503);
+            }
+        });
+    });
+
+    describe("CTL/MCP source-based access control", () => {
+
+        beforeEach(async () => {
+            // Use operations that include a pro-only operation
+            await setupMockUi(PRO_ONLY_OPERATIONS);
+
+            // Auto-respond to execute requests
+            activePairs[0].clientWs.on('message', (data) => {
+                const msg = JSON.parse(data.toString());
+                if (msg.type === 'request') {
+                    activePairs[0].clientWs.send(JSON.stringify({
+                        type: 'response',
+                        id: msg.id,
+                        result: { success: true }
+                    }));
+                }
+            });
+        });
+
+        it("should block all CTL operations when user is not paid", async () => {
+            // No JWT was sent, so isPaidUser() returns false
+            try {
+                await makeApiRequest('POST', '/api/execute', {
+                    name: 'proxy.get-config',
+                    args: {},
+                    source: 'ctl'
+                });
+                expect.fail('Should have thrown');
+            } catch (err: any) {
+                expect(err.statusCode).to.equal(403);
+                expect(err.body.error.code).to.equal('TIER_REQUIRED_PRO');
+            }
+        });
+
+        it("should allow MCP free-tier operations when user is not paid", async () => {
+            const result = await makeApiRequest('POST', '/api/execute', {
+                name: 'proxy.get-config',
+                args: {},
+                source: 'mcp'
+            });
+            expect(result).to.deep.equal({ success: true });
+        });
+
+        it("should block MCP pro-only operations when user is not paid", async () => {
+            try {
+                await makeApiRequest('POST', '/api/execute', {
+                    name: 'interceptors.activate',
+                    args: {},
+                    source: 'mcp'
+                });
+                expect.fail('Should have thrown');
+            } catch (err: any) {
+                expect(err.statusCode).to.equal(403);
+                expect(err.body.error.code).to.equal('TIER_REQUIRED_PRO');
+            }
+        });
+
+        it("should allow operations without a source field", async () => {
+            const result = await makeApiRequest('POST', '/api/execute', {
+                name: 'proxy.get-config',
+                args: {}
+            });
+            expect(result).to.deep.equal({ success: true });
+        });
+    });
+
     describe("Bridge events", () => {
 
-        it("should emit 'ready' when UI sends operations", async () => {
+        it("should emit 'ready' when UI sends auth and operations", async () => {
             const readyPromise = new Promise<void>((resolve) => {
                 bridge.on('ready', resolve);
             });
@@ -296,6 +611,7 @@ describe("UiOperationBridge", () => {
             const pair = await createWsPair(bridge);
             activePairs.push(pair);
 
+            pair.clientWs.send(JSON.stringify({ type: 'auth', jwt: false }));
             pair.clientWs.send(JSON.stringify({
                 type: 'operations',
                 operations: TEST_OPERATIONS
@@ -315,6 +631,7 @@ describe("UiOperationBridge", () => {
                 name: 'test.op',
                 description: 'A new operation',
                 category: 'test',
+                tiers: ['free', 'pro'],
                 inputSchema: { type: 'object', properties: {} },
                 outputSchema: { type: 'object' }
             }];
@@ -343,6 +660,78 @@ describe("UiOperationBridge", () => {
         });
     });
 
+    describe("Error handling", () => {
+
+        it("should not crash on malformed JSON request body", async () => {
+            await setupMockUi();
+            activePairs[0].clientWs.on('message', (data) => {
+                const msg = JSON.parse(data.toString());
+                if (msg.type === 'request') {
+                    activePairs[0].clientWs.send(JSON.stringify({
+                        type: 'response', id: msg.id, result: { ok: true }
+                    }));
+                }
+            });
+
+            // Send invalid JSON body
+            await new Promise<void>((resolve, reject) => {
+                const req = http.request({
+                    method: 'POST',
+                    path: '/api/execute',
+                    socketPath: testSocketPath,
+                    headers: { 'Content-Type': 'application/json' }
+                }, (res) => {
+                    expect(res.statusCode).to.equal(400);
+                    res.resume();
+                    res.on('end', () => resolve());
+                });
+                req.on('error', reject);
+                req.write('this is not json');
+                req.end();
+            });
+
+            // Verify the server still works afterward
+            const result = await makeApiRequest('GET', '/api/status');
+            expect(result.ready).to.be.true;
+        });
+
+        it("should not crash on malformed WebSocket message (invalid JSON)", async () => {
+            const pair = await createWsPair(bridge);
+            activePairs.push(pair);
+
+            pair.clientWs.send('not valid json');
+            pair.clientWs.send(Buffer.from([0xff, 0xfe, 0xfd]));
+
+            // Send valid messages afterward — the server should still be functional
+            pair.clientWs.send(JSON.stringify({ type: 'auth', jwt: false }));
+            pair.clientWs.send(JSON.stringify({
+                type: 'operations',
+                operations: TEST_OPERATIONS
+            }));
+
+            await new Promise<void>(resolve => bridge.once('ready', resolve));
+            expect(bridge.isReady).to.be.true;
+        });
+
+        it("should not crash on WebSocket messages missing type field", async () => {
+            const pair = await createWsPair(bridge);
+            activePairs.push(pair);
+
+            pair.clientWs.send(JSON.stringify({ no: 'type' }));
+            pair.clientWs.send(JSON.stringify(null));
+            pair.clientWs.send(JSON.stringify('just a string'));
+
+            pair.clientWs.send(JSON.stringify({ type: 'auth', jwt: false }));
+            pair.clientWs.send(JSON.stringify({
+                type: 'operations',
+                operations: TEST_OPERATIONS
+            }));
+
+            await new Promise<void>(resolve => bridge.once('ready', resolve));
+            expect(bridge.isReady).to.be.true;
+        });
+    });
+
     describe("Multiple channels", () => {
 
         it("should use the first channel for operations", async () => {
@@ -351,6 +740,7 @@ describe("UiOperationBridge", () => {
                 name: 'other.op',
                 description: 'Different operation',
                 category: 'other',
+                tiers: ['free', 'pro'],
                 inputSchema: { type: 'object', properties: {} },
                 outputSchema: { type: 'object' }
             }]);

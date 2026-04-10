@@ -4,17 +4,18 @@ import { getDeferred } from '@httptoolkit/util';
 
 import { getSocketPath } from './ui-operation-bridge';
 
-export function apiRequest(
+export async function apiRequest(
     method: 'GET' | 'POST',
     urlPath: string,
     body?: any
 ): Promise<any> {
     const result = getDeferred<any>();
+    const socketPath = await getSocketPath();
 
     const req = http.request({
         method,
         path: urlPath,
-        socketPath: getSocketPath(),
+        socketPath: socketPath,
         headers: {
             'Content-Type': 'application/json'
         },
@@ -27,8 +28,11 @@ export function apiRequest(
             const raw = Buffer.concat(chunks).toString('utf-8');
             if (res.statusCode && res.statusCode >= 400) {
                 try {
-                    const err = JSON.parse(raw);
-                    result.reject(new Error(err.message || err.error || `HTTP ${res.statusCode}`));
+                    const body = JSON.parse(raw);
+                    const message = body.message
+                        || (typeof body.error === 'string' ? body.error : body.error?.message)
+                        || `HTTP ${res.statusCode}`;
+                    result.reject(new Error(message));
                 } catch {
                     result.reject(new Error(`HTTP ${res.statusCode}: ${raw}`));
                 }

@@ -42,6 +42,7 @@
     "@devicefarmer/adbkit": "^3.3.8",
     "@graphql-tools/schema": "^10.0.31",
     "@graphql-tools/utils": "^11.0.0",
+    "@httptoolkit/accounts": "^3.1.0",
     "@httptoolkit/browser-launcher": "^3.0.1",
     "@httptoolkit/dbus-native": "^0.1.4",
     "@httptoolkit/osx-find-executable": "^2.0.1",

@@ -343,7 +343,8 @@ async function runCtl(args: string[]): Promise<void> {
     try {
         const result = await apiRequest('POST', '/api/execute', {
             name: matchedOp.name,
-            args: params
+            args: params,
+            source: 'ctl'
         });
         process.stdout.write(JSON.stringify(result, null, 2) + '\n');
     } catch (err: any) {

@@ -31,7 +31,9 @@ import { UiOperationBridge, getSocketPath } from './ui-operation-bridge';
  *   origins. In prod, that's just app.httptoolkit.tech.
  * - Optionally (always set in the HTK app) requires an auth
  *   token with every request, provided by $HTK_SERVER_TOKEN or
- *   --token at startup.
+ *   --token at startup. For HTTP, this is a Bearer token in the
+ *   Authorization header. For the UI WebSocket bridge, the token
+ *   is sent in the initial 'auth' message after connection.
  *
  * The API is available in two formats: a simple REST-ish API,
  * and a GraphQL that exists for backward compatibility. All
@@ -43,7 +45,6 @@ export class HttpToolkitServerApi extends events.EventEmitter {
 
     private server: express.Application;
     private bridge: UiOperationBridge;
-    private authToken: string | undefined;
 
     constructor(
         config: HtkConfig,
@@ -52,8 +53,7 @@ export class HttpToolkitServerApi extends events.EventEmitter {
     ) {
         super();
 
-        this.bridge = new UiOperationBridge();
-        this.authToken = config.authToken;
+        this.bridge = new UiOperationBridge(config.authToken);
 
         const interceptors = buildInterceptors(config);
 
@@ -157,45 +157,38 @@ export class HttpToolkitServerApi extends events.EventEmitter {
         const wss = new WebSocketServer({ noServer: true });
 
         httpServer.on('upgrade', (req: http.IncomingMessage, socket, head) => {
-            const url = new URL(req.url!, `http://localhost`);
+            try {
+                const url = new URL(req.url!, `http://localhost`);
 
-            if (url.pathname !== '/ui-operations') {
-                socket.destroy();
-                return;
-            }
+                if (url.pathname !== '/ui-operations') {
+                    socket.destroy();
+                    return;
+                }
 
-            // Enforce the same origin restrictions as the REST/GraphQL API
-            const origin = req.headers['origin'] || '';
-            if (!ALLOWED_ORIGINS.some(pattern => pattern.test(origin))) {
-                socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
-                socket.destroy();
-                return;
-            }
-
-            // Check auth token if configured. Browser WebSocket can't send
-            // headers, so accept token via query param or Authorization header.
-            if (this.authToken) {
-                const authHeader = req.headers['authorization'] || '';
-                const tokenMatch = authHeader.match(/Bearer (\S+)/) || [];
-                const headerToken = tokenMatch[1];
-                const queryToken = url.searchParams.get('token');
-
-                if (headerToken !== this.authToken && queryToken !== this.authToken) {
+                // Enforce the same origin restrictions as the REST/GraphQL API
+                const origin = req.headers['origin'] || '';
+                if (!ALLOWED_ORIGINS.some(pattern => pattern.test(origin))) {
                     socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
                     socket.destroy();
                     return;
                 }
-            }
 
-            wss.handleUpgrade(req, socket as any, head, (ws) => {
-                this.bridge.setWebSocket(ws as any);
-            });
+                // Auth token is validated via the 'auth' WebSocket message
+                // (sent immediately after connection), not during upgrade.
+
+                wss.handleUpgrade(req, socket as any, head, (ws) => {
+                    this.bridge.setWebSocket(ws as any);
+                });
+            } catch (err: any) {
+                console.warn(`WebSocket upgrade handler error: ${err.message}`);
+                socket.destroy();
+            }
         });
     }
 
     private async startBridgeApiServer(): Promise<void> {
         try {
-            const socketPath = getSocketPath();
+            const socketPath = await getSocketPath();
             await this.bridge.startApiServer(socketPath);
         } catch (err: any) {
             console.warn(
