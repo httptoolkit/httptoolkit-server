@@ -19,7 +19,7 @@ export async function apiRequest(
         headers: {
             'Content-Type': 'application/json'
         },
-        timeout: 5000
+        timeout: 2000
     }, (res) => {
         const chunks: Buffer[] = [];
         res.on('error', (err) => result.reject(err));

@@ -1,7 +1,13 @@
 type BridgeClientModule = typeof import('../api/bridge-client');
 
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import * as readline from 'readline';
 import { execFile } from 'child_process';
+
+const canAccess = (filePath: string): Promise<boolean> =>
+    fs.promises.access(filePath).then(() => true).catch(() => false);
 
 import { Command, flags } from '@oclif/command';
 
@@ -66,12 +72,43 @@ const POLL_INTERVAL_MS = 5_000;
 const LAUNCH_TIMEOUT_MS = 30_000;
 const LAUNCH_POLL_MS = 500;
 
-function launchDesktopApp(): boolean {
-    const exePath = process.env.HTK_DESKTOP_EXE;
-    if (!exePath) return false;
+// Default install paths per platform. First match wins. The wrapper scripts
+// (httptoolkit-mcp / .cmd) set HTK_DESKTOP_EXE explicitly, so the env var
+// check below handles the normal "bundled with HTK" case.
+function getDefaultHtkExeCandidates(): string[] {
+    if (process.platform === 'darwin') {
+        return [
+            '/Applications/HTTP Toolkit.app/Contents/MacOS/HTTP Toolkit',
+            path.join(os.homedir(), 'Applications/HTTP Toolkit.app/Contents/MacOS/HTTP Toolkit')
+        ];
+    }
 
-    execFile(exePath, [], () => {});
-    return true;
+    if (process.platform === 'win32') {
+        const localAppData = process.env.LOCALAPPDATA;
+        const programFiles = process.env.PROGRAMFILES;
+        const candidates: string[] = [];
+        if (localAppData) {
+            candidates.push(path.join(localAppData, 'Programs', 'HTTP Toolkit', 'HTTP Toolkit.exe'));
+        }
+        if (programFiles) {
+            candidates.push(path.join(programFiles, 'HTTP Toolkit', 'HTTP Toolkit.exe'));
+        }
+        return candidates;
+    }
+
+    // Linux (default for deb/rpm at least)
+    return ['/opt/HTTP Toolkit/httptoolkit'];
+}
+
+async function getLaunchableHtkExePath(): Promise<string | null> {
+    const envPath = process.env.HTK_DESKTOP_EXE;
+    if (envPath && await canAccess(envPath)) return envPath;
+
+    for (const candidate of getDefaultHtkExeCandidates()) {
+        if (await canAccess(candidate)) return candidate;
+    }
+
+    return null;
 }
 
 async function startHttpToolkit(
@@ -87,13 +124,16 @@ async function startHttpToolkit(
         };
     }
 
-    log('Launching HTTP Toolkit desktop app...');
-    if (!launchDesktopApp()) {
+    const exePath = await getLaunchableHtkExePath();
+    if (!exePath) {
         return {
-            content: [{ type: 'text', text: 'Cannot launch HTTP Toolkit: desktop app path not detected.' }],
+            content: [{ type: 'text', text: 'Cannot launch HTTP Toolkit: desktop app path not available.' }],
             isError: true
         };
     }
+
+    log('Launching HTTP Toolkit desktop app...');
+    execFile(exePath, [], () => {});
 
     // Wait for the UI to connect and send operations
     const deadline = Date.now() + LAUNCH_TIMEOUT_MS;
@@ -131,17 +171,25 @@ async function runMcpServer(): Promise<void> {
             cachedOperations = [];
         }
     }
-    await refreshOperations();
 
-    function getToolsList(): any[] {
+    // Kick off the first refresh in the background — don't block on this until
+    // we actually need the tools list.
+    const initialRefresh = refreshOperations();
+
+    async function getToolsList(): Promise<any[]> {
+        await initialRefresh;
         if (cachedOperations.length > 0) return operationsToMcpTools(cachedOperations);
         // No running instance — the only available action is to launch it.
         // This tool disappears once HTTP Toolkit is running and real tools become available.
-        return [{
-            name: 'start_httptoolkit',
-            description: 'HTTP Toolkit is not currently running. Call this to launch it — once started, more tools will become available.',
-            inputSchema: { type: 'object', properties: {} }
-        }];
+        if (await getLaunchableHtkExePath()) {
+            return [{
+                name: 'start_httptoolkit',
+                description: 'HTTP Toolkit is not currently running. Call this to launch it — once started, more tools will become available.',
+                inputSchema: { type: 'object', properties: {} }
+            }];
+        }
+
+        return [];
     }
 
     async function handleToolCall(name: string, args: Record<string, unknown>): Promise<{ content: any[]; isError?: boolean }> {
@@ -198,7 +246,11 @@ async function runMcpServer(): Promise<void> {
                 break;
 
             case 'tools/list':
-                jsonRpcResult(msg.id!, { tools: getToolsList() });
+                getToolsList().then(tools => {
+                    jsonRpcResult(msg.id!, { tools });
+                }).catch(err => {
+                    jsonRpcError(msg.id!, -32603, err.message);
+                });
                 break;
 
             case 'tools/call': {
