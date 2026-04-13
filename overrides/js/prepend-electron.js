@@ -71,13 +71,12 @@ module.exports = function reconfigureElectron(params) {
         });
     }, true);
 
-    wrapModule('crypto', function wrapCrypto () {
-        const NativeSecureContext = process.binding('crypto').SecureContext;
-        const addRootCerts = NativeSecureContext.prototype.addRootCerts;
-        NativeSecureContext.prototype.addRootCerts = function() {
-            const ret = addRootCerts.apply(this,arguments);
-            this.addCACert(params.newlineEncodedCertData);
-            return ret;
-        };
-    }, true);
+    const tls = require('tls');
+    const originalCreateSecureContext = tls.createSecureContext;
+
+    tls.createSecureContext = function(options) {
+        const ctx = originalCreateSecureContext.call(this, options);
+        ctx.context.addCACert(params.newlineEncodedCertData);
+        return ctx;
+    };
 };
