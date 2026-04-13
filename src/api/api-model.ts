@@ -30,7 +30,7 @@ const INTERCEPTOR_TIMEOUT = 1000;
  * binary is used with ctl/mcp subcommands, stabilized via the oclif
  * 'current' symlink when available.
  */
-function getToolPaths(): { ctl: string[]; mcp: string[] } {
+async function getToolPaths(): Promise<{ ctl: string[]; mcp: string[] }> {
     const resourcesPath = process.env.HTK_DESKTOP_RESOURCES;
     if (resourcesPath) {
         const ext = process.platform === 'win32' ? '.cmd' : '';
@@ -41,14 +41,14 @@ function getToolPaths(): { ctl: string[]; mcp: string[] } {
     }
 
     // If not (old desktop, local dev) we need to use our own path directly:
-    const serverBin = stabilizeServerBinPath();
+    const serverBin = await stabilizeServerBinPath();
     return {
         ctl: [serverBin, 'ctl'],
         mcp: [serverBin, 'mcp']
     };
 }
 
-function stabilizeServerBinPath(): string {
+async function stabilizeServerBinPath(): Promise<string> {
     const binPath = process.env.HTTPTOOLKIT_SERVER_BINPATH
         ?? path.join(APP_ROOT, 'bin', process.platform === 'win32' ? 'run.cmd' : 'run');
 
@@ -58,7 +58,7 @@ function stabilizeServerBinPath(): string {
     if (semver.valid(appRootBase) && binPath.startsWith(APP_ROOT)) {
         const currentDir = path.join(path.dirname(APP_ROOT), 'current');
         try {
-            fs.accessSync(currentDir);
+            await fs.promises.access(currentDir);
             return currentDir + binPath.slice(APP_ROOT.length);
         } catch {}
     }
@@ -133,7 +133,7 @@ export class ApiModel {
 
             ruleParameterKeys: this.getRuleParamKeys(),
 
-            toolPaths: getToolPaths()
+            toolPaths: await getToolPaths()
         };
     }
 

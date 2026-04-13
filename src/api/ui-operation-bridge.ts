@@ -14,7 +14,6 @@ export interface HtkOperation {
     description: string;
     category: string;
     tiers: Array<'free' | 'pro'>;
-    sessionLimit?: number;
     inputSchema: any;
     outputSchema: any;
     annotations?: {
