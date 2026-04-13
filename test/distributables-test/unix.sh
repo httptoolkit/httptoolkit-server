@@ -47,3 +47,15 @@ curl $CURL_OPTIONS "$WITH_ORIGIN" -X POST http://127.0.0.1:45457/update
 
 # ^ This will fail if they receive anything but a 200 result.
 # This ensures that the server is startable, and has minimal functionality for launch.
+
+echo "\nCan run ctl help?"
+./httptoolkit-server/bin/httptoolkit-server ctl help | grep -q "HTTP Toolkit Remote Control"
+
+echo "\nCan run ctl status?"
+CTL_STATUS=$(./httptoolkit-server/bin/httptoolkit-server ctl status)
+echo "$CTL_STATUS" | grep -q '"running":true'
+
+echo "\nCan run mcp initialize?"
+MCP_RESPONSE=$(echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' \
+    | ./httptoolkit-server/bin/httptoolkit-server mcp 2>/dev/null | head -1)
+echo "$MCP_RESPONSE" | grep -q '"protocolVersion"'

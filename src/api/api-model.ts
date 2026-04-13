@@ -1,11 +1,15 @@
+import * as fs from 'fs';
+import * as path from 'path';
+
 import * as _ from 'lodash';
 import * as os from 'os';
+import * as semver from 'semver';
 
 import { ErrorLike, delay } from '@httptoolkit/util';
 import { generateSPKIFingerprint } from 'mockttp';
 import { getSystemProxy } from 'os-proxy-config';
 
-import { SERVER_VERSION } from "../constants";
+import { APP_ROOT, SERVER_VERSION } from "../constants";
 import { logError, addBreadcrumb } from '../error-tracking';
 
 import { HtkConfig } from "../config";
@@ -17,6 +21,50 @@ import * as Client from '../client/client-types';
 import { HttpClient } from '../client/http-client';
 
 const INTERCEPTOR_TIMEOUT = 1000;
+
+/**
+ * Returns the command + args needed to invoke the ctl and mcp tools.
+ *
+ * If HTK_DESKTOP_RESOURCES is set (by the desktop app or wrapper scripts),
+ * wrapper scripts in that directory are used. Otherwise the server's own
+ * binary is used with ctl/mcp subcommands, stabilized via the oclif
+ * 'current' symlink when available.
+ */
+async function getToolPaths(): Promise<{ ctl: string[]; mcp: string[] }> {
+    const resourcesPath = process.env.HTK_DESKTOP_RESOURCES;
+    if (resourcesPath) {
+        const ext = process.platform === 'win32' ? '.cmd' : '';
+        return {
+            ctl: [path.join(resourcesPath, `httptoolkit-ctl${ext}`)],
+            mcp: [path.join(resourcesPath, `httptoolkit-mcp${ext}`)]
+        };
+    }
+
+    // If not (old desktop, local dev) we need to use our own path directly:
+    const serverBin = await stabilizeServerBinPath();
+    return {
+        ctl: [serverBin, 'ctl'],
+        mcp: [serverBin, 'mcp']
+    };
+}
+
+async function stabilizeServerBinPath(): Promise<string> {
+    const binPath = process.env.HTTPTOOLKIT_SERVER_BINPATH
+        ?? path.join(APP_ROOT, 'bin', process.platform === 'win32' ? 'run.cmd' : 'run');
+
+    // If the server is running from a versioned oclif directory (e.g. .../client/1.25.0/...),
+    // replace the version segment with 'current' for a path that survives updates.
+    const appRootBase = path.basename(APP_ROOT);
+    if (semver.valid(appRootBase) && binPath.startsWith(APP_ROOT)) {
+        const currentDir = path.join(path.dirname(APP_ROOT), 'current');
+        try {
+            await fs.promises.access(currentDir);
+            return currentDir + binPath.slice(APP_ROOT.length);
+        } catch {}
+    }
+
+    return binPath;
+}
 
 export class ApiModel {
 
@@ -83,7 +131,9 @@ export class ApiModel {
             systemProxy,
             dnsServers,
 
-            ruleParameterKeys: this.getRuleParamKeys()
+            ruleParameterKeys: this.getRuleParamKeys(),
+
+            toolPaths: await getToolPaths()
         };
     }
 

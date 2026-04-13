@@ -69,6 +69,21 @@ curl %CURL_OPTIONS% %WITH_ORIGIN% -X POST http://127.0.0.1:45457/update || goto 
 REM ^ This will fail if they receive anything but a 200 result.
 REM This ensures that the server is startable, and has minimal functionality for launch.
 
+echo:
+echo:
+echo Can run ctl help?
+.\httptoolkit-server\bin\httptoolkit-server ctl help | findstr /C:"HTTP Toolkit Remote Control" >NUL || goto :error
+
+echo:
+echo:
+echo Can run ctl status?
+.\httptoolkit-server\bin\httptoolkit-server ctl status | findstr /C:"\"running\":true" >NUL || goto :error
+
+echo:
+echo:
+echo Can run mcp initialize?
+echo {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}} | .\httptoolkit-server\bin\httptoolkit-server mcp | findstr /C:"protocolVersion" >NUL || goto :error
+
 goto :success
 
 :error

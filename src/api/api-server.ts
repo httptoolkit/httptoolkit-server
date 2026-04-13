@@ -1,8 +1,10 @@
+import * as http from 'http';
 import _ from 'lodash';
 import * as events from 'events';
 import express from 'express';
 import cors from 'cors';
 import corsGate from 'cors-gate';
+import WebSocket, { WebSocketServer } from 'ws';
 
 import { HtkConfig } from '../config';
 import { buildInterceptors } from '../interceptors';
@@ -13,6 +15,7 @@ import { ApiModel } from './api-model';
 import { exposeGraphQLAPI } from './graphql-api';
 import { exposeRestAPI } from './rest-api';
 import { HttpClient } from '../client/http-client';
+import { UiOperationBridge, getSocketPath } from './ui-operation-bridge';
 
 /**
  * This file contains the core server API, used by the UI to query
@@ -28,7 +31,9 @@ import { HttpClient } from '../client/http-client';
  *   origins. In prod, that's just app.httptoolkit.tech.
  * - Optionally (always set in the HTK app) requires an auth
  *   token with every request, provided by $HTK_SERVER_TOKEN or
- *   --token at startup.
+ *   --token at startup. For HTTP, this is a Bearer token in the
+ *   Authorization header. For the UI WebSocket bridge, the token
+ *   is sent in the initial 'auth' message after connection.
  *
  * The API is available in two formats: a simple REST-ish API,
  * and a GraphQL that exists for backward compatibility. All
@@ -39,6 +44,7 @@ import { HttpClient } from '../client/http-client';
 export class HttpToolkitServerApi extends events.EventEmitter {
 
     private server: express.Application;
+    private bridge: UiOperationBridge;
 
     constructor(
         config: HtkConfig,
@@ -46,6 +52,8 @@ export class HttpToolkitServerApi extends events.EventEmitter {
         getRuleParamKeys: () => string[]
     ) {
         super();
+
+        this.bridge = new UiOperationBridge(config.authToken);
 
         const interceptors = buildInterceptors(config);
 
@@ -132,10 +140,62 @@ export class HttpToolkitServerApi extends events.EventEmitter {
         exposeGraphQLAPI(this.server, apiModel);
     }
 
-    start() {
-        return new Promise<void>((resolve, reject) => {
-            this.server.listen(45457, '127.0.0.1', resolve); // Localhost only
-            this.server.once('error', reject);
+    async start() {
+        const socketReady = this.startBridgeApiServer();
+
+        await new Promise<void>((resolve, reject) => {
+            const httpServer: http.Server = this.server.listen(45457, '127.0.0.1', resolve);
+            httpServer.once('error', reject);
+
+            this.attachWebSocketBridge(httpServer);
+        });
+
+        await socketReady;
+    }
+
+    private attachWebSocketBridge(httpServer: http.Server) {
+        const wss = new WebSocketServer({ noServer: true });
+
+        httpServer.on('upgrade', (req: http.IncomingMessage, socket, head) => {
+            try {
+                const url = new URL(req.url!, `http://localhost`);
+
+                if (url.pathname !== '/ui-operations') {
+                    socket.destroy();
+                    return;
+                }
+
+                // Enforce the same origin restrictions as the REST/GraphQL API
+                const origin = req.headers['origin'] || '';
+                if (!ALLOWED_ORIGINS.some(pattern => pattern.test(origin))) {
+                    socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+                    socket.destroy();
+                    return;
+                }
+
+                // Auth token is validated via the 'auth' WebSocket message
+                // (sent immediately after connection), not during upgrade.
+
+                wss.handleUpgrade(req, socket as any, head, (ws) => {
+                    this.bridge.setWebSocket(ws as any);
+                });
+            } catch (err: any) {
+                console.warn(`WebSocket upgrade handler error: ${err.message}`);
+                socket.destroy();
+            }
         });
     }
+
+    private async startBridgeApiServer(): Promise<void> {
+        try {
+            const socketPath = await getSocketPath();
+            await this.bridge.startApiServer(socketPath);
+        } catch (err: any) {
+            console.warn(
+                `Failed to start UI Bridge socket server: ${err.message}. ` +
+                `MCP & remote control will not be available.`
+            );
+        }
+    }
+
 };

@@ -28,8 +28,6 @@ initErrorTracking();
 
 import { Command, flags } from '@oclif/command'
 
-const { runHTK } = maybeBundleImport<IndexTypeModule>('index');
-
 class HttpToolkitServer extends Command {
     static description = 'start the HTTP Toolkit server'
 
@@ -42,6 +40,8 @@ class HttpToolkitServer extends Command {
     }
 
     async run() {
+        const { runHTK } = maybeBundleImport<IndexTypeModule>('index');
+
         const { flags } = this.parse(HttpToolkitServer);
 
         if (net.setDefaultAutoSelectFamily) { // Backward compat for Node <v20
