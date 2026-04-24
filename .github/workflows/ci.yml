@@ -16,7 +16,7 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 22.20.0
+          node-version: 24.15.0
 
       - run: npm install -g npm@^8
 

@@ -87,6 +87,10 @@ describe('End-to-end server API test', function () {
 
             serverProcess.stderr!.on('data', (d) => {
                 console.warn(d.toString());
+
+                // Some internals still use url.parse, warns in v24+, ignore for now.
+                if (d.toString().includes('DEP0169')) return;
+
                 stderr = stderr + d.toString();
             });
 
