@@ -144,7 +144,7 @@ export class HttpToolkitServerApi extends events.EventEmitter {
         const socketReady = this.startBridgeApiServer();
 
         await new Promise<void>((resolve, reject) => {
-            const httpServer: http.Server = this.server.listen(45457, '127.0.0.1', resolve);
+            const httpServer: http.Server = this.server.listen(45457, '127.0.0.1', () => resolve());
             httpServer.once('error', reject);
 
             this.attachWebSocketBridge(httpServer);

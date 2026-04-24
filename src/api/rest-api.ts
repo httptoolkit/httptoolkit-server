@@ -173,7 +173,7 @@ function getProxyPort(stringishInput: any) {
 // very awkward (but not actually very interesting) types.
 function handleErrors<
     Route extends string,
-    P = RouteParameters<Route>,
+    P = Record<string, string>,
     ResBody = any,
     ReqBody = any,
     ReqQuery = ParsedQs,
