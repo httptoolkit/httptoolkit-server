@@ -1,8 +1,6 @@
-import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as tmp from 'tmp';
-import rimraf from 'rimraf';
 import { lookpath } from 'lookpath';
 import { isErrorLike } from '@httptoolkit/util';
 
@@ -11,7 +9,8 @@ export const readFile = fs.promises.readFile;
 export const readDir = fs.promises.readdir;
 export const readLink = fs.promises.readlink;
 export const deleteFile = fs.promises.unlink;
-export const deleteFolder = promisify(rimraf);
+export const deleteFolder = (folder: string) =>
+    fs.promises.rm(folder, { recursive: true, force: true });
 export const checkAccess = fs.promises.access;
 export const chmod = fs.promises.chmod;
 export const mkDir = fs.promises.mkdir;
