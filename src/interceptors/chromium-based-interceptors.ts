@@ -61,6 +61,8 @@ const getChromiumLaunchOptions = async (
             ].join(','),
             // Avoid annoying extra network noise:
             '--disable-background-networking',
+            // Disable android.clients.google.com calls
+            '--gcm-checkin-url= --gcm-registration-url= --gcm-mcs-endpoint=',
             // Disable component update (without disabling components themselves, e.g. widevine)
             // See https://bugs.chromium.org/p/chromium/issues/detail?id=331932
             '--component-updater=url-source=http://disabled-chromium-update.localhost:0',
