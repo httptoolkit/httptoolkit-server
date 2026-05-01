@@ -128,6 +128,14 @@ abstract class Firefox implements Interceptor {
                 {
                     // Disable the noisy captive portal check requests
                     'network.captive-portal-service.enabled': false,
+                    // Disable telemetry requests
+                    'app.shield.optoutstudies.enabled': false,
+                    'datareporting.healthreport.uploadEnabled': false,
+                    'datareporting.usage.uploadEnabled': false,
+                    // Disable sponsors
+                    'browser.newtabpage.activity-stream.showSponsoredCheckboxes': false,
+                    'browser.newtabpage.activity-stream.showSponsoredTopSites': false,
+                    
 
                     // Disable some annoying tip messages
                     'browser.chrome.toolbar_tips': false,
