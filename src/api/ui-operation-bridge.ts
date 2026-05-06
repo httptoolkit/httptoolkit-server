@@ -272,8 +272,9 @@ export class UiOperationBridge extends EventEmitter {
         const source = parsed.source;
         const isPaid = this.isPaidUser();
 
-        // CTL requires Pro for all operations
-        if (source === 'ctl' && !isPaid) {
+        // CTL requires Pro for all operations except account.* (e.g. account.upgrade,
+        // which a free user must be able to invoke in order to become Pro).
+        if (source === 'ctl' && !isPaid && !parsed.name.startsWith('account.')) {
             res.writeHead(403);
             res.end(JSON.stringify({
                 success: false,
