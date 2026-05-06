@@ -68,12 +68,13 @@ export function clearWebExtensionConfig(httpProxyPort: number) {
 export async function updateWebExtensionConfig(
     sessionId: string,
     httpProxyPort: number,
-    webRTCEnabled: boolean
+    webRTCEnabled: boolean,
+    mockttpPort: number
 ) {
     if (webRTCEnabled) {
         await ensureWebExtensionInstalled();
 
-        const adminBaseUrl = `http://internal.httptoolkit.localhost:45456/session/${sessionId}`;
+        const adminBaseUrl = `http://internal.httptoolkit.localhost:${mockttpPort}/session/${sessionId}`;
         await writeConfig(httpProxyPort, {
             mockRtc: {
                 peerId: 'matching-peer',

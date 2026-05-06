@@ -85,7 +85,8 @@ function manageBackgroundServices(
         http: MockttpAdminPlugin,
         webrtc: MockRTCAdminPlugin
     }>,
-    httpsConfig: { certPath: string, certContent: string }
+    httpsConfig: { certPath: string, certContent: string },
+    mockttpPort: number
 ) {
     let activeSessions = 0;
 
@@ -109,7 +110,7 @@ function manageBackgroundServices(
             console.log("Could not start Docker components:", error);
         });
 
-        updateWebExtensionConfig(sessionId, httpProxyPort, !!webrtc)
+        updateWebExtensionConfig(sessionId, httpProxyPort, !!webrtc, mockttpPort)
         .catch((error) => {
             console.log("Could not update WebRTC config:", error);
         });
@@ -164,7 +165,9 @@ const ruleParameters: { [key: string]: any } = {};
 export async function runHTK(options: {
     configPath?: string
     authToken?: string
-} = {}) {
+    serverPort: number
+    mockttpPort: number
+}) {
     const startTime = Date.now();
     registerShutdownHandler();
 
@@ -212,10 +215,10 @@ export async function runHTK(options: {
         ruleParameters // Rule parameter dictionary
     });
 
-    manageBackgroundServices(standalone, httpsConfig);
+    manageBackgroundServices(standalone, httpsConfig, options.mockttpPort);
 
     await standalone.start({
-        port: 45456,
+        port: options.mockttpPort,
         host: '127.0.0.1'
     });
 
@@ -276,7 +279,7 @@ export async function runHTK(options: {
         );
     });
 
-    await apiServer.start();
+    await apiServer.start(options.serverPort);
 
     console.log('Server started in', Date.now() - standaloneSetupTime, 'ms');
     console.log('Total startup took', Date.now() - startTime, 'ms');

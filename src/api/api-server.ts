@@ -140,11 +140,11 @@ export class HttpToolkitServerApi extends events.EventEmitter {
         exposeGraphQLAPI(this.server, apiModel);
     }
 
-    async start() {
+    async start(port: number) {
         const socketReady = this.startBridgeApiServer();
 
         await new Promise<void>((resolve, reject) => {
-            const httpServer: http.Server = this.server.listen(45457, '127.0.0.1', () => resolve());
+            const httpServer: http.Server = this.server.listen(port, '127.0.0.1', () => resolve());
             httpServer.once('error', reject);
 
             this.attachWebSocketBridge(httpServer);

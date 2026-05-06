@@ -37,6 +37,8 @@ class HttpToolkitServer extends Command {
 
         config: flags.string({char: 'c', description: 'optional path in which to store config files'}),
         token: flags.string({char: 't', description: 'optional token to authenticate local server access'}),
+        'server-port': flags.integer({description: 'port for the HTK server API', default: 45457}),
+        'mockttp-port': flags.integer({description: 'port for the Mockttp admin server', default: 45456}),
     }
 
     async run() {
@@ -52,7 +54,9 @@ class HttpToolkitServer extends Command {
 
         await runHTK({
             configPath: flags.config,
-            authToken: envToken || flags.token
+            authToken: envToken || flags.token,
+            serverPort: flags['server-port'],
+            mockttpPort: flags['mockttp-port']
         }).catch(async (error) => {
             await logError(error);
             throw error;
