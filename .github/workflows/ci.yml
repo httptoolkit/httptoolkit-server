@@ -18,8 +18,6 @@ jobs:
         with:
           node-version: 24.15.0
 
-      - run: npm install -g npm@^8
-
       - name: Set up JDK 11 for Java testing
         uses: actions/setup-java@v5
         with:
