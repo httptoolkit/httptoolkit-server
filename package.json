@@ -102,7 +102,7 @@
   },
   "devDependencies": {
     "@oclif/dev-cli": "^1.19.4",
-    "@rspack/cli": "^1.2.2",
+    "@rspack/cli": "^2.0.3",
     "@rspack/core": "^1.2.2",
     "@sentry/webpack-plugin": "^4.3.0",
     "@types/aws-lambda": "^8.10.15",
