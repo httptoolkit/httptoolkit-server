@@ -98,7 +98,7 @@
     "tslib": "^2.8.1",
     "usbmux-client": "^0.2.1",
     "win-version-info": "^5.0.1",
-    "ws": "^8.18.0"
+    "ws": "^8.20.1"
   },
   "devDependencies": {
     "@oclif/dev-cli": "^1.19.4",
