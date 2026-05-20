@@ -21,7 +21,7 @@ module.exports = {
     output: {
         path: OUTPUT_DIR,
         filename: '[name].js',
-        libraryTarget: 'commonjs2'
+        library: { type: 'commonjs2' }
     },
     mode: 'production',
     devtool: 'source-map',
