@@ -21,14 +21,22 @@ import {
     stopDockerTunnel,
 } from './docker-tunnel-proxy';
 import { ensureDockerInjectionVolumeExists } from './docker-data-injection';
+import { TimeoutError, withTimeout } from '../../util/promise';
 
 let dockerAvailableCache: Promise<boolean> | undefined;
+
+const DOCKER_AVAILABILITY_TIMEOUT_MS = 3_000;
+const DOCKER_PROXY_SETTING_TIMEOUT_MS = 250;
+
+type DockerNetworkRouteMonitor = {
+    dockerRoutedAliases: ReadonlySet<string>
+};
 
 export const isDockerAvailable = (options: { logError?: boolean } = {}) => {
     if (dockerAvailableCache) return dockerAvailableCache;
     else {
         dockerAvailableCache = (async () => { // Catch sync & async setup errors
-            return new Docker().info();
+            return withTimeout(DOCKER_AVAILABILITY_TIMEOUT_MS, new Docker().info());
         })()
         .then((info: { OSType?: 'windows' | 'linux' }) => {
             if (info.OSType === 'windows') {
@@ -40,7 +48,12 @@ export const isDockerAvailable = (options: { logError?: boolean } = {}) => {
             }
         })
         .catch((error) => {
-            if (options.logError) console.warn('Docker not available:', error.message);
+            if (options.logError) {
+                const errorMessage = error instanceof TimeoutError
+                    ? `timed out after ${DOCKER_AVAILABILITY_TIMEOUT_MS}ms`
+                    : error.message;
+                console.warn('Docker not available:', errorMessage);
+            }
             return false;
         });
 
@@ -52,6 +65,48 @@ export const isDockerAvailable = (options: { logError?: boolean } = {}) => {
 }
 
 const IPv4_IPv6_PREFIX = "::ffff:";
+
+// This proxy setting is included in the default passthrough rules, so it can run for
+// browser/Android/etc traffic too. It must fail open quickly if Docker is unavailable.
+export function getDockerTunnelProxySetting(
+    proxyPort: number,
+    networkMonitor: Promise<DockerNetworkRouteMonitor | undefined>,
+    options: { timeoutMs?: number } = {}
+): ProxySettingCallback {
+    const timeoutMs = options.timeoutMs ?? DOCKER_PROXY_SETTING_TIMEOUT_MS;
+    let hasLoggedTimeout = false;
+    let hasLoggedFailure = false;
+
+    return async ({ hostname }: { hostname: any }) => {
+        hostname = hostname.startsWith(IPv4_IPv6_PREFIX)
+            ? hostname.slice(IPv4_IPv6_PREFIX.length)
+            : hostname;
+
+        const monitor = await withTimeout(timeoutMs, networkMonitor).catch((error) => {
+            if (error instanceof TimeoutError) {
+                if (!hasLoggedTimeout) {
+                    hasLoggedTimeout = true;
+                    console.warn(
+                        `Docker route lookup timed out after ${timeoutMs}ms; skipping Docker tunnel routing`
+                    );
+                }
+            } else {
+                if (!hasLoggedFailure) {
+                    hasLoggedFailure = true;
+                    logError(error);
+                }
+            }
+
+            return undefined;
+        });
+
+        if (monitor?.dockerRoutedAliases.has(hostname)) {
+            return {
+                proxyUrl: `socks5://127.0.0.1:${await getDockerTunnelPort(proxyPort)}`
+            };
+        }
+    };
+}
 
 // On shutdown, clean up every container & image that we created, disappearing
 // into the mist as if we were never here...
@@ -91,17 +146,10 @@ export async function startDockerInterceptionServices(
 
     const networkMonitor = monitorDockerNetworkAliases(proxyPort);
 
-    ruleParameters[`docker-tunnel-proxy-${proxyPort}`] = async ({ hostname }: { hostname: any }) => {
-        hostname = hostname.startsWith(IPv4_IPv6_PREFIX)
-            ? hostname.slice(IPv4_IPv6_PREFIX.length)
-            : hostname;
-
-        if ((await networkMonitor)?.dockerRoutedAliases.has(hostname)) {
-            return {
-                proxyUrl: `socks5://127.0.0.1:${await getDockerTunnelPort(proxyPort)}`
-            };
-        }
-    };
+    ruleParameters[`docker-tunnel-proxy-${proxyPort}`] = getDockerTunnelProxySetting(
+        proxyPort,
+        networkMonitor
+    );
     console.log(`Created docker-tunnel-proxy-${proxyPort}`);
 
     await Promise.all([
