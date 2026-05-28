@@ -94,7 +94,7 @@
     "registry-js": "^1.15.1",
     "tar-fs": "^2.1.4",
     "tar-stream": "^2.2.0",
-    "tmp": "0.2.4",
+    "tmp": "0.2.6",
     "tslib": "^2.8.1",
     "usbmux-client": "^0.2.1",
     "win-version-info": "^5.0.1",
