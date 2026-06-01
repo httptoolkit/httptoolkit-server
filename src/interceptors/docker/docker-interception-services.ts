@@ -21,14 +21,17 @@ import {
     stopDockerTunnel,
 } from './docker-tunnel-proxy';
 import { ensureDockerInjectionVolumeExists } from './docker-data-injection';
+import { withTimeout } from '../../util/promise';
 
 let dockerAvailableCache: Promise<boolean> | undefined;
+
+const DOCKER_AVAILABILITY_TIMEOUT_MS = 3_000;
 
 export const isDockerAvailable = (options: { logError?: boolean } = {}) => {
     if (dockerAvailableCache) return dockerAvailableCache;
     else {
         dockerAvailableCache = (async () => { // Catch sync & async setup errors
-            return new Docker().info();
+            return withTimeout(DOCKER_AVAILABILITY_TIMEOUT_MS, new Docker().info());
         })()
         .then((info: { OSType?: 'windows' | 'linux' }) => {
             if (info.OSType === 'windows') {

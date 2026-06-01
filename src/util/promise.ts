@@ -23,8 +23,11 @@ export async function waitUntil<T extends unknown>(
 }
 
 export class TimeoutError extends CustomError {
-    constructor() {
-        super('Timeout', { code: 'timeout' });
+    constructor(timeoutMs?: number) {
+        super(
+            timeoutMs === undefined ? 'Timeout' : `Timeout after ${timeoutMs}ms`,
+            { code: 'timeout' }
+        );
     }
 }
 
@@ -35,6 +38,6 @@ export async function withTimeout<T>(
     return Promise.race([
         promise,
         delay(timeoutMs, { unref: true })
-            .then(() => { throw new TimeoutError(); })
+            .then(() => { throw new TimeoutError(timeoutMs); })
     ]);
 }
