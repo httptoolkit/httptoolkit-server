@@ -7,48 +7,26 @@ import * as https from 'https';
 
 // We import lots of Mockttp internal passthrough logic, to ensure our
 // upstream behaviour matches normal passthrough:
-import type * as Mockttp from 'mockttp';
 import {
     getDnsLookupFunction,
     getUpstreamTlsOptions as getUpstreamMockttpTlsOptions
 } from 'mockttp/dist/rules/passthrough-handling';
-import { getAgent } from 'mockttp/dist/rules/http-agents';
 import { getEffectivePort } from 'mockttp/dist/util/url';
 
+import { getUpstreamProxyAgent, RuleParameters } from './upstream-proxy';
+
 import {
-    ClientProxyConfig,
     RawHeaders,
     RequestDefinition,
-    RequestOptions,
-    RULE_PARAM_REF_KEY
+    RequestOptions
 } from './client-types';
 import * as fs from '../util/fs';
 
 export class HttpClient {
 
     constructor(
-        private ruleParameters: {
-            [key: string]: Mockttp.ProxySettingCallback | undefined
-        }
+        private ruleParameters: RuleParameters
     ) {}
-
-    getProxyConfig(proxyConfig: ClientProxyConfig): Mockttp.ProxySettingSource {
-        if (!proxyConfig) return undefined;
-
-        if (_.isArray(proxyConfig)) {
-            return proxyConfig.map((config) => this.getProxyConfig(config));
-        }
-
-        if (RULE_PARAM_REF_KEY in proxyConfig) {
-            const referencedConfig = this.ruleParameters[proxyConfig[RULE_PARAM_REF_KEY]];
-            if (!referencedConfig) {
-                throw new Error('Request options referenced unrecognized rule parameter in proxy config');
-            }
-            return referencedConfig;
-        }
-
-        return proxyConfig;
-    }
 
     readonly getDns = _.memoize((dnsServers: string[] | undefined) => {
         if (!dnsServers?.length) return undefined;
@@ -71,13 +49,11 @@ export class HttpClient {
         const effectivePort = getEffectivePort(url);
         const additionalCAs = options.additionalTrustedCAs || options.trustAdditionalCAs;
 
-        const agent = await getAgent({
-            protocol: url.protocol as 'http:' | 'https:',
+        const agent = await getUpstreamProxyAgent({
             hostname: url.hostname!,
             port: effectivePort,
-            proxySettingSource: this.getProxyConfig(options.proxyConfig),
-            tryHttp2: false,
-            keepAlive: false
+            proxyConfig: options.proxyConfig,
+            ruleParameters: this.ruleParameters
         });
 
         const request = (url.protocol === 'https:' ? https : http).request(requestDefn.url, {
