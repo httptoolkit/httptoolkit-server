@@ -1,4 +1,5 @@
 import * as http from 'http';
+import * as path from 'path';
 
 import { getDeferred } from '@httptoolkit/util';
 
@@ -9,13 +10,53 @@ export async function apiRequest(
     urlPath: string,
     body?: any
 ): Promise<any> {
-    const result = getDeferred<any>();
-    const socketPath = await getSocketPath();
+    const socketPaths = [await getSocketPath()];
 
+    if (
+        process.platform === 'linux' &&
+        !process.env.XDG_RUNTIME_DIR &&
+        process.getuid
+    ) {
+        socketPaths.push(path.join(
+            '/run/user',
+            `${process.getuid()}`,
+            'httptoolkit-ctl.sock'
+        ));
+    }
+
+    for (let i = 0; i < socketPaths.length; i++) {
+        const socketPath = socketPaths[i];
+
+        try {
+            return await socketRequest(socketPath, method, urlPath, body);
+        } catch (err: any) {
+            const isConnectionFailure =
+                err.code === 'ECONNREFUSED' || err.code === 'ENOENT';
+            const hasFallback = i < socketPaths.length - 1;
+
+            if (!isConnectionFailure || !hasFallback) {
+                if (isConnectionFailure) {
+                    throw new Error(
+                        'HTTP Toolkit is not running. Start HTTP Toolkit first.'
+                    );
+                }
+                throw err;
+            }
+        }
+    }
+}
+
+function socketRequest(
+    socketPath: string,
+    method: 'GET' | 'POST',
+    urlPath: string,
+    body?: any
+): Promise<any> {
+    const result = getDeferred<any>();
     const req = http.request({
         method,
         path: urlPath,
-        socketPath: socketPath,
+        socketPath,
         headers: {
             'Content-Type': 'application/json'
         },
@@ -50,13 +91,7 @@ export async function apiRequest(
         req.destroy(new Error('Request timed out'));
     });
 
-    req.on('error', (err: any) => {
-        if (err.code === 'ECONNREFUSED' || err.code === 'ENOENT') {
-            result.reject(new Error('HTTP Toolkit is not running. Start HTTP Toolkit first.'));
-        } else {
-            result.reject(err);
-        }
-    });
+    req.on('error', (err) => result.reject(err));
 
     if (body) {
         req.write(JSON.stringify(body));
