@@ -24,6 +24,14 @@ function maybeBundleImport<T>(moduleName: string): T {
 
 const { apiRequest } = maybeBundleImport<BridgeClientModule>('api/bridge-client');
 
+const LATEST_LEGACY_MCP_PROTOCOL_VERSION = '2025-11-25';
+const SUPPORTED_LEGACY_MCP_PROTOCOL_VERSIONS = new Set([
+    LATEST_LEGACY_MCP_PROTOCOL_VERSION,
+    '2025-06-18',
+    '2025-03-26',
+    '2024-11-05'
+]);
+
 interface JsonRpcRequest {
     jsonrpc: '2.0';
     id?: number | string;
@@ -54,6 +62,13 @@ function jsonRpcResult(id: number | string | null, result: any): void {
 
 function jsonRpcError(id: number | string | null, code: number, message: string): void {
     sendJsonRpc({ jsonrpc: '2.0', id, error: { code, message } });
+}
+
+function negotiateLegacyProtocolVersion(requestedVersion: unknown): string {
+    return typeof requestedVersion === 'string' &&
+        SUPPORTED_LEGACY_MCP_PROTOCOL_VERSIONS.has(requestedVersion)
+        ? requestedVersion
+        : LATEST_LEGACY_MCP_PROTOCOL_VERSION;
 }
 
 function operationsToMcpTools(operations: HtkOperation[]): any[] {
@@ -362,9 +377,13 @@ async function runMcpServer(): Promise<void> {
 
     function handleMessage(msg: JsonRpcRequest): void {
         switch (msg.method) {
-            case 'initialize':
+            case 'initialize': {
+                const protocolVersion = negotiateLegacyProtocolVersion(
+                    msg.params?.protocolVersion
+                );
+
                 jsonRpcResult(msg.id!, {
-                    protocolVersion: '2024-11-05',
+                    protocolVersion,
                     capabilities: {
                         tools: { listChanged: true }
                     },
@@ -374,6 +393,7 @@ async function runMcpServer(): Promise<void> {
                     }
                 });
                 break;
+            }
 
             case 'ping':
                 jsonRpcResult(msg.id!, {});
