@@ -75,6 +75,72 @@ function isPlainObject(value: unknown): value is Record<string, any> {
     return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
+function getUnderlyingBridgeErrors(error: any): any[] {
+    return error?.socketAttempts?.length
+        ? error.socketAttempts.map((attempt: any) => attempt.error)
+        : [error];
+}
+
+function isExpectedBridgeUnavailable(error: any): boolean {
+    if (!error) return false;
+    if (error.statusCode === 503 && error.body?.error === 'not_ready') return true;
+
+    const underlyingErrors = getUnderlyingBridgeErrors(error);
+    return underlyingErrors.length > 0 && underlyingErrors.every((underlyingError) =>
+        underlyingError?.code === 'ENOENT' ||
+        underlyingError?.code === 'ECONNREFUSED'
+    );
+}
+
+function shouldExposeBridgeDiagnostics(error: any): boolean {
+    return !!error && !isExpectedBridgeUnavailable(error);
+}
+
+function serializeBridgeError(error: any): any {
+    return {
+        message: error?.message ?? String(error),
+        ...(error?.code && { code: error.code }),
+        ...(error?.statusCode !== undefined && { statusCode: error.statusCode }),
+        ...(error?.body !== undefined && { body: error.body }),
+        ...(error?.socketPath && { socketPath: error.socketPath }),
+        ...(error?.socketAttempts && {
+            socketAttempts: error.socketAttempts.map((attempt: any) => ({
+                socketPath: attempt.socketPath,
+                error: serializeBridgeError(attempt.error)
+            }))
+        })
+    };
+}
+
+function getBridgeFailureInstruction(error: any): string {
+    const underlyingErrors = getUnderlyingBridgeErrors(error);
+    const codes = new Set(underlyingErrors.map((underlyingError) => underlyingError?.code));
+
+    if (codes.has('EPERM') || codes.has('EACCES')) {
+        return 'The MCP process was denied access to the local control socket. Check whether ' +
+            'it is running inside a sandbox that blocks Unix socket access.';
+    }
+    if (codes.has('ETIMEDOUT')) {
+        return 'The local control socket did not respond within two seconds. Restart HTTP ' +
+            'Toolkit and retry once it has fully opened.';
+    }
+    if (error?.statusCode === 404) {
+        return 'The responding server does not support this control endpoint. Restart HTTP ' +
+            'Toolkit and the MCP client after all application components have updated.';
+    }
+    if (error?.statusCode === 401 || error?.statusCode === 403) {
+        return 'The control server rejected this MCP process. Check that HTTP Toolkit and its ' +
+            'MCP process use the same authentication configuration.';
+    }
+    if (error?.statusCode !== undefined) {
+        return `The control server returned HTTP ${error.statusCode}. Restart HTTP Toolkit and ` +
+            'the MCP client, then retry.';
+    }
+
+    return 'Restart HTTP Toolkit and retry. If the failure continues, report these diagnostic ' +
+        'details with the HTTP Toolkit and MCP versions.';
+}
+
 const POLL_INTERVAL_MS = 5_000;
 const LAUNCH_TIMEOUT_MS = 30_000;
 const LAUNCH_POLL_MS = 500;
@@ -170,38 +236,99 @@ async function runMcpServer(): Promise<void> {
     const log = (msg: string) => process.stderr.write(`[MCP] ${msg}\n`);
 
     let cachedOperations: HtkOperation[] = [];
+    let lastBridgeError: any;
+    let lastToolStateKey: string | undefined;
+
+    function getToolStateKey(): string {
+        return JSON.stringify({
+            operations: cachedOperations.map(o => o.name).sort(),
+            diagnostics: shouldExposeBridgeDiagnostics(lastBridgeError)
+        });
+    }
 
     async function refreshOperations(): Promise<void> {
         try {
             cachedOperations = await apiRequest('GET', '/api/operations');
-        } catch {
+            lastBridgeError = undefined;
+        } catch (err) {
             cachedOperations = [];
+            lastBridgeError = err;
         }
     }
 
     // Kick off the first refresh in the background — don't block on this until
     // we actually need the tools list.
-    const initialRefresh = refreshOperations();
+    const initialRefresh = refreshOperations().then(() => {
+        lastToolStateKey = getToolStateKey();
+    });
 
     async function getToolsList(): Promise<any[]> {
         await initialRefresh;
         if (cachedOperations.length > 0) return operationsToMcpTools(cachedOperations);
-        // No running instance — the only available action is to launch it.
-        // This tool disappears once HTTP Toolkit is running and real tools become available.
+
+        const tools: any[] = [];
+
+        if (shouldExposeBridgeDiagnostics(lastBridgeError)) {
+            tools.push({
+                name: 'diagnose_httptoolkit_connection',
+                description: 'Show details and recovery instructions for the current broken HTTP Toolkit connection.',
+                inputSchema: { type: 'object', properties: {} },
+                annotations: {
+                    readOnlyHint: true,
+                    idempotentHint: true
+                }
+            });
+        }
+
         if (await getLaunchableHtkExePath()) {
-            return [{
+            tools.push({
                 name: 'start_httptoolkit',
                 description: 'HTTP Toolkit is not currently running. Call this to launch it — once started, more tools will become available.',
                 inputSchema: { type: 'object', properties: {} }
-            }];
+            });
         }
 
-        return [];
+        return tools;
     }
 
     async function handleToolCall(name: string, args: Record<string, unknown>): Promise<{ content: any[]; isError?: boolean }> {
         if (name === 'start_httptoolkit') {
             return startHttpToolkit(log, refreshOperations);
+        }
+
+        if (name === 'diagnose_httptoolkit_connection') {
+            if (!shouldExposeBridgeDiagnostics(lastBridgeError)) {
+                return {
+                    content: [{
+                        type: 'text',
+                        text: 'The HTTP Toolkit connection is no longer reporting a broken state. Refresh the available tools.'
+                    }]
+                };
+            }
+
+            return {
+                content: [{
+                    type: 'text',
+                    text: JSON.stringify({
+                        serverVersion: SERVER_VERSION,
+                        process: {
+                            platform: process.platform,
+                            arch: process.arch,
+                            node: process.version,
+                            pid: process.pid
+                        },
+                        runtimeEnvironment: {
+                            xdgRuntimeDir: process.env.XDG_RUNTIME_DIR,
+                            tempDir: process.env.TMPDIR
+                        },
+                        failure: serializeBridgeError(lastBridgeError),
+                        instructions: [
+                            getBridgeFailureInstruction(lastBridgeError),
+                            'Call start_httptoolkit to retry startup.'
+                        ]
+                    }, null, 2)
+                }]
+            };
         }
 
         // Map MCP tool name back to operation name
@@ -284,7 +411,6 @@ async function runMcpServer(): Promise<void> {
     }
 
     // Poll for operation changes
-    let lastOpsKey = JSON.stringify(cachedOperations.map(o => o.name).sort());
     let pollInProgress = false;
 
     const pollTimer = setInterval(async () => {
@@ -293,9 +419,9 @@ async function runMcpServer(): Promise<void> {
 
         try {
             await refreshOperations();
-            const newOpsKey = JSON.stringify(cachedOperations.map(o => o.name).sort());
-            if (newOpsKey !== lastOpsKey) {
-                lastOpsKey = newOpsKey;
+            const newToolStateKey = getToolStateKey();
+            if (newToolStateKey !== lastToolStateKey) {
+                lastToolStateKey = newToolStateKey;
                 sendJsonRpc({
                     jsonrpc: '2.0',
                     method: 'notifications/tools/list_changed'
