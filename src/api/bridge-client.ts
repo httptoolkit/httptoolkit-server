@@ -30,6 +30,7 @@ export async function apiRequest(
     body?: any
 ): Promise<any> {
     const socketPaths = [await getSocketPath()];
+    const socketAttempts: Array<{ socketPath: string; error: any }> = [];
 
     if (
         process.platform === 'linux' &&
@@ -52,26 +53,21 @@ export async function apiRequest(
         }
     }
 
-    for (let i = 0; i < socketPaths.length; i++) {
-        const socketPath = socketPaths[i];
-
+    for (const socketPath of socketPaths) {
         try {
             return await socketRequest(socketPath, method, urlPath, body);
         } catch (err: any) {
-            const isConnectionFailure =
-                err.code === 'ECONNREFUSED' || err.code === 'ENOENT';
-            const hasFallback = i < socketPaths.length - 1;
+            err.socketPath = socketPath;
 
-            if (!isConnectionFailure || !hasFallback) {
-                if (isConnectionFailure) {
-                    throw new Error(
-                        'HTTP Toolkit is not running. Start HTTP Toolkit first.'
-                    );
-                }
-                throw err;
-            }
+            // Any HTTP response identifies the active server, including errors
+            // from older or temporarily mismatched server versions.
+            if (err.statusCode !== undefined) throw err;
+
+            socketAttempts.push({ socketPath, error: err });
         }
     }
+
+    throw createBridgeConnectionError(socketAttempts);
 }
 
 function socketRequest(
@@ -91,40 +87,82 @@ function socketRequest(
         timeout: 2000
     }, (res) => {
         const chunks: Buffer[] = [];
-        res.on('error', (err) => result.reject(err));
+        res.on('error', (err: any) => {
+            err.statusCode = res.statusCode ?? 500;
+            result.reject(err);
+        });
         res.on('data', (chunk: Buffer) => chunks.push(chunk));
         res.on('end', () => {
             const raw = Buffer.concat(chunks).toString('utf-8');
-            if (res.statusCode && res.statusCode >= 400) {
-                try {
-                    const body = JSON.parse(raw);
-                    const message = body.message
-                        || (typeof body.error === 'string' ? body.error : body.error?.message)
-                        || `HTTP ${res.statusCode}`;
-                    result.reject(new Error(message));
-                } catch {
-                    result.reject(new Error(`HTTP ${res.statusCode}: ${raw}`));
-                }
+            const statusCode = res.statusCode ?? 500;
+
+            let parsedBody: any;
+            try {
+                parsedBody = JSON.parse(raw);
+            } catch {
+                const error: any = new Error(
+                    statusCode >= 400
+                        ? `HTTP ${statusCode}: ${raw}`
+                        : `Unparseable response: ${raw}`
+                );
+                error.statusCode = statusCode;
+                error.body = raw;
+                result.reject(error);
                 return;
             }
-            try {
-                result.resolve(JSON.parse(raw));
-            } catch {
-                result.reject(new Error(`Unparseable response: ${raw}`));
+
+            if (statusCode >= 400) {
+                const message = parsedBody?.message
+                    || (
+                        typeof parsedBody?.error === 'string'
+                            ? parsedBody.error
+                            : parsedBody?.error?.message
+                    )
+                    || `HTTP ${statusCode}`;
+                const error: any = new Error(message);
+                error.statusCode = statusCode;
+                error.body = parsedBody;
+                result.reject(error);
+                return;
             }
+
+            result.resolve(parsedBody);
         });
     });
 
     req.on('timeout', () => {
-        req.destroy(new Error('Request timed out'));
+        const error: any = new Error('Request timed out');
+        error.code = 'ETIMEDOUT';
+        req.destroy(error);
     });
 
     req.on('error', (err) => result.reject(err));
 
-    if (body) {
+    if (body !== undefined) {
         req.write(JSON.stringify(body));
     }
     req.end();
 
     return result;
+}
+
+function createBridgeConnectionError(
+    socketAttempts: Array<{ socketPath: string; error: any }>
+): Error {
+    const attemptsDescription = socketAttempts.map(({ socketPath, error }) => {
+        const detail = [error?.code, error?.message].filter(Boolean).join(': ');
+        return `${socketPath} (${detail || String(error)})`;
+    });
+    const error: any = new Error(
+        'Cannot connect to the HTTP Toolkit control socket. Tried: ' +
+        attemptsDescription.join(', ')
+    );
+    const representativeAttempt =
+        socketAttempts.find(({ error }) =>
+            error?.code === 'EPERM' || error?.code === 'EACCES'
+        ) ?? socketAttempts[socketAttempts.length - 1];
+
+    error.code = representativeAttempt?.error?.code;
+    error.socketAttempts = socketAttempts;
+    return error;
 }

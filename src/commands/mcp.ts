@@ -61,11 +61,18 @@ function operationsToMcpTools(operations: HtkOperation[]): any[] {
         name: op.name.replace(/\./g, '_'),
         description: op.description,
         inputSchema: {
+            ...(isPlainObject(op.inputSchema) ? op.inputSchema : {}),
             type: 'object',
-            properties: op.inputSchema?.properties ?? {},
+            properties: isPlainObject(op.inputSchema?.properties)
+                ? op.inputSchema.properties
+                : {},
         },
         ...(op.annotations && { annotations: op.annotations })
     }));
+}
+
+function isPlainObject(value: unknown): value is Record<string, any> {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
 const POLL_INTERVAL_MS = 5_000;
@@ -278,17 +285,25 @@ async function runMcpServer(): Promise<void> {
 
     // Poll for operation changes
     let lastOpsKey = JSON.stringify(cachedOperations.map(o => o.name).sort());
+    let pollInProgress = false;
 
     const pollTimer = setInterval(async () => {
-        await refreshOperations();
-        const newOpsKey = JSON.stringify(cachedOperations.map(o => o.name).sort());
-        if (newOpsKey !== lastOpsKey) {
-            lastOpsKey = newOpsKey;
-            sendJsonRpc({
-                jsonrpc: '2.0',
-                method: 'notifications/tools/list_changed'
-            });
-            log('Sent tools/list_changed');
+        if (pollInProgress) return;
+        pollInProgress = true;
+
+        try {
+            await refreshOperations();
+            const newOpsKey = JSON.stringify(cachedOperations.map(o => o.name).sort());
+            if (newOpsKey !== lastOpsKey) {
+                lastOpsKey = newOpsKey;
+                sendJsonRpc({
+                    jsonrpc: '2.0',
+                    method: 'notifications/tools/list_changed'
+                });
+                log('Sent tools/list_changed');
+            }
+        } finally {
+            pollInProgress = false;
         }
     }, POLL_INTERVAL_MS);
 
