@@ -1,9 +1,28 @@
 import * as http from 'http';
 import * as path from 'path';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 
 import { getDeferred } from '@httptoolkit/util';
 
 import { getSocketPath } from './ui-operation-bridge';
+
+const execFileAsync = promisify(execFile);
+let darwinTempDirPromise: Promise<string | undefined> | undefined;
+
+function getDarwinTempDir(): Promise<string | undefined> {
+    if (!darwinTempDirPromise) {
+        darwinTempDirPromise = execFileAsync(
+            '/usr/bin/getconf',
+            ['DARWIN_USER_TEMP_DIR'],
+            { encoding: 'utf8', timeout: 1000 }
+        )
+            .then(({ stdout }) => stdout.trim() || undefined)
+            .catch(() => undefined);
+    }
+
+    return darwinTempDirPromise;
+}
 
 export async function apiRequest(
     method: 'GET' | 'POST',
@@ -22,6 +41,15 @@ export async function apiRequest(
             `${process.getuid()}`,
             'httptoolkit-ctl.sock'
         ));
+    } else if (process.platform === 'darwin') {
+        const darwinTempDir = await getDarwinTempDir();
+        const darwinSocketPath = darwinTempDir
+            ? path.join(darwinTempDir, 'httptoolkit-ctl.sock')
+            : undefined;
+
+        if (darwinSocketPath && !socketPaths.includes(darwinSocketPath)) {
+            socketPaths.push(darwinSocketPath);
+        }
     }
 
     for (let i = 0; i < socketPaths.length; i++) {
