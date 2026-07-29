@@ -375,6 +375,10 @@ async function runMcpServer(): Promise<void> {
                 });
                 break;
 
+            case 'ping':
+                jsonRpcResult(msg.id!, {});
+                break;
+
             case 'notifications/initialized':
                 // Client ready — no response needed
                 break;
