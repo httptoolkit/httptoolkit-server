@@ -464,17 +464,25 @@ export async function injectSystemCertificate(
     runAsRoot: RootCmd,
     certificatePath: string
 ) {
-    const injectionScriptPath = `${ANDROID_TEMP}/htk-inject-system-cert.sh`;
-
     // We have a challenge here. How do we add a new cert to /system/etc/security/cacerts,
     // when that's generally read-only & often hard to remount (emulators require startup
     // args to allow RW system files). Solution: mount a virtual temporary FS on top of it.
-    await pushFile(
-        adbClient,
-        stringAsStream(`
+    await runRootScript(adbClient, runAsRoot, 'htk-inject-system-cert.sh', `
             set -e # Fail on error
 
             echo "\n---\nInjecting certificate:"
+
+            # Clean up any leftover past bounds. Must be lazy in case it's in used, we add
+            # a bound just to handle pathological cases here.
+            unmount_all() {
+                for i in $(seq 1 100); do
+                    grep -q " $1 " /proc/self/mountinfo || return 0
+                    umount -l "$1" 2>/dev/null || return 0
+                done
+            }
+
+            unmount_all /apex/com.android.conscrypt/cacerts
+            unmount_all /system/etc/security/cacerts
 
             # Create a separate temp directory, to hold the current certificates
             # Without this, when we add the mount we can't read the current certs anymore.
@@ -514,10 +522,12 @@ export async function injectSystemCertificate(
                 # When the APEX manages cacerts, we need to mount them at that path too. We can't do
                 # this globally as APEX mounts are namespaced per process, so we need to inject a
                 # bind mount for this directory into every mount namespace.
+                REBIND="for i in 1 2 3 4 5; do umount -l /apex/com.android.conscrypt/cacerts 2>/dev/null || break; done
+                    /bin/mount --bind /system/etc/security/cacerts /apex/com.android.conscrypt/cacerts"
 
                 # First we mount for the shell itself, for completeness and so we can see this
                 # when we check for correct installation on later runs
-                mount --bind /system/etc/security/cacerts /apex/com.android.conscrypt/cacerts
+                /bin/sh -c "$REBIND"
 
                 # First we get the Zygote process(es), which launch each app
                 ZYGOTE_PID=$(pidof zygote || true)
@@ -529,8 +539,7 @@ export async function injectSystemCertificate(
                 # started apps will see these certs straight away:
                 for Z_PID in $Z_PIDS; do
                     if [ -n "$Z_PID" ]; then
-                        nsenter --mount=/proc/$Z_PID/ns/mnt -- \
-                            /bin/mount --bind /system/etc/security/cacerts /apex/com.android.conscrypt/cacerts
+                        nsenter --mount=/proc/$Z_PID/ns/mnt -- /bin/sh -c "$REBIND"
                     fi
                 done
 
@@ -547,33 +556,18 @@ export async function injectSystemCertificate(
 
                 # Inject into the mount namespace of each of those apps:
                 for PID in $APP_PIDS; do
-                    nsenter --mount=/proc/$PID/ns/mnt -- \
-                        /bin/mount --bind /system/etc/security/cacerts /apex/com.android.conscrypt/cacerts &
+                    nsenter --mount=/proc/$PID/ns/mnt -- /bin/sh -c "$REBIND" &
                 done
                 wait # Launched in parallel - wait for completion here
 
                 echo "APEX certificates remounted for $(echo $APP_PIDS | wc -w) apps"
             fi
 
-            # Delete the temp cert directory & this script itself
+            # Delete the temp cert directory
             rm -r /data/local/tmp/htk-ca-copy
-            rm ${injectionScriptPath}
 
             echo "System cert successfully injected\n---\n"
-        `),
-        injectionScriptPath,
-        // Due to an Android bug, user mode is always duplicated to group & others. We set as read-only
-        // to avoid making this writable by others before we run it as root in a moment.
-        // More details: https://github.com/openstf/adbkit/issues/126
-        0o444
-    );
-
-    // Actually run the script that we just pushed above, as root
-    const scriptOutput = await run(adbClient, runAsRoot('sh', injectionScriptPath));
-
-    if (!scriptOutput.includes("System cert successfully injected")) {
-        throw new Error('System certificate injection failed');
-    }
+    `, { successMarker: 'System cert successfully injected' });
 }
 
 // Read device's current CT log list. Undefined if there is none, but throws if it can't
@@ -705,11 +699,7 @@ export async function setChromeFlags(
         `/data/local/tmp/${variant}-command-line`,
     ]);
 
-    const chromeFlagsScriptPath = `${ANDROID_TEMP}/htk-set-chrome-flags.sh`;
-
-    await pushFile(
-        adbClient,
-        stringAsStream(`
+    await runRootScript(adbClient, runAsRoot, 'htk-set-chrome-flags.sh', `
             set -e # Fail on error
 
             ${
@@ -720,20 +710,8 @@ export async function setChromeFlags(
                 ).join('\n')
             }
 
-            rm ${chromeFlagsScriptPath}
-
             echo "Chrome flags script completed"
-        `),
-        chromeFlagsScriptPath,
-        // Due to an Android bug, user mode is always duplicated to group & others. We set as read-only
-        // to avoid making this writable by others before we run it as root in a moment.
-        // More details: https://github.com/openstf/adbkit/issues/126
-        0o444
-    );
-
-    // Actually run the script that we just pushed above, as root
-    const scriptOutput = await run(adbClient, runAsRoot('sh', chromeFlagsScriptPath));
-    console.log(scriptOutput);
+    `);
 
     // Try to restart chrome, now that the flags have probably been changed:
     await run(adbClient, runAsRoot('am', 'force-stop', 'com.android.chrome')).catch(() => {});
