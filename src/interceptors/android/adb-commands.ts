@@ -8,6 +8,7 @@ import { logError } from '../../error-tracking';
 import { waitUntil } from '../../util/promise';
 import { getCertificateFingerprint, parseCert } from '../../certificates';
 import { streamToBuffer } from '../../util/stream';
+
 export const ANDROID_TEMP = '/data/local/tmp';
 export const SYSTEM_CA_PATH = '/system/etc/security/cacerts';
 
@@ -442,7 +443,19 @@ async function runRootScript(
             pushFile(adbClient, bufferAsStream(content), path, 0o444)
         ),
         pushFile(adbClient, stringAsStream(`
-            trap 'rm -f ${scriptPath}' EXIT
+            HTK_SCRIPT=${scriptPath}
+            trap 'rm -f $HTK_SCRIPT' EXIT
+
+            # Unmount every layer mounted at a path. Lazy, as processes may still hold these
+            # open, and one layer at a time, so we repeat until the path is clear (bounded,
+            # in case something we can't unmount is mounted there):
+            unmount_all() {
+                for i in $(seq 1 100); do
+                    grep -q " $1 " /proc/self/mountinfo || return 0
+                    umount -l "$1" 2>/dev/null || return 0
+                done
+            }
+
             ${script}
         `), scriptPath, 0o444)
     ]);
@@ -471,15 +484,6 @@ export async function injectSystemCertificate(
             set -e # Fail on error
 
             echo "\n---\nInjecting certificate:"
-
-            # Clean up any leftover past bounds. Must be lazy in case it's in used, we add
-            # a bound just to handle pathological cases here.
-            unmount_all() {
-                for i in $(seq 1 100); do
-                    grep -q " $1 " /proc/self/mountinfo || return 0
-                    umount -l "$1" 2>/dev/null || return 0
-                done
-            }
 
             unmount_all /apex/com.android.conscrypt/cacerts
             unmount_all /system/etc/security/cacerts
@@ -637,7 +641,7 @@ export async function injectCtLogLists(
             # Drop any previous injection, so that repeated runs don't stack up mounts. This
             # has to be lazy: apps keep the log list mmapped, so a normal umount fails while
             # any of them are still running.
-            for i in 1 2 3 4 5; do umount -l ${CT_LOG_DIR} 2>/dev/null || break; done
+            unmount_all ${CT_LOG_DIR}
 
             # A fresh tmpfs is labelled u:object_r:tmpfs:s0, which apps can't read, so we
             # relabel everything to match the SELinux context Android uses here normally:
@@ -650,6 +654,9 @@ export async function injectCtLogLists(
 
             mkdir -p ${CT_LOG_DIR}
             mount -t tmpfs tmpfs ${CT_LOG_DIR}
+
+            # Cleanup if we fail, to avoid breaking CT entirely
+            trap 'rm -f $HTK_SCRIPT; unmount_all ${CT_LOG_DIR}' EXIT
 
             mkdir -p ${[
                 CT_LOG_LIST_PATHS.v1,
@@ -671,6 +678,8 @@ export async function injectCtLogLists(
             # update fails & is retried later instead, which is harmless.
             mount -o remount,ro tmpfs ${CT_LOG_DIR} ||
                 echo 'Could not remount the CT log lists as read-only'
+
+            trap 'rm -f $HTK_SCRIPT' EXIT # Fully populated now, so the mount can stay
 
             echo "CT log lists successfully injected\n---\n"
     `, {

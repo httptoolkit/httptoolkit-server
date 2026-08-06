@@ -236,6 +236,11 @@ export class AndroidAdbInterceptor implements Interceptor {
     ) {
         const existingList = parseCtLogList(await existingListRead);
 
+        if (!existingList?.logs.length) {
+            console.log('Device has no CT log list, so CT is unenforced - nothing to do');
+            return;
+        }
+
         if (ctLogListIncludesCa(existingList, certContent)) {
             console.log("CT log list already installed, nothing to do");
             return;

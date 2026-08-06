@@ -22,20 +22,28 @@ import {
 // A real log list, as installed on an Android 17 emulator:
 const DEVICE_LOG_LIST = path.join(__dirname, '..', 'fixtures', 'android-ct-log-list.ctfb');
 
-// Matches Conscrypt's SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssX") - notably no milliseconds:
-const JSON_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+
+
+interface JsonLog {
+    description: string;
+    key: string;
+    log_id: string;
+    url: string;
+    state: { [state: string]: { timestamp: number } };
+}
 
 interface JsonLogList {
     version: string;
-    log_list_timestamp: string;
+    log_list_timestamp: number;
     operators: Array<{
         name: string,
+        tiled_logs: JsonLog[],
         logs: Array<{
             description: string,
             key: string,
             log_id: string,
             url: string,
-            state: { [state: string]: { timestamp: string } }
+            state: { [state: string]: { timestamp: number } }
         }>
     }>;
 }
@@ -258,7 +266,8 @@ describe("The Android CT log list", () => {
             const logList = buildCtLogList(caCert, anExistingList([anExistingLog('real-log')]));
             const json = parseJson(serializeCtLogLists(logList).json);
             expect(json.version).to.equal('89.1');
-            expect(json.log_list_timestamp).to.match(JSON_TIMESTAMP);
+            expect(json.log_list_timestamp).to.be.a('number');
+            expect(json.log_list_timestamp).to.equal(logList.timestamp.valueOf());
             expect(json.operators.map(({ name }) => name)).to.deep.equal([
                 'Real operator',
                 'HTTP Toolkit CT Operator 1',
@@ -269,13 +278,32 @@ describe("The Android CT log list", () => {
                 expect(log.description).to.be.a('string');
                 expect(log.url).to.be.a('string');
                 expect(Object.keys(log.state).length).to.equal(1);
-                expect(log.state.usable.timestamp).to.match(JSON_TIMESTAMP);
+                expect(log.state.usable.timestamp).to.be.a('number');
 
                 const logId = crypto.createHash('sha256')
                     .update(Buffer.from(log.key, 'base64'))
                     .digest('base64');
                 expect(log.log_id).to.equal(logId);
             });
+        });
+
+        it("should keep static logs in their own field, as Conscrypt reads them", () => {
+            const staticLog = anExistingLog('static-log');
+            staticLog.type = 'static';
+            const logList = anExistingList([anExistingLog('rfc6962-log'), staticLog]);
+
+            const json = parseJson(serializeCtLogLists(logList).json);
+            const operator = json.operators[0];
+
+            expect(operator.logs.map(({ description }) => description))
+                .to.deep.equal(['rfc6962-log']);
+            expect(operator.tiled_logs.map(({ description }) => description))
+                .to.deep.equal(['static-log']);
+
+            // ...and the types survive a round-trip:
+            const parsed = parseCtLogList(serializeCtLogLists(logList).json)!;
+            expect(parsed.logs.map(({ description, type }) => `${description}=${type}`))
+                .to.deep.equal(['rfc6962-log=rfc6962', 'static-log=static']);
         });
 
         it("should round-trip through parsing", () => {
@@ -300,6 +328,38 @@ describe("The Android CT log list", () => {
 
             const parsed = parseCtLogList(json)!;
             expect(parsed.logs.map(({ description }) => description)).to.deep.equal(['valid-log']);
+        });
+
+        it("should read the timestamp formats devices actually use", () => {
+            const asJson = (timestamp: unknown) => Buffer.from(JSON.stringify({
+                version: '1.0',
+                log_list_timestamp: timestamp,
+                operators: [{ name: 'Op', logs: [{
+                    ...anExistingLog('a-log'),
+                    key: anExistingLog('a-log').publicKey.toString('base64'),
+                    log_id: crypto.createHash('sha256').update(Buffer.alloc(0)).digest('base64'),
+                    state: { usable: { timestamp } }
+                }] }]
+            }));
+
+            // Numbers are what shipped Conscrypt writes & reads, but some versions use ISO:
+            expect(parseCtLogList(asJson(1785245947000))?.timestamp.toISOString())
+                .to.equal('2026-07-28T13:39:07.000Z');
+            expect(parseCtLogList(asJson('2026-07-28T13:39:07Z'))?.timestamp.toISOString())
+                .to.equal('2026-07-28T13:39:07.000Z');
+            expect(parseCtLogList(asJson('nonsense'))?.timestamp.valueOf())
+                .to.be.lessThan(Date.now()); // Falls back to our own backdated default
+        });
+
+        it("should accept logs without a url, which devices omit", () => {
+            const log = anExistingLog('no-url-log');
+            delete log.url;
+            const json = serializeCtLogLists(anExistingList([log])).json;
+            const withoutUrl = JSON.parse(json.toString('utf8'));
+            delete withoutUrl.operators[0].logs[0].url;
+
+            const parsed = parseCtLogList(Buffer.from(JSON.stringify(withoutUrl)))!;
+            expect(parsed.logs.map(({ description }) => description)).to.deep.equal(['no-url-log']);
         });
 
         it("should ignore content that isn't a valid list", () => {

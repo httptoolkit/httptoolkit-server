@@ -40,10 +40,17 @@ const DAY = 24 * 60 * 60 * 1000;
 // expires them after 70 days, so we backdate ours a little to allow for clock skew:
 const defaultListTimestamp = () => new Date(Date.now() - DAY);
 
-// Conscrypt parses JSON timestamps with SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssX"), which
-// rejects the milliseconds that toISOString() includes:
-const jsonTimestamp = (date: Date) => date.toISOString().replace(/\.\d+Z$/, 'Z');
-const JSON_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}(?::?\d{2})?)$/;
+// Shipped Conscrypt reads every JSON timestamp with getLong(), i.e. epoch milliseconds. Some
+// versions parse ISO-8601 strings instead, so we accept those when reading, but we always
+// write numbers: getLong() throws on a date string, which invalidates the entire log list.
+const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}(?::?\d{2})?)$/;
+
+const parseJsonTimestamp = (value: unknown): Date | undefined => {
+    if (typeof value === 'number') return new Date(value);
+    if (isString(value) && ISO_TIMESTAMP_PATTERN.test(value)) return new Date(value);
+    if (isString(value) && /^\d+$/.test(value)) return new Date(parseInt(value, 10));
+    return undefined;
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -66,14 +73,17 @@ const toArray = (value: unknown): unknown[] => Array.isArray(value) ? value : []
 function parseJsonLog(value: unknown, operator: string, type: CtLogType): CtLog | undefined {
     if (!isRecord(value)) return undefined;
     if (!isString(value.log_id) || !isString(value.key)) return undefined;
-    if (!isString(value.description) || !isString(value.url)) return undefined;
+    if (!isString(value.description)) return undefined;
 
+    // Logs without a state can't contribute to the CT policy, so we drop them - and we
+    // couldn't rewrite them anyway, as Conscrypt rejects any state name it doesn't know:
     if (!isRecord(value.state)) return undefined;
     const [stateName, ...extraStates] = Object.keys(value.state);
     if (extraStates.length || !CT_LOG_STATES.includes(stateName as CtLogState)) return undefined;
     const state = value.state[stateName];
-    if (!isRecord(state) || !isString(state.timestamp)) return undefined;
-    if (!JSON_TIMESTAMP_PATTERN.test(state.timestamp)) return undefined;
+    if (!isRecord(state)) return undefined;
+    const stateTimestamp = parseJsonTimestamp(state.timestamp);
+    if (!stateTimestamp) return undefined;
 
     return {
         logId: value.log_id,
@@ -81,9 +91,9 @@ function parseJsonLog(value: unknown, operator: string, type: CtLogType): CtLog 
         operator,
         type,
         state: stateName as CtLogState,
-        stateTimestamp: new Date(state.timestamp),
+        stateTimestamp,
         description: value.description,
-        url: value.url
+        ...(isString(value.url) ? { url: value.url } : {})
     };
 }
 
@@ -115,10 +125,7 @@ function parseJsonLogList(content: string): CtLogList | undefined {
     return {
         versionMajor: versionMajor || 1,
         versionMinor: versionMinor || 0,
-        timestamp: isString(parsed.log_list_timestamp) &&
-                JSON_TIMESTAMP_PATTERN.test(parsed.log_list_timestamp)
-            ? new Date(parsed.log_list_timestamp)
-            : defaultListTimestamp(),
+        timestamp: parseJsonTimestamp(parsed.log_list_timestamp) ?? defaultListTimestamp(),
         logs
     };
 }
@@ -176,18 +183,23 @@ export function buildCtLogList(caCertPem: string, existingList?: CtLogList): CtL
 function serializeJsonLogList(logList: CtLogList): Buffer {
     const operators = _.groupBy(logList.logs, ({ operator }) => operator);
 
+    const asJsonLog = (log: CtLog) => ({
+        description: log.description ?? `${log.operator} log`,
+        key: log.publicKey.toString('base64'),
+        log_id: log.logId,
+        url: log.url ?? `https://ct.invalid/${log.logId}/`,
+        state: { [log.state]: { timestamp: log.stateTimestamp.valueOf() } }
+    });
+
     return Buffer.from(JSON.stringify({
         version: `${logList.versionMajor}.${logList.versionMinor}`,
-        log_list_timestamp: jsonTimestamp(logList.timestamp),
+        log_list_timestamp: logList.timestamp.valueOf(),
         operators: Object.entries(operators).map(([name, logs]) => ({
             name,
-            logs: logs.map((log) => ({
-                description: log.description ?? `${log.operator} log`,
-                key: log.publicKey.toString('base64'),
-                log_id: log.logId,
-                url: log.url ?? `https://ct.invalid/${log.logId}/`,
-                state: { [log.state]: { timestamp: jsonTimestamp(log.stateTimestamp) } }
-            }))
+            // Static (tiled) logs go in their own field. Conscrypt's policy treats the two
+            // types differently, so listing one as the other isn't just cosmetic:
+            logs: logs.filter(({ type }) => type !== 'static').map(asJsonLog),
+            tiled_logs: logs.filter(({ type }) => type === 'static').map(asJsonLog)
         }))
     }));
 }
