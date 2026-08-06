@@ -66,7 +66,8 @@ async function generateHTTPSConfig(configPath: string) {
         keyPath,
         certPath,
         certContent,
-        keyLength: 2048 // Reasonably secure keys please
+        keyLength: 2048, // Reasonably secure keys please
+        certificateTransparency: true
     };
 }
 
