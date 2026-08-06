@@ -6,5 +6,6 @@ export interface HtkConfig {
         certPath: string;
         certContent: string;
         keyLength: number;
+        certificateTransparency: boolean;
     }
 }

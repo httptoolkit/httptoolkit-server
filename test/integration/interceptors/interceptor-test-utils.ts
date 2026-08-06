@@ -8,6 +8,7 @@ import { expect } from 'chai';
 import { getLocal, generateCACertificate, Mockttp, requestHandlers } from 'mockttp';
 
 import { buildInterceptors, Interceptor } from '../../../src/interceptors';
+import { HtkConfig } from '../../../src/config';
 import { getDnsServer } from '../../../src/dns-server';
 
 const getCertificateDetails = _.memoize(async (configPath: string) => {
@@ -19,13 +20,19 @@ const getCertificateDetails = _.memoize(async (configPath: string) => {
     fs.writeFileSync(keyPath, newCertPair.key);
     fs.writeFileSync(certPath, newCertPair.cert);
 
-    return { certPath, keyPath, certContent: newCertPair.cert, keyLength: 2048};
+    return {
+        certPath,
+        keyPath,
+        certContent: newCertPair.cert,
+        keyLength: 2048,
+        certificateTransparency: true
+    };
 });
 
 type TestSetup = {
     server: Mockttp,
     configPath: string,
-    httpsConfig: { certPath: string, keyPath: string, certContent: string, keyLength: number }
+    httpsConfig: HtkConfig['https']
     getPassThroughOptions(): Promise<requestHandlers.PassThroughHandlerOptions>;
 };
 

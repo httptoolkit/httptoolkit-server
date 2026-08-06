@@ -8,9 +8,15 @@ import { logError } from '../../error-tracking';
 import { waitUntil } from '../../util/promise';
 import { getCertificateFingerprint, parseCert } from '../../certificates';
 import { streamToBuffer } from '../../util/stream';
-
 export const ANDROID_TEMP = '/data/local/tmp';
 export const SYSTEM_CA_PATH = '/system/etc/security/cacerts';
+
+const CT_LOG_DIR = '/data/misc/keychain/ct';
+const CT_LOG_LIST_PATHS = {
+    v1: `${CT_LOG_DIR}/v1/current/log_list.json`,
+    v2: `${CT_LOG_DIR}/v2/current/log_list.json`,
+    v3: `${CT_LOG_DIR}/v3/current/log_list.ctfb` // Flatbuffer
+};
 
 export const EMULATOR_HOST_IPS = [
     '10.0.2.2', // Standard emulator localhost ip
@@ -189,11 +195,11 @@ const filterDeviceNameCache = (connectedIds: string[]) => {
 };
 
 export function stringAsStream(input: string) {
-    const contentStream = new stream.Readable();
-    contentStream._read = () => {};
-    contentStream.push(input);
-    contentStream.push(null);
-    return contentStream;
+    return bufferAsStream(Buffer.from(input, 'utf8'));
+}
+
+function bufferAsStream(input: Buffer) {
+    return stream.Readable.from([input], { objectMode: false });
 }
 
 async function run(
@@ -279,7 +285,7 @@ const runAsRootCommands = [
     (...cmd: string[]) => ['su', 'root', cmd.join(' ')]
 ];
 
-type RootCmd = (...cmd: string[]) => string[];
+export type RootCmd = (...cmd: string[]) => string[];
 
 export async function getRootCommand(adbClient: Adb.DeviceClient): Promise<RootCmd | undefined> {
     const rootTestScriptPath = `${ANDROID_TEMP}/htk-root-test.sh`;
@@ -412,6 +418,47 @@ const isMatchingCert = async (certStream: stream.Readable, expectedFingerprint: 
     return expectedFingerprint === existingFingerprint;
 }
 
+// Push a script, run it as root, and (optionally) check that it reported success. The
+// script deletes itself on any exit path, so nothing is left behind on the device.
+async function runRootScript(
+    adbClient: Adb.DeviceClient,
+    runAsRoot: RootCmd,
+    scriptName: string,
+    script: string,
+    options: {
+        files?: Array<{ content: Buffer, path: string }>,
+        successMarker?: string,
+        timeout?: number,
+        skipLogging?: boolean
+    } = {}
+) {
+    const scriptPath = `${ANDROID_TEMP}/${scriptName}`;
+
+    await Promise.all([
+        ...(options.files ?? []).map(({ content, path }) =>
+            // Due to an Android bug, user mode is always duplicated to group & others. We set as
+            // read-only to avoid making these writable by others before we use them as root in a
+            // moment. More details: https://github.com/openstf/adbkit/issues/126
+            pushFile(adbClient, bufferAsStream(content), path, 0o444)
+        ),
+        pushFile(adbClient, stringAsStream(`
+            trap 'rm -f ${scriptPath}' EXIT
+            ${script}
+        `), scriptPath, 0o444)
+    ]);
+
+    const output = await run(adbClient, runAsRoot('sh', scriptPath), {
+        timeout: options.timeout ?? 10000,
+        skipLogging: options.skipLogging
+    });
+
+    if (options.successMarker && !output.includes(options.successMarker)) {
+        throw new Error(`${scriptName} failed`);
+    }
+
+    return output;
+}
+
 export async function injectSystemCertificate(
     adbClient: Adb.DeviceClient,
     runAsRoot: RootCmd,
@@ -526,7 +573,118 @@ export async function injectSystemCertificate(
 
     if (!scriptOutput.includes("System cert successfully injected")) {
         throw new Error('System certificate injection failed');
+}
+
+// Read device's current CT log list. Undefined if there is none, but throws if it can't
+// be read for some reason.
+export async function readCtLogList(
+    adbClient: Adb.DeviceClient,
+    runAsRoot: RootCmd
+): Promise<Buffer | undefined> {
+    // Multiple possible formats, most recent is used by preference. Can't pull directly as we
+    // need `su`, so we read on-device and base64 to avoid binary getting mangled in transfer.
+    // To confirm the exact result, we need to wrap our output with extra info, otherwise we
+    // can't reliably differentiate missing/error/truncated/OK.
+    const output = await runRootScript(adbClient, runAsRoot, 'htk-read-ct-logs.sh', `
+        for LIST_PATH in ${[
+            CT_LOG_LIST_PATHS.v3,
+            CT_LOG_LIST_PATHS.v2,
+            CT_LOG_LIST_PATHS.v1
+        ].join(' ')}; do
+            if [ -f "$LIST_PATH" ]; then
+                echo "HTK-CT-LIST $LIST_PATH"
+                base64 "$LIST_PATH"
+                echo "HTK-CT-READ $?"
+                exit 0
+            fi
+        done
+
+        echo "HTK-CT-LIST none"
+        echo "HTK-CT-READ 0"
+    `, { timeout: 3000, skipLogging: true });
+
+    const result = output.match(/HTK-CT-LIST (\S+)\r?\n([\s\S]*)HTK-CT-READ (\d+)/);
+    if (!result) {
+        throw new Error(`Could not read the device's CT log list: ${
+            output.trim().slice(0, 200) || 'no output'
+        }`);
     }
+
+    const [, listPath, listContent, readResult] = result;
+
+    if (listPath === 'none') {
+        console.log('No existing CT log list found on device');
+        return undefined;
+    }
+
+    if (readResult !== '0') {
+        throw new Error(`Reading ${listPath} failed with status ${readResult}`);
+    }
+
+    console.log(`Read existing CT log list from ${listPath}`);
+    return Buffer.from(listContent.replace(/[^A-Za-z0-9+/=]/g, ''), 'base64');
+}
+
+export async function injectCtLogLists(
+    adbClient: Adb.DeviceClient,
+    runAsRoot: RootCmd,
+    logLists: { json: Buffer, ctfb: Buffer }
+) {
+    const jsonPath = `${ANDROID_TEMP}/htk-ct-log-list.json`;
+    const ctfbPath = `${ANDROID_TEMP}/htk-ct-log-list.ctfb`;
+
+    // Use tmpfs to shadow device's CT config with our extended version:
+    await runRootScript(adbClient, runAsRoot, 'htk-inject-ct-logs.sh', `
+            set -e # Fail on error
+
+            echo "\n---\nInjecting CT log lists:"
+
+            # Drop any previous injection, so that repeated runs don't stack up mounts. This
+            # has to be lazy: apps keep the log list mmapped, so a normal umount fails while
+            # any of them are still running.
+            for i in 1 2 3 4 5; do umount -l ${CT_LOG_DIR} 2>/dev/null || break; done
+
+            # A fresh tmpfs is labelled u:object_r:tmpfs:s0, which apps can't read, so we
+            # relabel everything to match the SELinux context Android uses here normally:
+            set -- $(ls -Zd /data/misc/keychain 2>/dev/null || true)
+            CT_CONTEXT=$1
+            case "$CT_CONTEXT" in
+                u:object_r:*) ;;
+                *) CT_CONTEXT=u:object_r:keychain_data_file:s0 ;;
+            esac
+
+            mkdir -p ${CT_LOG_DIR}
+            mount -t tmpfs tmpfs ${CT_LOG_DIR}
+
+            mkdir -p ${[
+                CT_LOG_LIST_PATHS.v1,
+                CT_LOG_LIST_PATHS.v2,
+                CT_LOG_LIST_PATHS.v3
+            ].map((listPath) => path.posix.dirname(listPath)).join(' ')}
+
+            mv ${jsonPath} ${CT_LOG_LIST_PATHS.v1}
+            cp ${CT_LOG_LIST_PATHS.v1} ${CT_LOG_LIST_PATHS.v2}
+            mv ${ctfbPath} ${CT_LOG_LIST_PATHS.v3}
+
+            # Make everything as readable as the real log lists are:
+            chown -R root:root ${CT_LOG_DIR}
+            chmod -R 755 ${CT_LOG_DIR}
+            chmod 644 ${Object.values(CT_LOG_LIST_PATHS).join(' ')}
+            chcon -R $CT_CONTEXT ${CT_LOG_DIR}
+
+            # Read-only, so that the daily CT log list update can't replace our lists. The
+            # update fails & is retried later instead, which is harmless.
+            mount -o remount,ro tmpfs ${CT_LOG_DIR} ||
+                echo 'Could not remount the CT log lists as read-only'
+
+            echo "CT log lists successfully injected\n---\n"
+    `, {
+        files: [
+            { content: logLists.json, path: jsonPath },
+            { content: logLists.ctfb, path: ctfbPath }
+        ],
+        successMarker: 'CT log lists successfully injected'
+    });
 }
 
 export async function setChromeFlags(

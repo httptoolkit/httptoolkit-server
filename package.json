@@ -74,6 +74,7 @@
     "env-paths": "^1.0.0",
     "event-stream": "^4.0.1",
     "express": "^5.2.1",
+    "flatbuffers": "25.1.24",
     "frida-js": "^0.4.0",
     "get-port": "^7.2.0",
     "graphql": "^16.13.2",

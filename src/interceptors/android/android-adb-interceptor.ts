@@ -21,8 +21,17 @@ import {
     startActivity,
     createPersistentReverseTunnel,
     closeReverseTunnel,
-    EMULATOR_HOST_IPS
+    readCtLogList,
+    injectCtLogLists,
+    EMULATOR_HOST_IPS,
+    RootCmd
 } from './adb-commands';
+import {
+    buildCtLogList,
+    ctLogListIncludesCa,
+    parseCtLogList,
+    serializeCtLogLists
+} from './ct-log-list';
 import { streamLatestApk, clearAllApks } from './fetch-apk';
 import { parseCert, getCertificateFingerprint, getCertificateSubjectHash } from '../../certificates';
 import { getReachableInterfaces } from '../../util/network';
@@ -72,7 +81,7 @@ export class AndroidAdbInterceptor implements Interceptor {
     }): Promise<void | {}> {
         const deviceClient = new DeviceClient(this.adbClient, options.deviceId);
 
-        await this.injectSystemCertIfPossible(deviceClient, this.config.https.certContent);
+        await this.setupCertificateTrust(deviceClient, this.config.https.certContent);
 
         if (!(await deviceClient.isInstalled('tech.httptoolkit.android.v1'))) {
             console.log("App not installed, installing...");
@@ -160,12 +169,18 @@ export class AndroidAdbInterceptor implements Interceptor {
         );
     }
 
-    private async injectSystemCertIfPossible(deviceClient: DeviceClient, certContent: string) {
+    private async setupCertificateTrust(deviceClient: DeviceClient, certContent: string) {
         const rootCmd = await getRootCommand(deviceClient);
         if (!rootCmd) {
             console.log('Root not available, skipping cert injection');
             return;
         }
+
+        // Read the device's CT log list in parallel with cert setup:
+        const existingCtLogList = this.config.https.certificateTransparency
+            ? readCtLogList(deviceClient, rootCmd)
+            : undefined;
+        existingCtLogList?.catch(() => {}); // Errors are handled where we await this below
 
         const cert = parseCert(certContent);
 
@@ -191,10 +206,15 @@ export class AndroidAdbInterceptor implements Interceptor {
                 console.log("Cert already installed, nothing to do");
             }
 
+            if (existingCtLogList) {
+                await this.injectCtLogListIfNeeded(deviceClient, rootCmd, certContent, existingCtLogList)
+                    .catch(logError); // Continue but log the failure
+            }
+
             const spkiFingerprint = await generateSPKIFingerprint(certContent);
 
-            // Chrome requires system certificates to use certificate transparency, which we can't do. To work
-            // around this, we need to explicitly trust our certificate in Chrome:
+            // Chrome only trusts SCTs from the CT logs it recognizes itself, which we can't
+            // provide. To work around that, we explicitly trust our certificate in Chrome:
             await setChromeFlags(deviceClient, rootCmd, [
                 `--ignore-certificate-errors-spki-list=${spkiFingerprint}`
             ]);
@@ -202,5 +222,28 @@ export class AndroidAdbInterceptor implements Interceptor {
         } catch (e) {
             logError(e);
         }
+    }
+
+    // From Android 16 (and by default from Android 17) apps can require certificate
+    // transparency, which rejects any certificate without SCTs from known CT logs - including
+    // ours. Mockttp stamps our certificates with SCTs from logs derived from the CA, so here
+    // we add those logs to the device's log list to make those SCTs verifiable.
+    private async injectCtLogListIfNeeded(
+        deviceClient: DeviceClient,
+        rootCmd: RootCmd,
+        certContent: string,
+        existingListRead: Promise<Buffer | undefined>
+    ) {
+        const existingList = parseCtLogList(await existingListRead);
+
+        if (ctLogListIncludesCa(existingList, certContent)) {
+            console.log("CT log list already installed, nothing to do");
+            return;
+        }
+
+        await injectCtLogLists(deviceClient, rootCmd,
+            serializeCtLogLists(buildCtLogList(certContent, existingList))
+        );
+        console.log('CT log list injected');
     }
 }
