@@ -16,7 +16,7 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 24.15.0
+          node-version: 24.19.0
 
       - name: Set up JDK 11 for Java testing
         uses: actions/setup-java@v5
