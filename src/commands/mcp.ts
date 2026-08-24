@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import * as readline from 'readline';
-import { execFile } from 'child_process';
+import { execFile, spawn } from 'child_process';
 
 const canAccess = (filePath: string): Promise<boolean> =>
     fs.promises.access(filePath).then(() => true).catch(() => false);
@@ -159,6 +159,7 @@ function getBridgeFailureInstruction(error: any): string {
 const POLL_INTERVAL_MS = 5_000;
 const LAUNCH_TIMEOUT_MS = 30_000;
 const LAUNCH_POLL_MS = 500;
+const OPEN_TIMEOUT_MS = 10_000;
 
 // Default install paths per platform. First match wins. The wrapper scripts
 // (httptoolkit-mcp / .cmd) set HTK_DESKTOP_EXE explicitly, so the env var
@@ -199,6 +200,53 @@ async function getLaunchableHtkExePath(): Promise<string | null> {
     return null;
 }
 
+async function getOutermostAppBundlePath(exePath: string): Promise<string | undefined> {
+    const realExePath = await fs.promises.realpath(exePath).catch(() => exePath);
+
+    const pathParts = realExePath.split(path.sep);
+    const outermostBundleIndex = pathParts.findIndex((part) => part.endsWith('.app'));
+    if (outermostBundleIndex === -1) return undefined;
+
+    return pathParts.slice(0, outermostBundleIndex + 1).join(path.sep);
+}
+
+// We launch on Mac via `open`. Launching the exe directly would mean the MCP server
+// becomes the responsible process, which has permissions & OS UI effects.
+function openAppBundleViaLaunchServices(bundlePath: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        execFile('/usr/bin/open', ['-a', bundlePath], { timeout: OPEN_TIMEOUT_MS }, (error, _stdout, stderr) => {
+            if (!error) resolve();
+            else reject(new Error(`${bundlePath} could not be opened: ${stderr.trim() || error.message}`));
+        });
+    });
+}
+
+function spawnAppDetached(exePath: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const app = spawn(exePath, [], {
+            detached: true,
+            stdio: 'ignore'
+        });
+
+        app.on('error', (error) => reject(
+            new Error(`${exePath} could not be started: ${error.message}`)
+        ));
+        app.on('spawn', () => {
+            app.unref();
+            resolve();
+        });
+    });
+}
+
+async function launchDesktopApp(exePath: string): Promise<void> {
+    if (process.platform === 'darwin') {
+        const bundlePath = await getOutermostAppBundlePath(exePath);
+        if (bundlePath) return openAppBundleViaLaunchServices(bundlePath);
+    }
+
+    return spawnAppDetached(exePath);
+}
+
 async function startHttpToolkit(
     log: (msg: string) => void,
     refreshOperations: () => Promise<void>
@@ -221,7 +269,15 @@ async function startHttpToolkit(
     }
 
     log('Launching HTTP Toolkit desktop app...');
-    execFile(exePath, [], () => {});
+    try {
+        await launchDesktopApp(exePath);
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+            content: [{ type: 'text', text: `Could not launch HTTP Toolkit: ${message}` }],
+            isError: true
+        };
+    }
 
     // Wait for the UI to connect and send operations
     const deadline = Date.now() + LAUNCH_TIMEOUT_MS;
