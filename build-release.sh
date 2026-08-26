@@ -88,18 +88,19 @@ case "$TARGET_PLATFORM" in
     linux)
         EXPECTED_PLATFORM_STRING='ELF'
         # Registry-js builds raw on non-Windows, but never used
-        # Win-version info includes prebuilds for Windows on all platforms
-        PACKAGE_WHITELIST='registry-js|win-version-info/prebuilds'
+        # Win-version-info & TLS-impersonate include multi-platform prebuilds
+        PACKAGE_WHITELIST='registry-js|win-version-info/prebuilds|tls-impersonate/prebuilds'
         ;;
     win32)
         EXPECTED_PLATFORM_STRING='MS Windows'
-        PACKAGE_WHITELIST=''
+        # TLS-impersonate includes prebuilds for every platform on all platforms
+        PACKAGE_WHITELIST='tls-impersonate/prebuilds'
         ;;
     darwin)
         EXPECTED_PLATFORM_STRING='Mach-O'
         # Registry-js builds raw on non-Windows, but never used
-        # Win-version info includes prebuilds for Windows on all platforms
-        PACKAGE_WHITELIST='registry-js|win-version-info/prebuilds'
+        # Win-version-info & TLS-impersonate include multi-platform prebuilds
+        PACKAGE_WHITELIST='registry-js|win-version-info/prebuilds|tls-impersonate/prebuilds'
         ;;
     *)
         echo "Unknown platform $TARGET_PLATFORM"

@@ -73,6 +73,11 @@ const packageApp = async () => {
     // them across here:
     pJson.scripts.preinstall = `cp ../../prepare.ts . && cp ../../overrides/js/package-lock.json overrides/js`;
 
+    // Node-gyp-build validates prebuilds against the current platform (not the target platform)
+    // and so rebuilds even if a target prebuild exists, which overrides the prebuild. We drop
+    // the build output for tls-impersonate where this breaks things so it always uses prebuilds.
+    pJson.scripts.postinstall = `rm -rf node_modules/tls-impersonate/build`;
+
     delete pJson.scripts.prepack; // We don't want to rebuild - all built code will be in the packed content
     await fs.writeJson(path.join(OUTPUT_DIR, 'package.json'), pJson);
 

@@ -104,6 +104,9 @@
     "win-version-info": "^5.0.1",
     "ws": "^8.21.0"
   },
+  "optionalDependencies": {
+    "tls-impersonate": "^0.1.0"
+  },
   "devDependencies": {
     "@oclif/dev-cli": "^1.19.4",
     "@rspack/cli": "^2.0.4",
@@ -181,7 +184,8 @@
       "@oclif/plugin-update",
       "registry-js",
       "win-version-info",
-      "node-datachannel"
+      "node-datachannel",
+      "tls-impersonate"
     ],
     "update": {
       "s3": {

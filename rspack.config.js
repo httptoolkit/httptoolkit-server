@@ -74,6 +74,7 @@ module.exports = {
         'registry-js', // Native module
         'win-version-info', // Native module
         'node-datachannel', // Native module
+        'tls-impersonate', // Native module, used by Mockttp for TLS fingerprint mirroring
         '_stream_wrap', // Used in httpolyglot only in old Node, where it's available
         function ({ context, request }, callback) {
             if (context !== __dirname && request.endsWith('/error-tracking')) {
