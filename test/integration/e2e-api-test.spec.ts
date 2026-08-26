@@ -1,5 +1,6 @@
 import * as _ from 'lodash';
 import { spawn, execFile, ChildProcess } from 'child_process';
+import * as https from 'https';
 import * as path from 'path';
 
 import { delay } from '@httptoolkit/util';
@@ -55,6 +56,22 @@ const buildGraphql = (
 const hasExited = (process: ChildProcess) => {
     return process.exitCode !== null ||
         process.signalCode !== null;
+};
+
+// Reports the TLS fingerprint of the client hello it received:
+const FINGERPRINT_HOST = 'https://testserver.host';
+const FINGERPRINT_PATH = '/tls/fingerprint';
+
+// Check the fingerprint when sending a custom cipher list (should be custom fingerprint)
+const getSeenFingerprint = async (url: string) => {
+    const response = await fetch(url, {
+        agent: new https.Agent({
+            rejectUnauthorized: false, // Mockttp intercepts this with its own CA
+            ciphers: 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:AES256-SHA'
+        })
+    });
+    const { ja4 } = await response.json() as { ja4: string };
+    return ja4;
 };
 
 describe('End-to-end server API test', function () {
@@ -490,4 +507,43 @@ describe('End-to-end server API test', function () {
             expect(_.omit(responseEvents[3], 'timestamp')).to.deep.equal({ type: 'response-end' });
         });
     })
+
+    // This verifies that tls-impersonate (bundled native module) is working correctly: 
+    describe('mirroring TLS fingerprints upstream', () => {
+
+        const mockttp = getRemote({
+            adminServerUrl: 'http://localhost:45456',
+            client: {
+                // Pretend to be a browser on the real site:
+                headers: { origin: 'https://app.httptoolkit.tech' }
+            }
+        });
+
+        beforeEach(() => mockttp.start());
+        afterEach(() => mockttp.stop());
+
+        const getUpstreamFingerprint = async (mirrorTlsFingerprint: boolean) => {
+            await mockttp.forAnyRequest().thenForwardTo(FINGERPRINT_HOST, { mirrorTlsFingerprint });
+            return getSeenFingerprint(
+                mockttp.url.replace('http:', 'https:') + FINGERPRINT_PATH
+            );
+        };
+
+        it('reproduces our fingerprint upstream', async () => {
+            expect(await getUpstreamFingerprint(true)).to.equal(
+                await getSeenFingerprint(FINGERPRINT_HOST + FINGERPRINT_PATH),
+                "Upstream JA4 should match our own - if it doesn't, the tls-impersonate " +
+                'native module is probably missing from this build'
+            );
+        });
+
+        it('sends its own fingerprint when mirroring is off', async () => {
+            // Confirms the test above can't pass for trivial reasons:
+            expect(await getUpstreamFingerprint(false)).not.to.equal(
+                await getSeenFingerprint(FINGERPRINT_HOST + FINGERPRINT_PATH)
+            );
+        });
+
+    });
+
 });

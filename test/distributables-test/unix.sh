@@ -32,6 +32,12 @@ echo "\nCan start a Mockttp server"?
 curl $CURL_OPTIONS "$WITH_ORIGIN" "$AS_JSON" 'http://127.0.0.1:45456/start' \
     --data '{"plugins":{"http":{"options":{"cors":false,"suggestChanges":false,"http2":"fallback","https":{"tlsPassthrough":[]}}},"webrtc":{}}}'
 
+echo "\nIs TLS fingerprint mirroring available?"
+# The UI turns mirroring on for every passthrough rule, but it needs tls-impersonate: an
+# optional native module that the bundle requires externally, so it's easily lost when
+# packaging. Resolve it exactly as the bundle does, and check the native addon loads.
+./httptoolkit-server/bin/node -e "if (!require(require.resolve('tls-impersonate', { paths: ['./httptoolkit-server/bundle'] })).isSupported()) { console.error('TLS fingerprint mirroring is unavailable in this build'); process.exit(1); }"
+
 echo "\nCan query the API server version?"
 curl $CURL_OPTIONS "$WITH_ORIGIN" http://127.0.0.1:45457/version
 

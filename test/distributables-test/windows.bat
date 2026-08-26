@@ -47,6 +47,14 @@ curl %CURL_OPTIONS% %WITH_ORIGIN% %AS_JSON% -X POST "http://127.0.0.1:45456/star
 
 echo:
 echo:
+echo Is TLS fingerprint mirroring available?
+REM The UI turns mirroring on for every passthrough rule, but it needs tls-impersonate: an
+REM optional native module that the bundle requires externally, so it's easily lost when
+REM packaging. Resolve it exactly as the bundle does, and check the native addon loads.
+.\httptoolkit-server\bin\node.exe -e "if (!require(require.resolve('tls-impersonate', { paths: ['./httptoolkit-server/bundle'] })).isSupported()) { console.error('TLS fingerprint mirroring is unavailable in this build'); process.exit(1); }" || goto :error
+
+echo:
+echo:
 echo Can query the API server version?
 curl %CURL_OPTIONS% %WITH_ORIGIN% http://127.0.0.1:45457/version || goto :error
 
