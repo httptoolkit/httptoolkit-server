@@ -129,7 +129,8 @@ function waitForMessage(ws: WebSocket, type: string): Promise<any> {
 async function connectMockUi(
     bridge: UiOperationBridge,
     ops: HtkOperation[] = TEST_OPERATIONS,
-    authToken?: string
+    authToken?: string,
+    priority?: number
 ): Promise<{ clientWs: WebSocket; wss: WebSocketServer }> {
     const pair = await createWsPair(bridge);
     const wasReady = bridge.isReady;
@@ -145,7 +146,8 @@ async function connectMockUi(
 
     pair.clientWs.send(JSON.stringify({
         type: 'operations',
-        operations: ops
+        operations: ops,
+        priority
     }));
 
     if (!wasReady) {
@@ -183,8 +185,12 @@ describe("UiOperationBridge", () => {
         done();
     });
 
-    async function setupMockUi(ops: HtkOperation[] = TEST_OPERATIONS, authToken?: string) {
-        const pair = await connectMockUi(bridge, ops, authToken);
+    async function setupMockUi(
+        ops: HtkOperation[] = TEST_OPERATIONS,
+        authToken?: string,
+        priority?: number
+    ) {
+        const pair = await connectMockUi(bridge, ops, authToken, priority);
         activePairs.push(pair);
         return pair;
     }
@@ -855,6 +861,91 @@ describe("UiOperationBridge", () => {
 
             expect(notReadyEmitted).to.be.false;
             expect(bridge.isReady).to.be.true;
+        });
+    });
+
+    describe("Channel priority", () => {
+
+        function answerRequests(pair: { clientWs: WebSocket }, result: any) {
+            pair.clientWs.on('message', (data) => {
+                const msg = JSON.parse(data.toString());
+                if (msg.type !== 'request') return;
+                pair.clientWs.send(JSON.stringify({ type: 'response', id: msg.id, result }));
+            });
+        }
+
+        const OTHER_OPERATIONS: HtkOperation[] = [{
+            name: 'other.op',
+            description: 'Different operation',
+            category: 'other',
+            tiers: ['free', 'pro'],
+            inputSchema: { type: 'object', properties: {} }
+        }];
+
+        it("should prefer a higher-priority channel over an earlier one", async () => {
+            await setupMockUi();
+            await setupMockUi(OTHER_OPERATIONS, undefined, 1);
+
+            const result = await makeApiRequest('GET', '/api/operations');
+            expect(result).to.have.length(1);
+            expect(result[0].name).to.equal('other.op');
+        });
+
+        it("should prefer a higher-priority channel that connected first", async () => {
+            await setupMockUi(OTHER_OPERATIONS, undefined, 1);
+            await setupMockUi();
+
+            const result = await makeApiRequest('GET', '/api/operations');
+            expect(result).to.have.length(1);
+            expect(result[0].name).to.equal('other.op');
+        });
+
+        it("should keep connection order between equal priorities", async () => {
+            await setupMockUi(TEST_OPERATIONS, undefined, 1);
+            await setupMockUi(OTHER_OPERATIONS, undefined, 1);
+
+            const result = await makeApiRequest('GET', '/api/operations');
+            expect(result).to.have.length(2);
+            expect(result[0].name).to.equal('proxy.get-config');
+        });
+
+        it("should route execute requests to the higher-priority channel", async () => {
+            const first = await setupMockUi();
+            const preferred = await setupMockUi(TEST_OPERATIONS, undefined, 1);
+
+            answerRequests(first, { from: 'first' });
+            answerRequests(preferred, { from: 'preferred' });
+
+            const result = await makeApiRequest('POST', '/api/execute', {
+                name: 'proxy.get-config',
+                args: {}
+            });
+            expect(result).to.deep.equal({ from: 'preferred' });
+        });
+
+        it("should fall back to a lower-priority channel when the preferred one goes", async () => {
+            const fallback = await setupMockUi();
+            const preferred = await setupMockUi(TEST_OPERATIONS, undefined, 1);
+
+            answerRequests(fallback, { from: 'fallback' });
+
+            preferred.clientWs.close();
+            await new Promise<void>(resolve => bridge.once('operations-changed', () => resolve()));
+
+            expect(bridge.isReady).to.be.true;
+            const result = await makeApiRequest('POST', '/api/execute', {
+                name: 'proxy.get-config',
+                args: {}
+            });
+            expect(result).to.deep.equal({ from: 'fallback' });
+        });
+
+        it("should ignore a priority that is not a finite number", async () => {
+            await setupMockUi();
+            await setupMockUi(OTHER_OPERATIONS, undefined, 'highest' as any);
+
+            const result = await makeApiRequest('GET', '/api/operations');
+            expect(result[0].name).to.equal('proxy.get-config');
         });
     });
 });

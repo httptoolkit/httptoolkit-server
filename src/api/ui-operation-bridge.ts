@@ -29,9 +29,14 @@ interface BridgeChannel {
     operations: HtkOperation[];
     user?: User;
     authenticated: boolean;
+    // Declared by the UI in its operations message. Higher wins the primary role,
+    // so a UI that knows it's the one being driven (the desktop app) is preferred
+    // over one that just happens to be open too (a browser tab).
+    priority: number;
     // Operations received before authentication completes are buffered here
     // and applied atomically once auth succeeds.
     pendingOperations?: HtkOperation[];
+    pendingPriority?: unknown;
     // Monotonic sequence number for in-flight JWT validations. Only the
     // latest validation is applied; earlier ones are discarded if superseded.
     authSeq: number;
@@ -77,7 +82,13 @@ export class UiOperationBridge extends EventEmitter {
     }
 
     private get primaryChannel(): BridgeChannel | undefined {
-        return this.channels[0];
+        // Highest declared priority wins, and connection order breaks ties, so
+        // channels that declare nothing keep behaving exactly as they always have.
+        return this.channels.reduce<BridgeChannel | undefined>((best, channel) =>
+            !best || channel.priority > best.priority
+                ? channel
+                : best
+        , undefined);
     }
 
     get isReady(): boolean {
@@ -106,6 +117,7 @@ export class UiOperationBridge extends EventEmitter {
             ws,
             operations: [],
             authenticated: false,
+            priority: 0,
             authSeq: 0
         };
         this.channels.push(channel);
@@ -336,13 +348,14 @@ export class UiOperationBridge extends EventEmitter {
             // processed until both the token and JWT are fully validated.
             if (data.type === 'operations') {
                 channel.pendingOperations = data.operations ?? [];
+                channel.pendingPriority = data.priority;
             }
             return;
         }
 
         switch (data.type) {
             case 'operations':
-                this.applyOperations(channel, data.operations ?? []);
+                this.applyOperations(channel, data.operations ?? [], data.priority);
                 break;
 
             case 'response':
@@ -351,17 +364,32 @@ export class UiOperationBridge extends EventEmitter {
         }
     }
 
-    private applyOperations(channel: BridgeChannel, operations: HtkOperation[]): void {
+    private applyOperations(
+        channel: BridgeChannel,
+        operations: HtkOperation[],
+        priority: unknown
+    ): void {
         const wasReady = this.isReady;
-        channel.operations = operations;
+        const previousPrimary = this.primaryChannel;
 
-        // Only emit events when the primary channel's operations change
-        if (channel === this.primaryChannel) {
-            if (!wasReady && this.isReady) {
-                this.emit('ready');
-            }
-            this.emit('operations-changed', this.currentOperations);
+        channel.operations = operations;
+        // Anything that isn't a real number means 'no preference', so a malformed
+        // message can never take the primary role away from a well-behaved UI:
+        channel.priority = typeof priority === 'number' && Number.isFinite(priority)
+            ? priority
+            : 0;
+
+        // Only emit events when the primary channel's operations change, or when
+        // this message handed the role to a different channel:
+        const primaryChanged = this.primaryChannel !== previousPrimary;
+        if (channel !== this.primaryChannel && !primaryChanged) return;
+
+        if (!wasReady && this.isReady) {
+            this.emit('ready');
+        } else if (wasReady && !this.isReady) {
+            this.emit('not-ready');
         }
+        this.emit('operations-changed', this.currentOperations);
     }
 
     private handleAuth(channel: BridgeChannel, data: { token?: string; jwt: string | false }): void {
@@ -428,8 +456,10 @@ export class UiOperationBridge extends EventEmitter {
         // This guarantees operations are never exposed until auth succeeds.
         if (channel.pendingOperations !== undefined) {
             const ops = channel.pendingOperations;
+            const priority = channel.pendingPriority;
             channel.pendingOperations = undefined;
-            this.applyOperations(channel, ops);
+            channel.pendingPriority = undefined;
+            this.applyOperations(channel, ops, priority);
         }
     }
 
