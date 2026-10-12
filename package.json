@@ -41,7 +41,7 @@
   "dependencies": {
     "@devicefarmer/adbkit": "^3.3.9",
     "@graphql-tools/schema": "^10.0.31",
-    "@graphql-tools/utils": "^11.0.0",
+    "@graphql-tools/utils": "^12.0.1",
     "@httptoolkit/accounts": "^3.1.0",
     "@httptoolkit/browser-launcher": "^3.0.1",
     "@httptoolkit/dbus-native": "^0.1.4",
