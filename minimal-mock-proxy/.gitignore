@@ -1,0 +1,7 @@
+node_modules
+dist
+mt5-router/.venv/
+mt5-router/build/
+mt5-router/__pycache__/
+mt5-router/tests/__pycache__/
+mt5-router/native/__pycache__/

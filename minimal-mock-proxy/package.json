@@ -1,0 +1,33 @@
+{
+  "name": "minimal-mock-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "dist/server.js",
+  "scripts": {
+    "start": "node dist/server.js",
+    "dev": "tsx watch server.ts",
+    "build": "tsc -p ./tsconfig.json",
+    "build:bundle": "npm run typecheck && esbuild server.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/standalone/server.js",
+    "test": "npm run build && node --import tsx --test test/passthrough.test.cjs test/rules.test.cjs test/runtime.test.cjs",
+    "test:bundle": "npm run build:bundle && node --import tsx --test test/bundle.test.cjs",
+    "typecheck": "tsc -p ./tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "env-paths": "^1.0.0",
+    "mockttp": "4.6.4"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "overrides": {
+    "basic-ftp": "^6.2.3"
+  },
+  "devDependencies": {
+    "@types/env-paths": "^1.0.0",
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.0.0"
+  }
+}

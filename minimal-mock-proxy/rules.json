@@ -1,0 +1,98 @@
+{
+  "id": "root",
+  "title": "Example rules",
+  "isRoot": true,
+  "items": [
+    {
+      "id": "example-response",
+      "type": "http",
+      "activated": true,
+      "matchers": [
+        {
+          "type": "method",
+          "method": 1
+        },
+        {
+          "type": "simple-path",
+          "path": "https://example.test/gate"
+        }
+      ],
+      "steps": [
+        {
+          "type": "simple",
+          "status": 200,
+          "headers": {
+            "content-type": "text/plain"
+          },
+          "data": "Hello from minimal-mock-proxy"
+        }
+      ],
+      "completionChecker": {
+        "type": "always"
+      }
+    },
+    {
+      "id": "default-certificate",
+      "type": "http",
+      "activated": true,
+      "matchers": [
+        {
+          "type": "method",
+          "method": 0
+        },
+        {
+          "type": "simple-path",
+          "path": "http://proxy.example.test/ca.pem"
+        }
+      ],
+      "steps": [
+        {
+          "type": "proxy-certificate",
+          "status": 200,
+          "headers": {
+            "content-type": "application/x-x509-ca-cert"
+          }
+        }
+      ],
+      "completionChecker": {
+        "type": "always"
+      }
+    },
+    {
+      "id": "default-http-passthrough",
+      "type": "http",
+      "activated": true,
+      "matchers": [
+        {
+          "type": "wildcard"
+        }
+      ],
+      "steps": [
+        {
+          "type": "passthrough"
+        }
+      ],
+      "completionChecker": {
+        "type": "always"
+      }
+    },
+    {
+      "id": "default-websocket-passthrough",
+      "type": "websocket",
+      "activated": true,
+      "matchers": [
+        {
+          "type": "wildcard"
+        }
+      ],
+      "steps": [
+        {
+          "type": "ws-passthrough"
+        }
+      ],
+      "completionChecker": {
+        "type": "always"
+      }
+    }
+  ]
+}

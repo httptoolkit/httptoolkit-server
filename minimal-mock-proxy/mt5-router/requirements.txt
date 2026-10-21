@@ -1,0 +1,2 @@
+mitmproxy-rs==0.12.11
+mitmproxy-windows==0.12.11; sys_platform == 'win32'
