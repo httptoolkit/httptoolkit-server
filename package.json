@@ -87,7 +87,7 @@
     "mime-types": "^2.1.27",
     "mobx": "^6.3.5",
     "mockrtc": "^0.5.1",
-    "mockttp": "^4.6.3",
+    "mockttp": "^4.6.4",
     "node-fetch": "^2.6.1",
     "node-forge": "^1.4.0",
     "node-gsettings-wrapper": "^0.5.0",
@@ -105,7 +105,7 @@
     "ws": "^8.21.0"
   },
   "optionalDependencies": {
-    "tls-impersonate": "^0.1.0"
+    "tls-impersonate": "^0.2.1"
   },
   "devDependencies": {
     "@oclif/dev-cli": "^1.19.4",
