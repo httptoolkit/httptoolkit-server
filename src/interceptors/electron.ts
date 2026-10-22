@@ -10,7 +10,7 @@ import ChromeRemoteInterface = require('chrome-remote-interface');
 import { Interceptor } from '.';
 
 import { HtkConfig } from '../config';
-import { canAccess, readFile } from '../util/fs';
+import { canAccess } from '../util/fs';
 import { windowsClose } from '../util/process-management';
 import { getInheritableCurrentEnv, getTerminalEnvVars, OVERRIDES_DIR } from './terminal/terminal-env-overrides';
 import { logError, addBreadcrumb } from '../error-tracking';
@@ -38,8 +38,6 @@ export class ElectronInterceptor implements Interceptor {
 
     constructor(private config: HtkConfig) { }
 
-    private certData = readFile(this.config.https.certPath, 'utf8')
-
     async isActivable(): Promise<boolean> {
         return true;
     }
@@ -52,6 +50,7 @@ export class ElectronInterceptor implements Interceptor {
     async activate(proxyPort: number, options: {
         pathToApplication: string
     }): Promise<void | {}> {
+        const certData = this.config.https.certContent;
         const debugPort = await getPort({ port: proxyPort });
         const { pathToApplication } = options;
 
@@ -147,8 +146,8 @@ export class ElectronInterceptor implements Interceptor {
                 // Need to stringify to handle chars that need escaping (e.g. windows backslashes)
                 JSON.stringify(path.join(OVERRIDES_DIR, 'js', 'prepend-electron.js'))
             })({
-                newlineEncodedCertData: "${(await this.certData).replace(/\r\n|\r|\n/g, '\\n')}",
-                spkiFingerprint: "${await generateSPKIFingerprint(await this.certData)}"
+                newlineEncodedCertData: "${certData.replace(/\r\n|\r|\n/g, '\\n')}",
+                spkiFingerprint: "${await generateSPKIFingerprint(certData)}"
             })`,
             callFrameId
         });
