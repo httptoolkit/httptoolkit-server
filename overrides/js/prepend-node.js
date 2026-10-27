@@ -115,7 +115,23 @@ const MAJOR_NODEJS_VERSION = parseInt(process.version.slice(1).split('.')[0], 10
 if (MAJOR_NODEJS_VERSION >= 10) {
     // `global-agent` works with Node.js v10 and above.
     const globalAgent = require('global-agent');
-    globalAgent.bootstrap();
+
+    // global-agent uses Object.fromEntries (Node 12+) during bootstrap only. We polyfill it
+    // temporarily, to avoid changing globals visible to the target application.
+    const needsFromEntries = !Object.fromEntries;
+    if (needsFromEntries) {
+        Object.fromEntries = function (entries) {
+            const result = {};
+            for (const [key, value] of entries) result[key] = value;
+            return result;
+        };
+    }
+
+    try {
+        globalAgent.bootstrap();
+    } finally {
+        if (needsFromEntries) delete Object.fromEntries;
+    }
 } else {
     // `global-tunnel-ng` works only with Node.js v10 and below.
     const globalTunnel = require('global-tunnel-ng');
