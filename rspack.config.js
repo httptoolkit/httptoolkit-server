@@ -94,6 +94,12 @@ module.exports = {
             'import.meta.dirname': '__dirname',
             'import.meta.filename': '__filename'
         }),
+        // Tree-shake Sentry features we never use:
+        new rspack.DefinePlugin({
+            __SENTRY_DEBUG__: false,
+            __SENTRY_TRACING__: false,
+            __SENTRY_CHANNEL_INJECTION__: false
+        }),
         // Optimistic require for 'iconv' in 'encoding', falls back to 'iconv-lite'
         new rspack.NormalModuleReplacementPlugin(/\/iconv-loader$/, 'node-noop'),
         // Optimistically required in (various) ws versions, with fallback

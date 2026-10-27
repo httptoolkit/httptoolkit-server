@@ -1,7 +1,8 @@
 import * as path from 'path';
+import * as util from 'util';
 import { randomUUID } from 'crypto';
 import * as Sentry from '@sentry/node';
-import { ErrorLike } from '@httptoolkit/util';
+import { ErrorLike, isErrorLike } from '@httptoolkit/util';
 
 import { IS_PROD_BUILD } from './constants';
 
@@ -23,12 +24,36 @@ export function initErrorTracking() {
     }
 
     if (SENTRY_DSN) {
-        Sentry.init({
+        Sentry.initWithoutDefaultIntegrations({
             dsn: SENTRY_DSN,
             release: packageJson.version,
-            sendDefaultPii: false,
+            includeServerName: false,
+            dataCollection: {
+                userInfo: false,
+                cookies: false,
+                httpHeaders: false,
+                httpBodies: [],
+                urlQueryParams: false,
+                graphQL: { document: false, variables: false },
+                genAI: { inputs: false, outputs: false },
+                mcp: { inputs: false, outputs: false },
+                databaseQueryData: false,
+                queues: false,
+                stackFrameVariables: false
+            },
             tracePropagationTargets: [],
+            traceLifecycle: 'static',
+            enableRuntimeChannelInjection: false,
+            sendClientReports: false,
             integrations: [
+                Sentry.linkedErrorsIntegration(),
+                Sentry.dedupeIntegration(),
+                Sentry.systemErrorIntegration(),
+                Sentry.consoleIntegration(),
+                Sentry.childProcessIntegration(),
+                Sentry.onUncaughtExceptionIntegration(),
+                Sentry.onUnhandledRejectionIntegration(),
+                Sentry.nodeContextIntegration({ cloudResource: false }),
                 Sentry.rewriteFramesIntegration({
                     // We're one dir down: either /bundle, or /src
                     root: process.platform === 'win32'
@@ -43,30 +68,36 @@ export function initErrorTracking() {
                 })
             ],
             beforeBreadcrumb(breadcrumb, hint) {
-                if (breadcrumb.category === 'http') {
-                    // Almost all HTTP requests sent by the server are actually forwarded HTTP from
-                    // the proxy, so could be very sensitive. We need to ensure errors don't leak data.
-
-                    // Remove all but the host from the breadcrumb data. The host is fairly safe & often
-                    // useful for context, but the path & query could easily contain sensitive secrets.
-                    if (breadcrumb.data && breadcrumb.data.url) {
-                        const url = breadcrumb.data.url as string;
-                        const hostIndex = url.indexOf('://') + 3;
-                        const pathIndex = url.indexOf('/', hostIndex);
-                        if (pathIndex !== -1) {
-                            breadcrumb.data.url = url.slice(0, pathIndex);
-                        }
-                    }
-
-                    if (hint) {
-                        // Make sure we don't collect the full HTTP data in hints either.
-                        delete hint.request;
-                        delete hint.response;
-                    }
+                if (breadcrumb.category === 'console') {
+                    // Sentry's own message formatting drops most details (e.g. '[object Object]'),
+                    // so we format the args like the console does, and sanitize that instead of
+                    // sending the raw arguments.
+                    const args = hint?.input;
+                    const message = Array.isArray(args)
+                        ? util.format(...args)
+                        : breadcrumb.message ?? '';
+                    breadcrumb.message = simplifyErrorMessages(message);
+                    delete breadcrumb.data?.arguments;
                 }
                 return breadcrumb;
             },
             beforeSend(event, hint) {
+                const error = hint.originalException;
+                if (isErrorLike(error)) {
+                    // Only these specific fields: other error properties (e.g. cmd, stdout)
+                    // can include arbitrary data.
+                    for (const [key, tag] of [
+                        ['code', 'error_code'],
+                        ['statusCode', 'status_code'],
+                        ['signal', 'signal']
+                    ] as const) {
+                        const value = error[key];
+                        if (typeof value === 'string' || typeof value === 'number') {
+                            event.tags = { ...event.tags, [tag]: String(value).slice(0, 200) };
+                        }
+                    }
+                }
+
                 if (event.message) {
                     event.message = simplifyErrorMessages(event.message);
                 }
