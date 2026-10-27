@@ -66,9 +66,9 @@ wrapModule('superagent', function wrapSuperagent (loadedModule) {
     };
 });
 
-wrapModule('undici', function wrapUndici (loadedModule) {
-    const ProxyAgent = loadedModule.ProxyAgent;
-    const setGlobalDispatcher = loadedModule.setGlobalDispatcher;
+function setUndiciProxy (undici) {
+    const ProxyAgent = undici.ProxyAgent;
+    const setGlobalDispatcher = undici.setGlobalDispatcher;
 
     // Old Undici release, which can't be intercepted:
     if (!ProxyAgent || !setGlobalDispatcher) return;
@@ -76,7 +76,9 @@ wrapModule('undici', function wrapUndici (loadedModule) {
     setGlobalDispatcher(
         new ProxyAgent(process.env.HTTP_PROXY)
     );
-});
+}
+
+wrapModule('undici', setUndiciProxy);
 
 wrapModule('stripe', function wrapStripe (loadedModule) {
     if (loadedModule.INTERCEPTED_BY_HTTPTOOLKIT) return;
@@ -108,6 +110,17 @@ wrapModule('stripe', function wrapStripe (loadedModule) {
         { INTERCEPTED_BY_HTTPTOOLKIT: true }
     );
 });
+
+// Newer Node versions (24.21+) can configure their own HTTP agents & fetch from the proxy env vars.
+// We enable that first as a fallback, so our more thorough setup below takes precedence where it applies.
+const http = require('http');
+if (process.env.HTTP_TOOLKIT_ACTIVE && http.setGlobalProxyFromEnv) {
+    try {
+        http.setGlobalProxyFromEnv();
+    } catch (e) {
+        // Invalid proxy env config - we don't want to break the target process
+    }
+}
 
 // We always install a global HTTP agent, to ensure that everything using the base HTTP module is intercepted
 // by default. This avoids issues where hooks don't fire on ESM imports by just enabling this in all cases.
@@ -142,7 +155,15 @@ if (MAJOR_NODEJS_VERSION >= 18 || global.fetch) {
     // Node 18 enables fetch by default (available previously behind a flag). This does not use
     // the existing agent API, so is not intercepted by global-agent. Instead, the only way to
     // set the HTTP proxy is to separately import Undici (used internally by Node) and configure
-    // Undici's global proxy agent. We bundle our own Undici dep so we can do this reliably,
-    // and here we import it to trigger the Undici setup hook defined above.
-    require('undici');
+    // Undici's global proxy agent. We bundle our own Undici deps so we can do this reliably.
+    const MINOR_NODEJS_VERSION = parseInt(process.version.split('.')[1], 10);
+    if (MAJOR_NODEJS_VERSION > 22 || (MAJOR_NODEJS_VERSION === 22 && MINOR_NODEJS_VERSION >= 19)) {
+        // Undici 8+ (built into Node 26+, and installable from 22.19) uses a new global dispatcher
+        // symbol, and on load it overwrites the old one if the new one is unset. Configuring via
+        // Undici 8 sets both, so every Undici version (built-in or app-installed) is proxied.
+        if (process.env.HTTP_TOOLKIT_ACTIVE) setUndiciProxy(require('undici-v8'));
+    } else {
+        // Triggers the Undici setup hook defined above
+        require('undici');
+    }
 }
