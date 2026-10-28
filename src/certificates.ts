@@ -1,41 +1,36 @@
 import * as crypto from 'crypto';
 import * as forge from 'node-forge';
 
-export const parseCert = forge.pki.certificateFromPem;
+// Reads the first certificate in PEM bundles.
+export const parseCert = (pem: string) => new crypto.X509Certificate(pem);
 
-export function getCertExpiry(cert: forge.pki.Certificate): number {
-    return cert.validity.notAfter.valueOf();
+export function getCertExpiry(cert: crypto.X509Certificate): number {
+    return new Date(cert.validTo).valueOf();
 }
 
-export function getTimeToCertExpiry(cert: forge.pki.Certificate): number {
+export function getTimeToCertExpiry(cert: crypto.X509Certificate): number {
     return getCertExpiry(cert) - Date.now();
 }
 
-// A series of magic incantations that matches the behaviour of openssl's
-// -subject_hash_old output, as expected by Android's cert store.
-export function getCertificateSubjectHash(cert: forge.pki.Certificate) {
-    const derBytes = forge.asn1.toDer(
-        (
-            forge.pki as any
-        ).distinguishedNameToAsn1(cert.subject)
-    ).getBytes();
+// Android subject hash (OpenSSL -subject_hash_old).
+export function getCertificateSubjectHash(cert: crypto.X509Certificate) {
+    const certificate = forge.asn1.fromDer(cert.raw.toString('binary'));
+    const tbs = (certificate.value as forge.asn1.Asn1[])[0];
+    const fields = tbs.value as forge.asn1.Asn1[];
+    // An explicit version shifts the subject index from 4 to 5.
+    const hasVersion = fields[0].tagClass === forge.asn1.Class.CONTEXT_SPECIFIC;
+    const subject = fields[hasVersion ? 5 : 4];
+    const subjectDer = Buffer.from(forge.asn1.toDer(subject).getBytes(), 'binary');
 
     return crypto.createHash('md5')
-        .update(derBytes)
+        .update(subjectDer)
         .digest()
         .readUInt32LE(0)
         .toString(16)
         .padStart(8, '0');
 }
 
-// Get a full SHA1 hash of the certificate
-export function getCertificateFingerprint(cert: forge.pki.Certificate) {
-    return forge.md.sha1.create()
-        .update(
-            forge.asn1.toDer(
-                forge.pki.certificateToAsn1(cert)
-            ).getBytes()
-        )
-        .digest()
-        .toHex();
+// Lowercase SHA-1 fingerprint for Android.
+export function getCertificateFingerprint(cert: crypto.X509Certificate) {
+    return crypto.createHash('sha1').update(cert.raw).digest('hex');
 }

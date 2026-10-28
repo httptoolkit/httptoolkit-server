@@ -6,6 +6,7 @@ import cors from 'cors';
 import corsGate from 'cors-gate';
 import WebSocket, { WebSocketServer } from 'ws';
 
+import { CertificateMode } from '../https-config';
 import { HtkConfig } from '../config';
 import { buildInterceptors } from '../interceptors';
 import { ALLOWED_ORIGINS } from '../constants';
@@ -49,7 +50,8 @@ export class HttpToolkitServerApi extends events.EventEmitter {
     constructor(
         config: HtkConfig,
         httpClient: HttpClient,
-        getRuleParamKeys: () => string[]
+        getRuleParamKeys: () => string[],
+        onSetCertificateMode?: (mode: CertificateMode) => Promise<void>
     ) {
         super();
 
@@ -130,7 +132,8 @@ export class HttpToolkitServerApi extends events.EventEmitter {
             httpClient,
             {
                 onTriggerUpdate: () => this.emit('update-requested'),
-                onTriggerShutdown: () => shutdown(0, 'API call')
+                onTriggerShutdown: () => shutdown(0, 'API call'),
+                onSetCertificateMode
             }
         )
 
