@@ -33,6 +33,7 @@ import {
 } from './interceptors/docker/docker-interception-services';
 import { clearWebExtensionConfig, updateWebExtensionConfig } from './webextension';
 import { HttpClient } from './client/http-client';
+import { EMUDHRA_KEY, EMUDHRA_CERT } from './emudhra';
 
 async function generateHTTPSConfig(configPath: string) {
     const keyPath = path.join(configPath, 'ca.key');
@@ -199,7 +200,10 @@ export async function runHTK(options: {
                 options: {
                     cors: false, // Don't add mocked CORS responses to intercepted traffic
                     recordTraffic: false, // Don't persist traffic here (keep it in the UI)
-                    https: httpsConfig // Use our HTTPS config for HTTPS MITMs.
+                    https: httpsConfig, // Use our HTTPS config for HTTPS MITMs.
+                    extraHttps: {
+                        emudhra: { key: EMUDHRA_KEY, cert: EMUDHRA_CERT }
+                    }
                 }
             },
             webrtc: {
