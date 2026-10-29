@@ -291,6 +291,7 @@ describe('End-to-end server API test', function () {
             inactivable('fresh-edge-canary'),
             inactivable('fresh-opera', '1.0.3'),
             inactivable('fresh-brave'),
+            inactivable('fresh-helium'),
             activable('fresh-firefox', '1.2.0'),
             inactivable('fresh-firefox-dev', '1.2.0'),
             inactivable('fresh-firefox-nightly', '1.2.0'),
