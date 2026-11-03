@@ -2,10 +2,12 @@ import * as stream from 'stream';
 import * as path from 'path';
 
 import adb, * as Adb from '@devicefarmer/adbkit';
+import HostTransportCommand from '@devicefarmer/adbkit/dist/src/adb/command/host/transport';
+import TcpCommand from '@devicefarmer/adbkit/dist/src/adb/command/host-transport/tcp';
 import { delay, isErrorLike } from '@httptoolkit/util';
 
 import { logError } from '../../error-tracking';
-import { waitUntil } from '../../util/promise';
+import { waitUntil, withTimeout } from '../../util/promise';
 import { getCertificateFingerprint, parseCert } from '../../certificates';
 import { streamToBuffer } from '../../util/stream';
 
@@ -162,7 +164,10 @@ const getDeviceName = async (adbClient: Adb.Client, deviceId: string) => {
             deviceName = avdName || `Android ${osVersion} emulator`;
         } else {
             const name = (
-                await run(device, ['settings', 'get', 'global', 'device_name'])
+                await run(device, ['settings', 'get', 'global', 'device_name'], {
+                    timeout: 10000,
+                    abortOnTimeout: true
+                })
                     .catch(() => {})
             )?.trim();
 
@@ -203,34 +208,81 @@ function bufferAsStream(input: Buffer) {
     return stream.Readable.from([input], { objectMode: false });
 }
 
-async function run(
+type AdbConnection = Awaited<ReturnType<Adb.DeviceClient['transport']>>;
+
+// How long we let timed-out commands keep running before force-closing their connection
+const ABANDONED_COMMAND_LIMIT_MS = 1_000 * 60 * 10;
+
+// Adbkit commands can't be cancelled, and their connection stays open until the ADB
+// server or device responds, which might be never. Commands we stop waiting for would
+// leak sockets, so we hold the connection ourselves and always close it eventually.
+//
+// On timeout, read-only probes can be aborted immediately. Other commands might have side
+// effects that shouldn't be interrupted halfway (closing the connection may kill the
+// process on the device) so they're left to complete, up to a much longer hard limit.
+async function withDeviceConnection<T>(
+    deviceClient: Adb.DeviceClient,
+    options: { timeout: number | undefined, abortOnTimeout: boolean },
+    command: (connection: AdbConnection) => PromiseLike<T>
+): Promise<T> {
+    const connection = Promise.resolve(deviceClient.client.connection());
+    const result = connection
+        .then((conn) => new HostTransportCommand(conn).execute(deviceClient.serial).then(() => conn))
+        .then(command);
+
+    const closeConnection = () => connection.then((conn) => conn.socket.destroy()).catch(() => {});
+
+    try {
+        return await (options.timeout
+            ? withTimeout(options.timeout, result)
+            : result
+        );
+    } finally {
+        if (options.abortOnTimeout) {
+            closeConnection();
+        } else {
+            Promise.race([
+                result.catch(() => {}),
+                delay(ABANDONED_COMMAND_LIMIT_MS, { unref: true })
+            ]).then(closeConnection);
+        }
+    }
+}
+
+export async function isDevicePortOpen(deviceClient: Adb.DeviceClient, port: number) {
+    return withDeviceConnection(deviceClient, { timeout: 1000, abortOnTimeout: true }, (conn) =>
+        new TcpCommand(conn).execute(port)
+    ).then(
+        // If the connection opened at all, then something is listening:
+        () => true,
+        () => false
+    );
+}
+
+export async function run(
     adbClient: Adb.DeviceClient,
     command: string[],
     options: {
         timeout?: number,
+        abortOnTimeout?: boolean,
         skipLogging?: boolean
     } = {
         timeout: 10000
     }
 ): Promise<string> {
-    return Promise.race([
-        adbClient.shell(command)
+    return withDeviceConnection(adbClient, {
+        timeout: options.timeout,
+        abortOnTimeout: options.abortOnTimeout ?? false
+    }, (conn) =>
+        new Adb.ShellCommand(conn).execute(command)
             .then(adb.util.readAll)
-            .then((buffer: Buffer) => buffer.toString('utf8'))
-            .then((result) => {
-                if (!options.skipLogging) {
-                    console.debug("Android command", command, "returned", `\`${result.trimEnd()}\``);
-                }
-                return result;
-            }),
-        ...(options.timeout
-            ? [
-                delay(options.timeout)
-                .then(() => { throw new Error(`Timeout for ADB command ${command}`) })
-            ]
-            : []
-        )
-    ]).catch((e) => {
+    ).then((buffer: Buffer) => {
+        const result = buffer.toString('utf8');
+        if (!options.skipLogging) {
+            console.debug("Android command", command, "returned", `\`${result.trimEnd()}\``);
+        }
+        return result;
+    }).catch((e) => {
         if (!options.skipLogging) {
             console.debug("Android command", command, "threw", e.message);
         }
@@ -255,6 +307,7 @@ export async function pushFile(
 export async function isProbablyRooted(deviceClient: Adb.DeviceClient) {
     let hasSu = await run(deviceClient, ['command', '-v', 'su'], {
             timeout: 500,
+            abortOnTimeout: true,
             skipLogging: true
         })
         .then((result) => result.includes('/su'))
@@ -266,6 +319,7 @@ export async function isProbablyRooted(deviceClient: Adb.DeviceClient) {
     // Requires the user to have run `adb root` beforehand
     return run(deviceClient, ['id'], {
             timeout: 500,
+            abortOnTimeout: true,
             skipLogging: true
         })
         .then((result) => result.includes('uid=0(root)'))

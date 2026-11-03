@@ -2,13 +2,14 @@ import { CustomError } from '@httptoolkit/util';
 import { Client as AdbClient, DeviceClient } from '@devicefarmer/adbkit';
 import * as FridaJs from 'frida-js';
 
-import { waitUntil, withTimeout } from '../../util/promise';
+import { waitUntil } from '../../util/promise';
 import { HtkConfig } from '../../config';
 import {
     EMULATOR_HOST_IPS,
     createPersistentReverseTunnel,
     getConnectedDevices,
     getRootCommand,
+    isDevicePortOpen,
     isProbablyRooted
 } from '../android/adb-commands';
 import { buildAndroidFridaScript } from './frida-scripts';
@@ -39,18 +40,6 @@ const isFridaInstalled = (deviceClient: DeviceClient) =>
         entry.size > 0
     ))
     .catch(() => false);
-
-const isDevicePortOpen = (deviceClient: DeviceClient, port: number) =>
-    withTimeout(1000, deviceClient.openTcp(port))
-    .then((conn) => {
-        // If the connection opened at all, then something is listening...
-        conn.on('error', () => {});
-        conn.end();
-        return true;
-    }).catch(() => {
-        // If the port is closed, we jump straight to the error state instead
-        return false
-    });
 
 export async function getAndroidFridaHosts(adbClient: AdbClient): Promise<Record<string, FridaHost>> {
     const devices = await getConnectedDevices(adbClient);
