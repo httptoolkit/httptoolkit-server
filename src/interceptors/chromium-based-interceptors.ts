@@ -512,6 +512,17 @@ export class FreshBrave extends FreshChromiumBasedInterceptor {
 
 };
 
+export class FreshHelium extends FreshChromiumBasedInterceptor {
+
+    id = 'fresh-helium';
+    version = '1.0.0';
+
+    constructor(config: HtkConfig) {
+        super(config, 'helium');
+    }
+
+};
+
 export class FreshOpera extends FreshChromiumBasedInterceptor {
 
     id = 'fresh-opera';

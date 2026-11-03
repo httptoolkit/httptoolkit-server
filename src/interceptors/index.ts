@@ -19,6 +19,7 @@ import {
     FreshEdgeDev,
     FreshEdgeCanary,
     FreshBrave,
+    FreshHelium,
     FreshOpera
 } from './chromium-based-interceptors';
 import { FreshTerminalInterceptor } from './terminal/fresh-terminal-interceptor';
@@ -86,6 +87,7 @@ export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> 
 
         new FreshOpera(config),
         new FreshBrave(config),
+        new FreshHelium(config),
         new FreshFirefox(config),
         new FreshFirefoxDeveloper(config),
         new FreshFirefoxNightly(config),
