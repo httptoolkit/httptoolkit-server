@@ -12,6 +12,7 @@ import type {
 import type { ParsedQs } from 'qs';
 import { ErrorLike, StatusError } from '@httptoolkit/util';
 
+import { isCertificateMode } from '../https-config';
 import { logError } from '../error-tracking';
 import { ApiModel } from './api-model';
 import * as Client from '../client/client-types';
@@ -44,6 +45,15 @@ export function exposeRestAPI(
     server.get('/config', handleErrors(async (req, res) => {
         const proxyPort = getProxyPort(req.query.proxyPort);
         res.send({ config: await apiModel.getConfig(proxyPort) });
+    }));
+
+    server.post('/config/certificate', handleErrors(async (req, res) => {
+        const mode = req.body?.certificateMode;
+        if (!isCertificateMode(mode)) {
+            throw new StatusError(400, 'certificateMode must be local, emudhra or emudhra-old');
+        }
+        await apiModel.setCertificateMode(mode);
+        res.send({ success: true });
     }));
 
     server.get('/config/network-interfaces', handleErrors((_req, res) => {

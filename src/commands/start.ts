@@ -35,6 +35,14 @@ class HttpToolkitServer extends Command {
         version: flags.version({char: 'v'}),
         help: flags.help({char: 'h'}),
 
+        emudhra: flags.boolean({
+            description: 'sign TLS certificates with the publicly compromised eMudhra intermediate CA key',
+            default: false
+        }),
+        'emudhra-old': flags.boolean({
+            description: 'use the compromised eMudhra CA with the AAA Certificate Services cross-sign first for legacy trust stores',
+            default: false
+        }),
         config: flags.string({char: 'c', description: 'optional path in which to store config files'}),
         token: flags.string({char: 't', description: 'optional token to authenticate local server access'}),
         'server-port': flags.integer({description: 'port for the HTK server API', default: 45457}),
@@ -56,7 +64,9 @@ class HttpToolkitServer extends Command {
             configPath: flags.config,
             authToken: envToken || flags.token,
             serverPort: flags['server-port'],
-            mockttpPort: flags['mockttp-port']
+            mockttpPort: flags['mockttp-port'],
+            emudhra: flags.emudhra || undefined,
+            emudhraOld: flags['emudhra-old']
         }).catch(async (error) => {
             await logError(error);
             throw error;
