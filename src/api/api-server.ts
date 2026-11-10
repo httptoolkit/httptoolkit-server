@@ -59,6 +59,8 @@ export class HttpToolkitServerApi extends events.EventEmitter {
 
         this.server = express();
         this.server.disable('x-powered-by');
+        // Responses are never stored, so there's no point computing ETags for them
+        this.server.disable('etag');
 
         // Allow web pages on non-local URLs (app.httptoolkit.tech, not localhost) to
         // send requests to this admin server too. Without this, those requests will
@@ -74,6 +76,13 @@ export class HttpToolkitServerApi extends events.EventEmitter {
             origin: ALLOWED_ORIGINS,
             maxAge: 86400 // Cache this result for as long as possible
         }));
+
+        // Every response reflects live machine state (or is an error), so must never be
+        // cached. Registered after CORS so preflight caching above is unaffected.
+        this.server.use((_req, res, next) => {
+            res.setHeader('cache-control', 'no-store');
+            next();
+        });
 
         this.server.use(corsGate({
             strict: true, // MUST send an allowed origin

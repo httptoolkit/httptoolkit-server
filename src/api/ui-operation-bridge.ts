@@ -173,6 +173,7 @@ export class UiOperationBridge extends EventEmitter {
         const server = http.createServer(async (req, res) => {
             try {
                 res.setHeader('Content-Type', 'application/json');
+                res.setHeader('Cache-Control', 'no-store');
 
                 const url = new URL(req.url!, `http://localhost`);
                 const pathname = url.pathname;

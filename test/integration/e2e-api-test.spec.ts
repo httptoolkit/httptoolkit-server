@@ -217,6 +217,39 @@ describe('End-to-end server API test', function () {
         }
     });
 
+    it('disables caching for all API responses', async () => {
+        const origin = 'https://app.httptoolkit.tech';
+        const responses = await Promise.all([
+            fetch('http://localhost:45457/version', { headers: { origin } }),
+            fetch('http://localhost:45457/config', { headers: { origin } }),
+            fetch('http://localhost:45457/unknown-path', { headers: { origin } }),
+            fetch('http://localhost:45457/', { headers: { origin } }), // GET to GQL -> 405
+            fetch('http://localhost:45457/version', { headers: { origin: 'https://unknown.test' } }),
+            fetch('http://localhost:45457/', {
+                method: 'POST',
+                headers: { origin, 'content-type': 'application/json' },
+                body: JSON.stringify({ query: '{ version }' })
+            })
+        ]);
+
+        expect(responses.map(r => r.status)).to.deep.equal([200, 200, 404, 405, 403, 200]);
+        responses.forEach((response) => {
+            expect(response.headers.get('cache-control')).to.equal('no-store');
+            expect(response.headers.get('etag')).to.equal(null);
+        });
+
+        const preflightResponse = await fetch('http://localhost:45457/version', {
+            method: 'OPTIONS',
+            headers: {
+                origin,
+                'access-control-request-method': 'GET'
+            }
+        });
+        expect(preflightResponse.status).to.equal(204);
+        expect(preflightResponse.headers.get('access-control-max-age')).to.equal('86400');
+        expect(preflightResponse.headers.get('cache-control')).to.equal(null);
+    });
+
     it('exposes the system configuration via REST', async () => {
         const response = await fetch('http://localhost:45457/config?proxyPort=8000', {
             headers: { 'origin': 'https://app.httptoolkit.tech' }
@@ -479,6 +512,7 @@ describe('End-to-end server API test', function () {
             });
 
             expect(apiResponse.status).to.equal(200);
+            expect(apiResponse.headers.get('cache-control')).to.equal('no-store');
 
             const apiResponseBody = await apiResponse.text();
             const responseEvents = apiResponseBody
