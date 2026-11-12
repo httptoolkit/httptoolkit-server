@@ -22,7 +22,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           java-version: 11
-          distribution: adopt-hotspot
+          distribution: temurin
 
       - run: npm ci
         env:
@@ -68,13 +68,13 @@ jobs:
 
       - run: DOCKER_HOST=$DIND_HOST xvfb-run npm run test:integration:release
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: distributables
           path: build/dist/*
           if-no-files-found: error
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: test-scripts
           path: test/distributables-test
@@ -126,13 +126,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Get our distributables
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: distributables
           path: distributables
 
       - name: Get the test scripts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: test-scripts
           path: .
@@ -155,7 +155,7 @@ jobs:
       contents: write
     steps:
       - name: Get our distributables
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: distributables
           path: distributables
