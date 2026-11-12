@@ -85,6 +85,12 @@ jobs:
     strategy:
       matrix:
         include:
+          - platform: Ubuntu 26.04 x64
+            os: "ubuntu-26.04"
+            test-script: "./unix.sh linux x64"
+          - platform: Ubuntu 26.04 ARM64
+            os: "ubuntu-26.04-arm"
+            test-script: "./unix.sh linux arm64"
           - platform: Ubuntu 24.04 x64
             os: "ubuntu-24.04"
             test-script: "./unix.sh linux x64"
@@ -97,20 +103,23 @@ jobs:
           - platform: MacOS 26 (ARM64)
             os: "macos-26"
             test-script: "./unix.sh darwin arm64"
+          - platform: MacOS 26 (x64)
+            os: "macos-26-intel"
+            test-script: "./unix.sh darwin x64"
           - platform: MacOS 15 (ARM64)
             os: "macos-15"
             test-script: "./unix.sh darwin arm64"
           - platform: MacOS 15 (x64)
             os: "macos-15-intel"
             test-script: "./unix.sh darwin x64"
-          - platform: MacOS 14 (ARM64)
-            os: "macos-14"
-            test-script: "./unix.sh darwin arm64"
           - platform: Windows 2025
             os: "windows-2025"
             test-script: ".\\windows.bat"
           - platform: Windows 2022
             os: "windows-2022"
+            test-script: ".\\windows.bat"
+          - platform: Windows 11 ARM64 (x64 emulated)
+            os: "windows-11-arm"
             test-script: ".\\windows.bat"
       fail-fast: false
     name: Test on ${{ matrix.platform }}
@@ -129,7 +138,7 @@ jobs:
           path: .
 
       - name: Make the test script executable
-        if: matrix.platform != 'Windows'
+        if: runner.os != 'Windows'
         run: chmod +x unix.sh
 
       - name: Test the server build
