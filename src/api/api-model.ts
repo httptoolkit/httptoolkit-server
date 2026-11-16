@@ -12,6 +12,7 @@ import { getSystemProxy } from 'os-proxy-config';
 import { APP_ROOT, SERVER_VERSION } from "../constants";
 import { logError, addBreadcrumb } from '../error-tracking';
 
+import { CertificateMode, CERTIFICATE_MODES } from '../https-config';
 import { HtkConfig } from "../config";
 import { ActivationError, Interceptor } from "../interceptors";
 import { getDnsServer } from '../dns-server';
@@ -75,7 +76,8 @@ export class ApiModel {
         private httpClient: HttpClient,
         private callbacks: {
             onTriggerUpdate: () => void,
-            onTriggerShutdown: () => void
+            onTriggerShutdown: () => void,
+            onSetCertificateMode?: (mode: CertificateMode) => Promise<void>
         }
     ) {}
 
@@ -95,7 +97,13 @@ export class ApiModel {
         this.callbacks.onTriggerShutdown();
     }
 
+    async setCertificateMode(mode: CertificateMode) {
+        if (!this.callbacks.onSetCertificateMode) throw new Error('Certificate selection is unavailable');
+        await this.callbacks.onSetCertificateMode(mode);
+    }
+
     async getConfig(proxyPort?: number) {
+        const httpsConfig = { ...this.config.https };
         // Wait for each async part in parallel:
         const [
             systemProxy,
@@ -112,14 +120,16 @@ export class ApiModel {
                 ? await this.getDnsServers(proxyPort)
                 : [],
 
-            generateSPKIFingerprint(this.config.https.certContent)
+            generateSPKIFingerprint(httpsConfig.certContent)
         ])
 
         return {
-            certificatePath: this.config.https.certPath,
-            certificateContent: this.config.https.certContent,
+            certificateMode: httpsConfig.certificateMode ?? 'local',
+            certificateModes: this.callbacks.onSetCertificateMode ? CERTIFICATE_MODES : undefined,
+            certificatePath: httpsConfig.certPath,
+            certificateContent: httpsConfig.certContent,
             certificateExpiry: getCertExpiry(
-                parseCert(this.config.https.certContent)
+                parseCert(httpsConfig.certContent)
             ),
 
             // We could calculate this client side, but it  requires node-forge or some

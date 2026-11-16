@@ -1,12 +1,9 @@
-import * as path from 'path';
-import * as fs from 'fs';
 import envPaths from 'env-paths';
 import { Mutex } from 'async-mutex';
 
 import { delay, isErrorLike } from '@httptoolkit/util';
 import {
-    PluggableAdmin,
-    generateCACertificate
+    PluggableAdmin
 } from 'mockttp';
 import {
     MockttpAdminPlugin
@@ -22,10 +19,10 @@ import { checkBrowserConfig } from './browsers';
 import { logError } from './error-tracking';
 import { IS_PROD_BUILD, MOCKTTP_ALLOWED_ORIGINS } from './constants';
 
-import { readFile, checkAccess, writeFile, ensureDirectoryExists } from './util/fs';
+import { ensureDirectoryExists } from './util/fs';
 
 import { addShutdownHandler, registerShutdownHandler, shutdown } from './shutdown';
-import { getTimeToCertExpiry, parseCert } from './certificates';
+import { generateHTTPSConfig, setCertificateMode } from './https-config';
 
 import {
     startDockerInterceptionServices,
@@ -33,51 +30,6 @@ import {
 } from './interceptors/docker/docker-interception-services';
 import { clearWebExtensionConfig, updateWebExtensionConfig } from './webextension';
 import { HttpClient } from './client/http-client';
-
-async function generateHTTPSConfig(configPath: string) {
-    const keyPath = path.join(configPath, 'ca.key');
-    const certPath = path.join(configPath, 'ca.pem');
-
-    const [ certContent ] = await Promise.all([
-        readFile(certPath, 'utf8').then((certContent) => {
-            checkCertExpiry(certContent);
-            return certContent;
-        }),
-        checkAccess(keyPath, fs.constants.R_OK),
-    ]).catch(async () => {
-        // Cert doesn't exist, or is too close/past expiry. Generate a new one:
-
-        const newCertPair = await generateCACertificate({
-            subject: {
-                commonName: 'HTTP Toolkit CA',
-                organizationName: 'HTTP Toolkit CA'
-            }
-        });
-
-        return Promise.all([
-            writeFile(certPath, newCertPair.cert).then(() => newCertPair.cert),
-            writeFile(keyPath, newCertPair.key, {
-                mode: 0o600 // Only readable for ourselves, nobody else
-            })
-        ]);
-    });
-
-    return {
-        keyPath,
-        certPath,
-        certContent,
-        keyLength: 2048, // Reasonably secure keys please
-        certificateTransparency: true
-    };
-}
-
-function checkCertExpiry(certContents: string): void {
-    const remainingLifetime = getTimeToCertExpiry(parseCert(certContents));
-    if (remainingLifetime < 1000 * 60 * 60 * 48) { // Next two days
-        console.warn('Certificate expires soon - it must be regenerated');
-        throw new Error('Certificate regeneration required');
-    }
-}
 
 let shutdownTimer: NodeJS.Timeout | undefined;
 
@@ -168,6 +120,8 @@ export async function runHTK(options: {
     authToken?: string
     serverPort: number
     mockttpPort: number
+    emudhra?: boolean
+    emudhraOld?: boolean
 }) {
     const startTime = Date.now();
     registerShutdownHandler();
@@ -180,7 +134,7 @@ export async function runHTK(options: {
     const configCheckTime = Date.now();
     console.log('Config checked in', configCheckTime - startTime, 'ms');
 
-    const httpsConfig = await generateHTTPSConfig(configPath);
+    const httpsConfig = await generateHTTPSConfig(configPath, options.emudhraOld ? 'emudhra-old' : options.emudhra);
 
     const certSetupTime = Date.now();
     console.log('Certificates setup in', certSetupTime - configCheckTime, 'ms');
@@ -229,10 +183,12 @@ export async function runHTK(options: {
     console.log('Standalone server started in', standaloneSetupTime - certSetupTime, 'ms');
 
     // Start the HTK server API
+    const certificateConfigMutex = new Mutex();
     const apiServer = new HttpToolkitServerApi(
         { configPath, authToken: options.authToken, https: httpsConfig },
         new HttpClient(ruleParameters),
-        () => standalone.ruleParameterKeys
+        () => standalone.ruleParameterKeys,
+        (mode) => certificateConfigMutex.runExclusive(() => setCertificateMode(configPath, httpsConfig, mode))
     );
 
     const updateMutex = new Mutex();
