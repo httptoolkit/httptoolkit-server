@@ -14,18 +14,13 @@ echo Starting server...
 START "server" /b .\httptoolkit-server\bin\httptoolkit-server start
 
 echo Waiting for server...
-FOR /L %%i IN (1,1,30) DO (
-    curl -s http://127.0.0.1:45456/ >NUL 2>&1
-    IF NOT ERRORLEVEL 1 (
-        echo Server is up
-        goto :serverup
-    )
-    timeout /t 1 /nobreak >NUL
+REM Can't use 'timeout' to wait between attempts, as it fails immediately without console input (as in CI)
+curl -s -o NUL --retry 30 --retry-delay 1 --retry-connrefused http://127.0.0.1:45456/
+IF ERRORLEVEL 1 (
+    echo Server failed to start
+    goto :error
 )
-echo Server failed to start
-goto :error
-
-:serverup
+echo Server is up
 
 echo:
 echo:
