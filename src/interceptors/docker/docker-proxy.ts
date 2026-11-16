@@ -1,5 +1,4 @@
 import _ from 'lodash';
-import * as os from 'os';
 import * as path from 'path';
 import * as stream from 'stream';
 import * as net from 'net';
@@ -13,6 +12,7 @@ import { rawHeadersToHeaders } from '../../util/http';
 import { streamToBuffer } from '../../util/stream';
 import { logError } from '../../error-tracking';
 import { addShutdownHandler } from '../../shutdown';
+import { ensureRuntimeDir, getRuntimeDirPath } from '../../util/runtime-dir';
 
 import { getDockerAddress } from './docker-utils';
 import {
@@ -27,17 +27,20 @@ export const getDockerPipePath = (proxyPort: number, targetPlatform: NodeJS.Plat
     if (targetPlatform === 'win32') {
         return `//./pipe/httptoolkit-${proxyPort}-docker`;
     } else {
-        return path.join(os.tmpdir(), `httptoolkit-${proxyPort}-docker.sock`);
+        return path.join(getRuntimeDirPath(), `httptoolkit-${proxyPort}-docker.sock`);
     }
 };
 
 if (process.platform !== 'win32') {
     // At shutdown on Linux/Mac we cleanup all our leftover Docker sockets:
-    addShutdownHandler(async () => Promise.all(
-        (await readDir(os.tmpdir()))
+    addShutdownHandler(async () => {
+        const runtimeDir = getRuntimeDirPath();
+        const filenames = await readDir(runtimeDir).catch(() => []);
+        await Promise.all(filenames
             .filter((filename) => filename.match(/^httptoolkit-\d+-docker.sock$/))
-            .map((filename) => deleteFile(path.join(os.tmpdir(), filename)).catch(() => {}))
-    ));
+            .map((filename) => deleteFile(path.join(runtimeDir, filename)).catch(() => {}))
+        );
+    });
 }
 
 const API_VERSION_MATCH = /^\/v?([\.\d]+)\//;
@@ -327,6 +330,8 @@ async function createDockerProxy(
 
     const proxyListenPath = getDockerPipePath(proxyPort);
     if (process.platform !== 'win32') {
+        await ensureRuntimeDir();
+
         // Outside windows, sockets live on the filesystem, and persist. If a server
         // failed to clean up properly, they may still be present, which will
         // break server startup, so we clean up first:

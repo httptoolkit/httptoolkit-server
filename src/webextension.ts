@@ -1,14 +1,14 @@
 import * as path from 'path';
-import * as os from 'os';
 
 import { deleteFile, mkDir, writeFile, copyRecursive, deleteFolder } from "./util/fs";
 import { addShutdownHandler } from './shutdown';
+import { ensureRuntimeDir } from './util/runtime-dir';
 
 import { OVERRIDES_DIR } from './interceptors/terminal/terminal-env-overrides';
 
 const WEBEXTENSION_BASE_PATH = path.join(OVERRIDES_DIR, 'webextension');
 
-// We copy the WebExtension to a temp directory the first time it's activated, so that we can
+// We copy the WebExtension to our runtime directory the first time it's activated, so that we can
 // modify the config folder within to easily inject config into the extension. Without this,
 // the extension is usually in the app install directory, which is often not user-writable.
 // We only make one copy for all sessions, but we later inject independent per-session
@@ -20,9 +20,7 @@ export let WEBEXTENSION_INSTALL: {
 async function ensureWebExtensionInstalled() {
     if (WEBEXTENSION_INSTALL) return; // No-op after the first install
     else {
-        const tmpDir = os.tmpdir();
-
-        const webExtensionPath = path.join(tmpDir, 'httptoolkit-webextension');
+        const webExtensionPath = path.join(await ensureRuntimeDir(), 'httptoolkit-webextension');
         const configPath = path.join(webExtensionPath, 'config');
 
         await copyRecursive(WEBEXTENSION_BASE_PATH, webExtensionPath);

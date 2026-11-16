@@ -5,6 +5,8 @@ import { lookpath } from 'lookpath';
 import { isErrorLike } from '@httptoolkit/util';
 
 export const statFile = fs.promises.stat;
+export const lstatFile = fs.promises.lstat;
+export const renameFile = fs.promises.rename;
 export const readFile = fs.promises.readFile;
 export const readDir = fs.promises.readdir;
 export const readLink = fs.promises.readlink;

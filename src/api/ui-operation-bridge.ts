@@ -1,13 +1,14 @@
 import * as crypto from 'crypto';
 import * as fs from '../util/fs';
 import * as http from 'http';
-import * as os from 'os';
 import * as path from 'path';
 import { EventEmitter } from 'events';
 
 import WebSocket from 'ws';
 
 import { getUserFromAppJwt, type User } from '@httptoolkit/accounts';
+
+import { ensureRuntimeDir } from '../util/runtime-dir';
 
 export interface HtkOperation {
     name: string;
@@ -50,20 +51,7 @@ export async function getSocketPath(): Promise<string> {
         return '\\\\.\\pipe\\httptoolkit-ctl';
     }
 
-    let socketDir: string;
-    if (process.platform === 'linux' && process.env.XDG_RUNTIME_DIR) {
-        socketDir = process.env.XDG_RUNTIME_DIR;
-    } else {
-        const tmpDir = os.tmpdir();
-        if (tmpDir === '/tmp' || tmpDir === '/var/tmp') {
-            socketDir = path.join(tmpDir, `httptoolkit-${process.getuid!()}`);
-            await fs.mkDir(socketDir, { mode: 0o700, recursive: true });
-        } else {
-            socketDir = tmpDir;
-        }
-    }
-
-    return path.join(socketDir, 'httptoolkit-ctl.sock');
+    return path.join(await ensureRuntimeDir(), 'httptoolkit-ctl.sock');
 }
 
 export class UiOperationBridge extends EventEmitter {
