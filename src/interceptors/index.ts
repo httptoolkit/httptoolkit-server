@@ -22,6 +22,7 @@ import {
     FreshHelium,
     FreshOpera
 } from './chromium-based-interceptors';
+import { FreshLadybird } from './fresh-ladybird';
 import { FreshTerminalInterceptor } from './terminal/fresh-terminal-interceptor';
 import { ExistingTerminalInterceptor } from './terminal/existing-terminal-interceptor';
 import { AndroidAdbInterceptor } from './android/android-adb-interceptor';
@@ -91,6 +92,7 @@ export function buildInterceptors(config: HtkConfig): _.Dictionary<Interceptor> 
         new FreshFirefox(config),
         new FreshFirefoxDeveloper(config),
         new FreshFirefoxNightly(config),
+        new FreshLadybird(config),
 
         new FreshTerminalInterceptor(config),
         new ExistingTerminalInterceptor(config),

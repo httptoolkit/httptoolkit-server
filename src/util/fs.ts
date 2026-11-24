@@ -10,6 +10,7 @@ export const renameFile = fs.promises.rename;
 export const readFile = fs.promises.readFile;
 export const readDir = fs.promises.readdir;
 export const readLink = fs.promises.readlink;
+export const resolveRealPath = fs.promises.realpath;
 export const deleteFile = fs.promises.unlink;
 export const deleteFolder = (folder: string) =>
     fs.promises.rm(folder, { recursive: true, force: true });
