@@ -157,7 +157,7 @@
     "prebuild-install": "^7.0.0"
   },
   "engines": {
-    "node": "v24.22.1"
+    "node": "v24.22.3"
   },
   "keywords": [
     "http",
@@ -201,7 +201,7 @@
         }
       },
       "node": {
-        "version": "24.22.1",
+        "version": "24.22.3",
         "targets": [
           "win32-x64",
           "linux-x64",
