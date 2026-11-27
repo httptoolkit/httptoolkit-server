@@ -17,6 +17,7 @@ import {
     stringAsStream,
     hasCertInstalled,
     bringToFront,
+    grantPermissions,
     setChromeFlags,
     startActivity,
     createPersistentReverseTunnel,
@@ -35,6 +36,8 @@ import {
 import { streamLatestApk, clearAllApks } from './fetch-apk';
 import { parseCert, getCertificateFingerprint, getCertificateSubjectHash } from '../../certificates';
 import { getReachableInterfaces } from '../../util/network';
+
+const HTK_ANDROID_PACKAGE = 'tech.httptoolkit.android.v1';
 
 function urlSafeBase64(content: string) {
     return Buffer.from(content, 'utf8').toString('base64')
@@ -83,7 +86,7 @@ export class AndroidAdbInterceptor implements Interceptor {
 
         await this.setupCertificateTrust(deviceClient, this.config.https.certContent);
 
-        if (!(await deviceClient.isInstalled('tech.httptoolkit.android.v1'))) {
+        if (!(await deviceClient.isInstalled(HTK_ANDROID_PACKAGE))) {
             console.log("App not installed, installing...");
             try {
                 await deviceClient.install(await streamLatestApk(this.config));
@@ -98,6 +101,14 @@ export class AndroidAdbInterceptor implements Interceptor {
 
             await delay(200); // Add a little delay, to ensure intent URL is registered before we use it
         }
+
+        // Pre-grant the permissions that would otherwise block interception behind on-device
+        // prompts. If this fails, the app prompts for them itself as normal.
+        const { granted } = await grantPermissions(deviceClient, HTK_ANDROID_PACKAGE, [
+            'android.permission.ACCESS_LOCAL_NETWORK', // Android 17+, to reach the proxy
+            'android.permission.POST_NOTIFICATIONS' // Android 13+, for the VPN's notification
+        ]);
+        if (granted.length) console.log(`Granted ${granted.join(', ')}`);
 
         // Now that the app is installed, bring it to the front (avoids issues with starting a
         // service for the VPN when in the foreground).

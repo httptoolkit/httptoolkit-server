@@ -773,6 +773,40 @@ export async function setChromeFlags(
     await run(adbClient, runAsRoot('am', 'force-stop', 'com.android.chrome')).catch(() => {});
 }
 
+// Best-efforts: a grant can fail because the permission doesn't exist on this Android version,
+// the installed app doesn't request it, device policy or OEM restrictions block it, or the
+// device doesn't respond. Failures are logged and reported, never thrown.
+export async function grantPermissions(
+    adbClient: Adb.DeviceClient,
+    packageName: string,
+    permissions: string[]
+): Promise<{ granted: string[], failed: string[] }> {
+    const commandOptions = { timeout: 5000, abortOnTimeout: true, skipLogging: true };
+
+    const results = await Promise.all(permissions.map(async (permission) => {
+        const error = await run(adbClient, ['pm', 'grant', packageName, permission], commandOptions).then(
+            // Exit codes aren't available (and aren't reliable for pm on old Android anyway),
+            // but successful grants print nothing:
+            (output) => output.trim(),
+            (e) => (isErrorLike(e) && e.message) || String(e)
+        );
+
+        if (error) {
+            const lines = error.split('\n').map((line) => line.trim()).filter(Boolean);
+            // Prefer the line describing the actual error, if there is one:
+            const summary = lines.find((line) => /(exception|error|failure)\b.*:\s*\S/i.test(line))
+                ?? lines[0];
+            console.log(`Could not grant ${permission} to ${packageName}: ${summary}`);
+        }
+        return { permission, granted: !error };
+    }));
+
+    return {
+        granted: results.filter(r => r.granted).map(r => r.permission),
+        failed: results.filter(r => !r.granted).map(r => r.permission)
+    };
+}
+
 export async function bringToFront(
     adbClient: Adb.DeviceClient,
     activityName: string // Of the form: com.package/com.package.YourActivity

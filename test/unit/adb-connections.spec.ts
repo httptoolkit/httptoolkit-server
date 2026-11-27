@@ -4,6 +4,7 @@ import adb from '@devicefarmer/adbkit';
 import { delay } from '@httptoolkit/util';
 
 import {
+    grantPermissions,
     isDevicePortOpen,
     isProbablyRooted,
     run
@@ -165,5 +166,87 @@ describe("ADB connection management", function () {
 
         completeCommand!();
         await expectAllClosed(fakeAdb!.openSockets);
+    });
+
+    describe("permission grants", () => {
+        const PERMISSIONS = ['android.permission.A', 'android.permission.B'];
+        let services: string[];
+        let replies: { [command: string]: string | undefined };
+
+        beforeEach(() => {
+            services = [];
+            replies = {};
+            handler = (service, socket) => {
+                services.push(service);
+                const reply = Object.entries(replies).find(([command]) => service.includes(command))?.[1];
+                if (reply === undefined) socket.end('OKAY');
+                else if (reply !== 'HANG') socket.end('OKAY' + reply);
+                else socket.write('OKAY');
+            };
+        });
+
+        it("grants permissions", async () => {
+            const device = fakeAdb!.client.getDevice('test-device');
+
+            const result = await grantPermissions(device, 'test.app', PERMISSIONS);
+
+            expect(result).to.deep.equal({ granted: PERMISSIONS, failed: [] });
+            expect(services.sort()).to.deep.equal([
+                "shell:'pm' 'grant' 'test.app' 'android.permission.A'",
+                "shell:'pm' 'grant' 'test.app' 'android.permission.B'"
+            ]);
+            await expectAllClosed(fakeAdb!.openSockets);
+        });
+
+        it("reports permissions that can't be granted, without failing the others", async () => {
+            replies = {
+                'android.permission.A': "\nException occurred while executing 'grant':\n" +
+                    "java.lang.IllegalArgumentException: Unknown permission android.permission.A\n" +
+                    "\tat com.android.server.SomeClass.method(SomeClass.java:1)\n"
+            };
+            const device = fakeAdb!.client.getDevice('test-device');
+
+            const result = await grantPermissions(device, 'test.app', PERMISSIONS);
+
+            expect(result).to.deep.equal({
+                granted: ['android.permission.B'],
+                failed: ['android.permission.A']
+            });
+        });
+
+        it("reports policy-blocked grants as failures", async () => {
+            replies = {
+                'grant': 'Security exception: Cannot grant policy fixed permission\n'
+            };
+            const device = fakeAdb!.client.getDevice('test-device');
+
+            const result = await grantPermissions(device, 'test.app', PERMISSIONS);
+
+            expect(result).to.deep.equal({ granted: [], failed: PERMISSIONS });
+        });
+
+        it("gives up on devices that never respond, and closes the connections", async function () {
+            this.timeout(10000);
+            replies = { 'grant': 'HANG' };
+            const device = fakeAdb!.client.getDevice('test-device');
+
+            const result = await grantPermissions(device, 'test.app', PERMISSIONS);
+
+            expect(result).to.deep.equal({ granted: [], failed: PERMISSIONS });
+            await expectAllClosed(fakeAdb!.openSockets);
+        });
+
+        it("reports failures if the connection drops", async () => {
+            handler = (service, socket) => {
+                services.push(service);
+                socket.destroy();
+            };
+            const device = fakeAdb!.client.getDevice('test-device');
+
+            const result = await grantPermissions(device, 'test.app', PERMISSIONS);
+
+            expect(result).to.deep.equal({ granted: [], failed: PERMISSIONS });
+            await expectAllClosed(fakeAdb!.openSockets);
+        });
     });
 });
