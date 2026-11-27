@@ -2,8 +2,6 @@ import * as stream from 'stream';
 import * as path from 'path';
 
 import adb, * as Adb from '@devicefarmer/adbkit';
-import HostTransportCommand from '@devicefarmer/adbkit/dist/src/adb/command/host/transport';
-import TcpCommand from '@devicefarmer/adbkit/dist/src/adb/command/host-transport/tcp';
 import { delay, isErrorLike } from '@httptoolkit/util';
 
 import { logError } from '../../error-tracking';
@@ -94,7 +92,7 @@ const batchCalls = <A extends any[], R>(
 export const getConnectedDevices = batchCalls(
     async (adbClient: Adb.Client): Promise<Record<string, Record<string, string>>> => {
         try {
-            const devices = await (adbClient.listDevices() as Promise<Adb.Device[]>);
+            const devices = await adbClient.listDevices();
             const deviceIds = devices
                 .filter((d) =>
                     d.type !== 'offline' &&
@@ -210,57 +208,49 @@ function bufferAsStream(input: Buffer) {
 
 type AdbConnection = Awaited<ReturnType<Adb.DeviceClient['transport']>>;
 
-// How long we let timed-out commands keep running before force-closing their connection
+// How long we let timed-out commands keep running before aborting them
 const ABANDONED_COMMAND_LIMIT_MS = 1_000 * 60 * 10;
 
-// Adbkit commands can't be cancelled, and their connection stays open until the ADB
-// server or device responds, which might be never. Commands we stop waiting for would
-// leak sockets, so we hold the connection ourselves and always close it eventually.
-//
-// On timeout, read-only probes can be aborted immediately. Other commands might have side
-// effects that shouldn't be interrupted halfway (closing the connection may kill the
-// process on the device) so they're left to complete, up to a much longer hard limit.
-async function withDeviceConnection<T>(
-    deviceClient: Adb.DeviceClient,
-    options: { timeout: number | undefined, abortOnTimeout: boolean },
-    command: (connection: AdbConnection) => PromiseLike<T>
-): Promise<T> {
-    const connection = Promise.resolve(deviceClient.client.connection());
-    const result = connection
-        .then((conn) => new HostTransportCommand(conn).execute(deviceClient.serial).then(() => conn))
-        .then(command);
+function encodeAdbRequest(request: string) {
+    const body = Buffer.from(request, 'utf8');
+    return Buffer.concat([
+        Buffer.from(body.length.toString(16).padStart(4, '0'), 'ascii'),
+        body
+    ]);
+}
 
-    const closeConnection = () => connection.then((conn) => conn.socket.destroy()).catch(() => {});
+async function sendAdbRequest(conn: AdbConnection, request: string) {
+    conn.write(encodeAdbRequest(request));
+    const reply = await conn.parser.readAscii(4);
+    if (reply !== 'OKAY') throw new Error(`ADB ${request} request failed with ${reply}`);
+}
 
+// Adbkit's openTcp() can't be aborted, so we run the tcp: service on a connection we own,
+// which we can close even if the server or device never responds.
+export async function isDevicePortOpen(deviceClient: Adb.DeviceClient, port: number) {
+    const connection = deviceClient.client.connection();
     try {
-        return await (options.timeout
-            ? withTimeout(options.timeout, result)
-            : result
-        );
+        await withTimeout(1000, connection.then(async (conn) => {
+            await sendAdbRequest(conn, `host:transport:${deviceClient.serial}`);
+            // If the connection opened at all, then something is listening:
+            await sendAdbRequest(conn, `tcp:${port}`);
+        }));
+        return true;
+    } catch {
+        return false;
     } finally {
-        if (options.abortOnTimeout) {
-            closeConnection();
-        } else {
-            Promise.race([
-                result.catch(() => {}),
-                delay(ABANDONED_COMMAND_LIMIT_MS, { unref: true })
-            ]).then(closeConnection);
-        }
+        connection.then((conn) => {
+            conn.parser.cancel();
+            conn.destroy();
+        }).catch(() => {});
     }
 }
 
-export async function isDevicePortOpen(deviceClient: Adb.DeviceClient, port: number) {
-    return withDeviceConnection(deviceClient, { timeout: 1000, abortOnTimeout: true }, (conn) =>
-        new TcpCommand(conn).execute(port)
-    ).then(
-        // If the connection opened at all, then something is listening:
-        () => true,
-        () => false
-    );
-}
-
+// On timeout, read-only commands can be aborted immediately. Other commands might have side
+// effects that shouldn't be interrupted halfway (closing the connection may kill the process
+// on the device) so they're left to complete, up to a much longer hard limit.
 export async function run(
-    adbClient: Adb.DeviceClient,
+    deviceClient: Adb.DeviceClient,
     command: string[],
     options: {
         timeout?: number,
@@ -270,29 +260,37 @@ export async function run(
         timeout: 10000
     }
 ): Promise<string> {
-    return withDeviceConnection(adbClient, {
-        timeout: options.timeout,
-        abortOnTimeout: options.abortOnTimeout ?? false
-    }, (conn) =>
-        new Adb.ShellCommand(conn).execute(command)
-            .then(adb.util.readAll)
-    ).then((buffer: Buffer) => {
-        const result = buffer.toString('utf8');
+    const abortController = new AbortController();
+    const hardLimit = setTimeout(() => abortController.abort(), ABANDONED_COMMAND_LIMIT_MS);
+    hardLimit.unref();
+
+    const result = deviceClient.shell(command, { signal: abortController.signal })
+        .then(adb.util.readAll)
+        .finally(() => clearTimeout(hardLimit));
+
+    try {
+        const buffer = await (options.timeout
+            ? withTimeout(options.timeout, result)
+            : result
+        );
+        const output = buffer.toString('utf8');
         if (!options.skipLogging) {
-            console.debug("Android command", command, "returned", `\`${result.trimEnd()}\``);
+            console.debug("Android command", command, "returned", `\`${output.trimEnd()}\``);
         }
-        return result;
-    }).catch((e) => {
+        return output;
+    } catch (e) {
         if (!options.skipLogging) {
-            console.debug("Android command", command, "threw", e.message);
+            console.debug("Android command", command, "threw", isErrorLike(e) ? e.message : e);
         }
         throw e;
-    });
+    } finally {
+        if (options.abortOnTimeout) abortController.abort();
+    }
 }
 
 export async function pushFile(
     adbClient: Adb.DeviceClient,
-    contents: string | stream.Readable,
+    contents: stream.Readable,
     path: string,
     mode?: number
 ) {
@@ -462,11 +460,6 @@ export async function hasCertInstalled(
 const isMatchingCert = async (certStream: stream.Readable, expectedFingerprint: string) => {
     // Wait until it's clear that the read is successful
     const data = await streamToBuffer(certStream);
-
-    // Note that due to https://github.com/DeviceFarmer/adbkit/issues/464 we may see
-    // 'empty' data for files that are actually missing entirely.
-    if (data.byteLength === 0) return false;
-
     const certData = data.toString('utf8');
     const existingCert = parseCert(certData);
     const existingFingerprint = getCertificateFingerprint(existingCert);

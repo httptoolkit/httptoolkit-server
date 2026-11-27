@@ -10,7 +10,8 @@ import {
     getConnectedDevices,
     getRootCommand,
     isDevicePortOpen,
-    isProbablyRooted
+    isProbablyRooted,
+    run
 } from '../android/adb-commands';
 import { buildAndroidFridaScript } from './frida-scripts';
 import {
@@ -154,14 +155,7 @@ export async function launchAndroidHost(adbClient: AdbClient, hostId: string) {
         console.log('Frida launch failed:', errorMessage);
 
         // Try cleaning up the Frida server (async) just in case it's corrupted somehow:
-        deviceClient.shell(runAsRoot('rm', '-f', ANDROID_FRIDA_BINARY_PATH))
-        .then((stream) => {
-            return new Promise<void>((resolve, reject) => {
-                stream.on('close', resolve);
-                stream.on('error', reject);
-                stream.resume();
-            });
-        })
+        run(deviceClient, runAsRoot('rm', '-f', ANDROID_FRIDA_BINARY_PATH))
         .catch((e) => {
             console.warn(
                 `Failed to clean up broken Frida server on ${hostId} at ${ANDROID_FRIDA_BINARY_PATH}: ${
