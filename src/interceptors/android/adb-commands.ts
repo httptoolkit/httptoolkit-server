@@ -882,7 +882,7 @@ export async function createPersistentReverseTunnel(
 ) {
     const id = `${adbClient.serial}:${localPort}->${remotePort}`;
 
-    await adbClient.reverse('tcp:' + localPort, 'tcp:' + remotePort);
+    await adbClient.reverse('tcp:' + remotePort, 'tcp:' + localPort);
 
     // This tunnel can break in quite a few days, notably when connecting/disconnecting
     // from the VPN app with a wifi connection, or when ADB is restarted, when using flaky
